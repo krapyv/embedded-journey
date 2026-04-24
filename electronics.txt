@@ -1,0 +1,15 @@
+Category	Product	Quantity
+Main Board	WeAct Black Pill STM32F411	2 pcs
+Power/Programming	USB-C Data Cable (1m)	1 pc
+Multimeter	ANENG AN8009	1 pc
+Resistors	600 pcs Set (30 values)	1 set
+CAN Resistors	120Ω (100 pcs)	1 set
+Capacitors	Ceramic 960 pcs with box	1 set
+Breadboard	830 points	1 pc
+Dupont Cables	Female-Female 40 pins (15cm)	1 set
+Dupont Cables	Male-Female 60 pins (20cm)	3 sets
+LEDs	100 pcs 5mm (box, assorted colors)	1 set
+Buttons	50 pcs 6x6x4.5mm DIP tactile switches	1 set
+CAN	TJA1050 modules	3 pcs
+Display	OLED 0.96" I2C (blue/yellow)	2 pcs
+Organizer	Plastic storage box for components	1 pc
