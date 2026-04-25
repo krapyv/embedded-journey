@@ -13,3 +13,4 @@ Buttons	50 pcs 6x6x4.5mm DIP tactile switches	1 set
 CAN	TJA1050 modules	3 pcs
 Display	OLED 0.96" I2C (blue/yellow)	2 pcs
 Organizer	Plastic storage box for components	1 pc
+CANable USB to CAN Canbus Debugger Analyzer Adapter CAN 
