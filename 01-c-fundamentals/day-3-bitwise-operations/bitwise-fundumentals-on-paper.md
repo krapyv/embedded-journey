@@ -22,3 +22,18 @@ I have done the next equations on the topic of right and left shifts:
 0b0110 << 2	
 0b1100 >> 2	
 0b0001 << 4
+
+
+I have done the next "Two Operators Combined" problems on paper:
+(5 & 3) << 1	
+(6 >> 1) | 2		
+(4 << 1) & 5	
+(7 & 3) ^ 2		
+~5 & 0xF	
+(1 << 3) | (1 << 1)		
+(10 >> 1) ^ (3 << 1)
+(5 << 1) & 3
+(3 << 2) | 1
+(6 >> 1) ^ 2
+(2 << 3) & 7
+(8 >> 2) | 5
