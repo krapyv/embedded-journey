@@ -23,20 +23,20 @@ int main(void)
     print_port(my_port, "gpio_toggle_pin(&port, 3)");
 
     int state = gpio_read_pin(my_port, 3);
-    printf("gpio_read_pin(port, 3): %d\n", state);
+    printf("gpio_read_pin(port, 3)             :%d\n", state);
 
     gpio_write_pins(&my_port, 7, 4, 0b1010);
     print_port(my_port, "gpio_write_pins(&port, 7, 4, 0b1010)");
 
     uint32_t pins = gpio_read_pins(my_port, 7, 4);
-    printf("gpio_read_pins(port, 7, 4): 0x%08X\n", pins);
+    printf("gpio_read_pins(port, 7, 4)             :0x%08X\n", pins);
 
     gpio_write_port(&my_port, 0x12345678);
     print_port(my_port, "gpio_write_port(&port, 0x12345678)");
 
     uint32_t whole = gpio_read_port(my_port);
 
-    printf("gpio_read_port(port): 0x%X\n", whole);
+    printf("gpio_read_port(port)             :0x%X\n", whole);
 
     return 0;
 }
