@@ -71,7 +71,14 @@ void replace_bits(uint32_t *value, unsigned int high, unsigned int low, uint32_t
 
     *value &= clear_mask;
 
-    uint32_t new_bits_mask = (((1 << width) - 1) << low);
+    // it assumed that new_bits are already aligned with the target range, so it did not shifted the masked new_bits.
+    // the masked new_bits could have had zeros at the target positions and nothing changed in the value
+    // uint32_t new_bits_mask = (((1 << width) - 1) << low);
+    // *value |= (new_bits & new_bits_mask);
 
-    *value |= (new_bits & new_bits_mask);
+    // this implementation firstly masks the new_bits (they should always be bottom-aligned), making new_bits keep only target bits as the same and clearing out everything else
+    // then it shifts the masked new_bits to the high - low position by shifting left by low
+    uint32_t new_bits_mask = (1 << width) - 1;
+
+    *value |= ((new_bits & new_bits_mask) << low);
 }

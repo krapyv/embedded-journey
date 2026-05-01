@@ -71,7 +71,7 @@ void replace_bits(uint32_t *value, unsigned int high, unsigned int low, uint32_t
 
     *value &= clear_mask;
 
-    uint32_t new_bits_mask = (((1 << width) - 1) << low);
+    uint32_t new_bits_mask = (1 << width) - 1;
 
-    *value |= (new_bits & new_bits_mask);
+    *value |= ((new_bits & new_bits_mask) << low);
 }
