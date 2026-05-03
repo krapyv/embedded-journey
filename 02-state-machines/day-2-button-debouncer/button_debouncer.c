@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "button_debouncer.h"
-#include "simulated_gpio.h"
 
 void button_debouncer_init(ButtonDebouncer_t *debouncer, uint32_t delay_ms)
 {
