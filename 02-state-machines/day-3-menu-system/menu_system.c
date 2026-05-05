@@ -14,6 +14,12 @@
 #define BRIGHTNESS_MIN 0
 #define BRIGHTNESS_MAX 100
 
+#ifdef TEST_MODE
+#define ALWAYS_REDRAW 1
+#else
+#define ALWAYS_REDRAW 0
+#endif
+
 void menu_system_init(MenuSystem_t *menu, uint32_t delay_ms, uint32_t interval_ms)
 {
     menu->current_state = MENU_MAIN;
@@ -25,15 +31,17 @@ void menu_system_init(MenuSystem_t *menu, uint32_t delay_ms, uint32_t interval_m
     menu->repeat_interval = interval_ms;
     menu->repeat_timer_up = 0;
     menu->repeat_timer_down = 0;
-    menu->repeat_active_up = 0;
-    menu->repeat_active_down = 0;
+    menu->repeat_active_up = false;
+    menu->repeat_active_down = false;
+    menu->last_up_state = false;
+    menu->last_down_state = false;
 }
 
-bool handle_key_repeat(uint32_t *timer, bool button_pressed, uint32_t interval_ms, uint32_t delay_ms, uint32_t repeat_ms, bool *repeat_active)
+bool handle_key_repeat(uint32_t *timer, bool button_pressed, uint32_t interval_ms, uint32_t delay_ms, uint32_t repeat_ms, bool *repeat_active, bool *last_state)
 {
     static bool last_pressed = false;
-    bool edge = (button_pressed && !last_pressed);
-    last_pressed = button_pressed;
+    bool edge = (button_pressed && !*last_state);
+    *last_state = button_pressed;
 
     if (button_pressed)
     {
@@ -68,6 +76,8 @@ bool handle_key_repeat(uint32_t *timer, bool button_pressed, uint32_t interval_m
     return false;
 }
 
+// static represents a private helper used only inside the current .c file.
+// No other file should call it directly
 static void menu_main_handle_enter(MenuSystem_t *menu)
 {
     switch (menu->selected_item)
@@ -114,12 +124,18 @@ static void menu_settings_handle_enter(MenuSystem_t *menu)
 // depending on a value in the current_state, the function should draw the entire current screen, clearing the previous one
 void menu_display(MenuSystem_t *menu)
 {
+#ifdef TEST_MODE
+    printf("\033[2J\033[H");
+#else
+
     if (!(menu->screen_dirty))
     {
         return;
     }
 
-    printf("\033[2J\033[H"); // using ASCII control sequence to clear the entire terminal window and move the cursor to the "home" position
+    // using ASCII control sequence to clear the entire terminal window and move the cursor to the "home" position
+    printf("\033[2J\033[H");
+#endif
 
     switch (menu->current_state)
     {
@@ -167,7 +183,9 @@ void menu_display(MenuSystem_t *menu)
         break;
     }
 
+#ifndef TEST_MODE
     menu->screen_dirty = false;
+#endif
 }
 
 void menu_system_update(MenuSystem_t *menu, bool enter, bool up, bool down, uint32_t interval_ms)
@@ -178,8 +196,8 @@ void menu_system_update(MenuSystem_t *menu, bool enter, bool up, bool down, uint
     }
 
     // we are calling handle_key_repeat for each button we want to repeat
-    bool up_action = handle_key_repeat(&menu->repeat_timer_up, up, interval_ms, menu->repeat_delay, menu->repeat_interval, &menu->repeat_active_up);
-    bool down_action = handle_key_repeat(&menu->repeat_timer_down, down, interval_ms, menu->repeat_delay, menu->repeat_interval, &menu->repeat_active_down);
+    bool up_action = handle_key_repeat(&menu->repeat_timer_up, up, interval_ms, menu->repeat_delay, menu->repeat_interval, &menu->repeat_active_up, &menu->last_up_state);
+    bool down_action = handle_key_repeat(&menu->repeat_timer_down, down, interval_ms, menu->repeat_delay, menu->repeat_interval, &menu->repeat_active_down, &menu->last_down_state);
 
     switch (menu->current_state)
     {
@@ -306,5 +324,10 @@ void menu_system_update(MenuSystem_t *menu, bool enter, bool up, bool down, uint
         break;
     }
 
+    // to always clear the output
+    if (ALWAYS_REDRAW)
+    {
+        menu->screen_dirty = true;
+    }
     menu_display(menu);
 }

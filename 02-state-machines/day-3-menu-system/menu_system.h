@@ -28,10 +28,13 @@ typedef struct
     bool repeat_active_down;  // true if we are currently in repeat mode
     uint32_t repeat_delay;    // the delay before finst repeat
     uint32_t repeat_interval; // the interval between repeats
+
+    bool last_up_state;
+    bool last_down_state;
 } MenuSystem_t;
 
 void menu_system_init(MenuSystem_t *menu, uint32_t delay_ms, uint32_t interval_ms);
 void menu_display(MenuSystem_t *menu);
-void menu_system_update(MenuSystem_t *menu, bool enter, bool up, bool down);
+void menu_system_update(MenuSystem_t *menu, bool enter, bool up, bool down, uint32_t interval_ms);
 
 #endif
