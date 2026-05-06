@@ -1,5 +1,6 @@
 #include "combination_lock.h"
 #include <stdint.h>
+#include <stdio.h>
 
 // to avoid magical numbers, we are using variables
 #define COMBINATION_DIGIT_COUNT 4
@@ -12,6 +13,56 @@
 #define DIGIT_2_IDX 1
 #define DIGIT_3_IDX 2
 #define DIGIT_4_IDX 3
+
+void combination_lock_print_status(CombinationLock_t *lock)
+{
+    printf("\n=== COMBINATION LOCK ===\n");
+
+    switch (lock->current_state)
+    {
+    case LOCKED:
+        printf("State: LOCKED\n");
+        printf("Entered: ");
+        for (int i = 0; i < lock->entered_digits; i++)
+        {
+            printf("%d ", lock->entered[i]);
+        }
+        for (int i = lock->entered_digits; i < COMBINATION_DIGIT_COUNT; i++)
+        {
+            printf("_ ");
+        }
+        printf("\nAttempts remaining: %d\n", MAX_WRONG_ATTEMPTS - lock->wrong_attempts);
+        break;
+
+    case DIGIT_1:
+    case DIGIT_2:
+    case DIGIT_3:
+        printf("State: ENTERING CODE\n");
+        printf("Entered: ");
+        for (int i = 0; i < lock->entered_digits; i++)
+        {
+            printf("%d ", lock->entered[i]);
+        }
+        for (int i = lock->entered_digits; i < COMBINATION_DIGIT_COUNT; i++)
+        {
+            printf("_ ");
+        }
+        printf("\n");
+        break;
+
+    case UNLOCKED:
+        printf("State: *** UNLOCKED ***\n");
+        printf("Access granted. Will relock in %d seconds.\n", (UNLOCK_MS - lock->unlock_timer_ms) / 1000);
+        break;
+
+    case LOCK_TIMEOUT:
+        printf("State: LOCKED OUT\n");
+        printf("Too many wrong attemps. Wait %d seconds.\n", (TIMEOUT_MS - lock->timeout_timer_ms) / 1000);
+        break;
+    }
+
+    printf("======================\n");
+}
 
 // static functions that are used only inside this file
 static void combination_lock_handle_reset_entered(uint8_t entered[4], uint8_t *counter)
@@ -36,6 +87,7 @@ static void combination_lock_handle_wrong_attempt(CombinationLock_t *lock)
     if (lock->wrong_attempts >= MAX_WRONG_ATTEMPTS)
     {
         lock->current_state = LOCK_TIMEOUT;
+        lock->timeout_timer_ms = 0;
     }
     else
     {
@@ -63,7 +115,7 @@ void combination_lock_init(CombinationLock_t *lock, uint8_t combination[4])
 void combination_lock_update(CombinationLock_t *lock, uint8_t last_entered, uint32_t interval_ms)
 {
     // we are accepting only 1-9 digits (0 is the flag that means "no digit")
-    if (last_entered == 0 || last_entered > 9)
+    if (last_entered > 9)
         return;
 
     // during LOCK_TIMEOUT and UNLOCKED, we need to ignore all new input digits
@@ -125,6 +177,8 @@ void combination_lock_update(CombinationLock_t *lock, uint8_t last_entered, uint
         if (lock->unlock_timer_ms >= UNLOCK_MS)
         {
             lock->current_state = LOCKED;
+            lock->wrong_attempts = 0;
+            lock->unlock_timer_ms = 0;
         }
         break;
 
@@ -133,6 +187,10 @@ void combination_lock_update(CombinationLock_t *lock, uint8_t last_entered, uint
         if (lock->timeout_timer_ms >= TIMEOUT_MS)
         {
             lock->current_state = LOCKED;
+
+            // without it the lock stays in LOCK_TIMEOUT forever
+            lock->wrong_attempts = 0;
+            lock->timeout_timer_ms = 0;
         }
         break;
     }

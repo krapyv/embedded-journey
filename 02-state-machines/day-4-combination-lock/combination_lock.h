@@ -27,5 +27,6 @@ typedef struct
 // functions headers
 void combination_lock_init(CombinationLock_t *lock, uint8_t combination[4]);
 void combination_lock_update(CombinationLock_t *lock, uint8_t last_entered, uint32_t interval_ms);
+void combination_lock_print_status(CombinationLock_t *lock);
 
 #endif
