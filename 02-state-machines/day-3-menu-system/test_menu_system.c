@@ -72,6 +72,6 @@ void testing_with_key_repeat()
 
 int main(void)
 {
-    testing_with_key_repeat();
+    simple_testing();
     return 0;
 }
