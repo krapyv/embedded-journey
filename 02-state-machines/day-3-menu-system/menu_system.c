@@ -125,7 +125,7 @@ static void menu_settings_handle_enter(MenuSystem_t *menu)
 void menu_display(MenuSystem_t *menu)
 {
 #ifdef TEST_MODE
-    printf("\033[2J\033[H");
+    printf("\n\n");
 #else
 
     if (!(menu->screen_dirty))
