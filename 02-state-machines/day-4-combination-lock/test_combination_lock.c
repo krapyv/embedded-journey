@@ -52,9 +52,9 @@ int main(void)
     combination_lock_init(&lock, combination);
     combination_lock_print_status(&lock);
 
-    // simple_correct_combination_test(&lock);
+    simple_correct_combination_test(&lock);
 
-    simple_incorrect_combination_test(&lock);
+    // simple_incorrect_combination_test(&lock);
 
     return 0;
 }
