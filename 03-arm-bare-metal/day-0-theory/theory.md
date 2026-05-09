@@ -8,4 +8,7 @@ Firstly, I wanted to understand the basics of circuits and its elements:
 7. Jumper Wires (Dupont);
 8. Breadboard;
 9. ST-LINK/V2;
-10.
+10. Ceramic/electrolytic capacitors;
+11. Resistors (1/4W, 1% tolerance);
+12. ANENG AN8009 digital multimeter;
+13. 
