@@ -11,4 +11,6 @@ Firstly, I wanted to understand the basics of circuits and its elements:
 10. Ceramic/electrolytic capacitors;
 11. Resistors (1/4W, 1% tolerance);
 12. ANENG AN8009 digital multimeter;
-13. 
+13. CAN Bus debugger analyzer;
+14. Tactile Push Buttons / switches;
+15. STM32F411CEU6-25MHz Black Pill. 
