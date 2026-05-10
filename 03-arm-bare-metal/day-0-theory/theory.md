@@ -13,4 +13,10 @@ Firstly, I wanted to understand the basics of circuits and its elements:
 12. ANENG AN8009 digital multimeter;
 13. CAN Bus debugger analyzer;
 14. Tactile Push Buttons / switches;
-15. STM32F411CEU6-25MHz Black Pill. 
+15. STM32F411CEU6-25MHz Black Pill.
+
+Bought and connected antistatic mat and antistatic wrist strap.
+
+Began to do the first embedded program and electrical circuit: "LED Blink on STM32F411". But the Black Pills pin headers are not soldered to the board.
+
+So the first task is postponed. I need to solder the pins (but before that to order the instruments and learn how to solder and what it is at all). 
