@@ -13,7 +13,8 @@ Firstly, I wanted to understand the basics of circuits and its elements:
 12. ANENG AN8009 digital multimeter;
 13. CAN Bus debugger analyzer;
 14. Tactile Push Buttons / switches;
-15. STM32F411CEU6-25MHz Black Pill.
+15. STM32F411CEU6-25MHz Black Pill;
+16. Electrolytic capacitors.
 
 Bought and connected antistatic mat and antistatic wrist strap.
 

@@ -4,3 +4,6 @@ The tutorials I have watched:
 3. https://www.youtube.com/watch?v=3jAw41LRBxU
 4. https://www.youtube.com/watch?v=fYInlAmPnGo
 5. https://www.youtube.com/watch?v=e7kh2nVemWk
+6. https://www.youtube.com/watch?v=VxMV6wGS3NY
+7. https://www.youtube.com/watch?v=YETR_MKiv6E
+8. https://www.youtube.com/watch?v=EW9Y8rDm4kE
