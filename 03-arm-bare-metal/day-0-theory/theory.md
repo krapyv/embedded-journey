@@ -14,7 +14,10 @@ Firstly, I wanted to understand the basics of circuits and its elements:
 13. CAN Bus debugger analyzer;
 14. Tactile Push Buttons / switches;
 15. STM32F411CEU6-25MHz Black Pill;
-16. Electrolytic capacitors.
+16. Electrolytic capacitors;
+17. Microcontroller peripherals;
+18. GPIO Clock, Direction, Data;
+19. Volalite keyword.
 
 Bought and connected antistatic mat and antistatic wrist strap.
 
