@@ -54,7 +54,7 @@ int main()
         // to make the LED blink we need to let it stay ON for some time, then turn it off and then repeat (forever loop)
         // because we are setting the clock enabled and the direction only once, they should not be inside the while(true) loop
 
-        delay(500000);
+        delay(300000);
 
         // then we are turning the led off
         // we basically want to clear the fifth bit (set to 0) and keep all other bits
@@ -63,6 +63,6 @@ int main()
         // so we keep all our ones and zeros and clear the fifth bit (set to 0)
         GPIOA_ODR &= ~(1 << 5);
 
-        delay(500000);
+        delay(300000);
     }
 }
