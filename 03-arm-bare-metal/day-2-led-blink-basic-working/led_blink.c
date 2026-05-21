@@ -8,8 +8,23 @@ void SystemInit(void)
 
 void delay(volatile uint32_t count)
 {
-    for (volatile uint32_t i = 0; i < count; i++)
+    // setting a load value (the starting value the counter resets to when it hits zero)
+    SYST_RVR = 31999; // 2 ms at 16 MHz
+
+    // clearing the current countdown value
+    SYST_CVR = 0;
+
+    // enable the counter (bit 0), set TICKINT to 0 (bit 1) to avoid interrupts and set CLKSOURCE to 1 (bit 2) since we are using processor clock in SYST_CSR
+    SYST_CSR |= (1 << 2) | (0 << 1) | (1 << 0); // OR keeps all existing bits and sets the bit 0 to 1, bit 1 to 0 and bit 2 to 1
+
+    // now we need to loop through the values SYST_CVR and count
+    for (uint32_t i = 0; i < count; i++)
     {
+        while (
+            !(SYST_CSR & (1 << 16)))
+        {
+            // do nothing - hardware is counting down
+        }
     }
 }
 
@@ -54,7 +69,7 @@ int main()
         // to make the LED blink we need to let it stay ON for some time, then turn it off and then repeat (forever loop)
         // because we are setting the clock enabled and the direction only once, they should not be inside the while(true) loop
 
-        delay(300000);
+        delay(250);
 
         // then we are turning the led off
         // we basically want to clear the fifth bit (set to 0) and keep all other bits
@@ -63,6 +78,6 @@ int main()
         // so we keep all our ones and zeros and clear the fifth bit (set to 0)
         GPIOA_ODR &= ~(1 << 5);
 
-        delay(300000);
+        delay(250);
     }
 }

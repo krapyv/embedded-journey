@@ -22,5 +22,8 @@
 #define RCC_AHB1ENR (*(volatile uint32_t *)(RCC_BASE + 0x30))
 #define GPIOA_MODER (*(volatile uint32_t *)(GPIOA_BASE + 0x00))
 #define GPIOA_ODR (*(volatile uint32_t *)(GPIOA_BASE + 0x14))
+#define SYST_CSR (*(volatile uint32_t *)(0xE000E010))
+#define SYST_RVR (*(volatile uint32_t *)(0xE000E014))
+#define SYST_CVR (*(volatile uint32_t *)(0xE000E018))
 
 #endif

@@ -35,12 +35,13 @@
 - Wrote a README.md for the Button-Controlled LED Blink project;
 - Analyzed my overall progress;
 - Reviewed remaining tasks in 24-month plan
+- Started learning SysTick (polling)
 
 **Evening:**
--
+- Rewrote a busy-wait timer in the LED Blink program with a busy-wait countdown timer using SysTick. Now my delay function is more reliable and professional.
 
-**Probles encountered:**
-- (None today) etc
+**Problems encountered:**
+- it was quite hard to grasp the concept of SysTick internal hardware decrementing of the current value register (SYST_CVR). Leaving empty `while` loops feels weird at first.
 
 **Lesson learned:**
 - Documentation is hard to write and boring to structurize, but it is as important as code
