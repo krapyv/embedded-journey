@@ -28,7 +28,7 @@ int main()
     while (true)
     {
 
-        uint8_t raw_input = !((GPIOB_IDR >> 0) & (1 >> 0));
+        uint8_t raw_input = !((GPIOB_IDR >> 0) & 1);
         uint8_t button_pressed = button_debouncer_update(&button_debouncer, raw_input, 10);
 
         if (button_pressed)
