@@ -23,11 +23,29 @@
 **Evening:**
 -
 
-**Probles encountered:**
+**Problems encountered:**
 - (None today) etc
 
 **Lesson learned:**
 -
+
+# 2026-05-22
+
+**Morning:**
+- Mastered the theory behind SysTick interrupts and ARM core exception vector handling (TICKINT and SysTick_Handler);
+- Rewrote a busy-wait timer in the Button-Controlled LED Blink program with a non-blocking background hardware timer heartbeat (1 ms tick rate);
+- Created an LED Blink program that toggles the LED every 10 button presses using edge detection and non-blocking timer driven by interrupts.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- Non-blocking timers is a hard topic to understand, but I took my time to grasp its fundamentals.
+
+**Lesson learned:**
+- SysTick Interrupts;
+- Static variables.
+
 
 ## 2026-05-21
 

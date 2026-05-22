@@ -42,22 +42,31 @@ int main()
 
     delay_ms_init();
 
+    uint32_t press_count = 0;
+
     while (true)
     {
+        static uint8_t last_button_state = 0;
+
         if (ms_passed - last_debounce_call >= 100)
         {
             uint8_t raw_input = !((GPIOB_IDR >> 0) & 1);
             uint8_t button_pressed = button_debouncer_update(&button_debouncer, raw_input, 10);
 
-            if (button_pressed)
+            if (button_pressed && !last_button_state)
             {
-
-                GPIOA_ODR |= (1 << 5); // GPIOA_ODR |= 1 << n where n = number of pin of the
+                press_count++;
+                last_button_state = 1;
             }
-            else
+            else if (!button_pressed)
             {
+                last_button_state = 0;
+            }
 
-                GPIOA_ODR &= ~(1 << 5);
+            if (press_count >= 10)
+            {
+                GPIOA_ODR ^= (1 << 5);
+                press_count = 0;
             }
 
             last_debounce_call = ms_passed;
