@@ -29,6 +29,23 @@
 **Lesson learned:**
 -
 
+# 2026-05-23
+
+**Morning:**
+- Learned the basics of UART communication (Baud rate, frames, how data travels without a clock wire).
+- Wrote a bare-metal program to configure USART2 on the Black Pill for transmitting data at 115200 baud.
+
+**Evening:**
+- Wanted to print an output of UART transmission to an OLED display, started writing the functionality to do so, but decided to hit pause on that to the moment I would learn I2C.
+
+**Problems encountered:**
+- STLINK/V2 does not have RX/TX ports (virtual COM port). Cannot test my UART transmit without it or an adapter. Ordered one.
+- I2C is way more complex than UART/USART.
+
+**Lesson learned:**
+- Go next with OLED screens for the UART transmit when the time comes during the I2C topic (several topics from now).
+- UART is a quite powerful protocol.
+
 # 2026-05-22
 
 **Morning:**
