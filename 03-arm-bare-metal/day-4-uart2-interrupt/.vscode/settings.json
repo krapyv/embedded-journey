@@ -1,0 +1,15 @@
+{
+  "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/",
+  "cquery.launch.command": "cquery",
+  "cquery.initializationOptions": {
+    "cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/",
+    "clang": {
+      "extraArgs": [
+        "-I${workspaceFolder}",
+        "-I${workspaceFolder}/libraries",
+        "-target",
+        "arm-none-eabi"
+      ]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+[
+ {
+  "directory": "/mnt/hdd/embedded-journey/03-arm-bare-metal/day-4-uart2-interrupt",
+  "arguments": [
+   "arm-none-eabi-gcc",
+   "-mcpu=cortex-m4",
+   "-mthumb",
+   "-nostdlib",
+   "-nostartfiles",
+   "-I.",
+   "-Ilibraries",
+   "-T",
+   "stm32f411.ld",
+   "uart.c",
+   "libraries/ring_buffer.c",
+   "startup_stm32f411ceux.s",
+   "-o",
+   "program.elf"
+  ],
+  "file": "startup_stm32f411ceux.s"
+ }
+]
