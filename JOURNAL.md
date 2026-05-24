@@ -29,6 +29,25 @@
 **Lesson learned:**
 -
 
+# 2026-05-24
+
+**Morning:**
+- Learn basic information about circular/ring buffers.
+- Developed, implemented and tested an architecture-independent ring buffer in C.
+
+**Evening:**
+- Learned the foundation theory of UART Receivers;
+- Decoded the ARM Cortex-M4 Core Architecture (mapped out the NVIC_ISERx) bit-assignment structure;
+- Integrated an Interrupt-Driven UART Driver.
+
+**Problems encountered:**
+- Too compressed manuals (e.g. for the ARM Cortex-M4). I realised that you need to decode what is in it, because not everything is written explicitly.
+
+**Lesson learned:**
+- Ring/circular buffers;
+- UART Receiver;
+- ARM Cortext-M4 NVIC.
+
 # 2026-05-23
 
 **Morning:**
