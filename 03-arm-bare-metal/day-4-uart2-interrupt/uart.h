@@ -32,10 +32,16 @@
 // NVIC global interrupt
 
 // since according to the referral manual, the USART global interrup has a position 38 in the vector table
-// we are using NVIC_ISER1 (one ISER holds 32 positions)
+// we are using NVIC_ISER1 and NVIC_ICER1 (to disable interrupts) (one ISER holds 32 positions)
 // so 38 / 32 = 1 in integral part
 // bit = 38 % 32 = 6
 
-#define NVIC_ISER1 *(volatile uint32_t *)(0xE000100 + 0x4) // 0x4 is an offset
+#define NVIC_ISER1 *(volatile uint32_t *)(0xE000E100 + 0x4) // 0x4 is an offset
+#define NVIC_ICER1 *(volatile uint32_t *)(0XE000E180 + 0x4)
+
+void timer_init();
+void usart2_init();
+void usart2_write_char(char c);
+void usart2_write_string(char *string);
 
 #endif

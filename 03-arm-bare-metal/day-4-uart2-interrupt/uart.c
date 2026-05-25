@@ -5,20 +5,45 @@ volatile uint32_t ms_passed = 0; // our timer
 RingBuffer_t rx_buffer;
 uint8_t raw_rx_storage[16];
 
-void SysTick_Handler()
+void SysTick_Handler(void)
 {
     ms_passed++;
 }
 
-void USART2_IRQHandler()
+void USART2_IRQHandler(void)
 {
+    uint32_t sr_snapshot = USART2_SR;
+
     // first of all, check whether the interrupt has been caused by the receiver
     // for this, check bit 5 RXNE of USART2_SR (if 1 - Received data is ready to be read, 0 - data is not received)
-    if (USART2_SR & (1 << 5))
+    if (sr_snapshot & (1 << 5))
     {
         // if the result > 0 (true), then the bit is 1
-        uint8_t temp = USART2_DR;
-        ring_buffer_push(&rx_buffer, temp);
+        uint8_t temp = (uint8_t)USART2_DR; // explicitly converting 32-bit sequence to 8 bit
+
+        // check for FE (Frame Error) to prevent saving a corrupt (de-synchronized) data
+        if (!(sr_snapshot & (1 << 1)))
+        {
+            ring_buffer_push(&rx_buffer, temp);
+        }
+    }
+
+    // ORE and FE errors handler
+
+    // it is good, but since the bitwise math is our main tool, we can rewrite this expression with it
+    // if ((sr_snapshot & (1 << 3)) || (sr_snapshot & (1 << 1)))
+
+    // we do not care which EXACTLY error bit (ORE or FE) has been set
+    // in either case we are going to read SR (already done at the top) and DR
+    if (sr_snapshot & ((1 << 3) | (1 << 1)))
+    {
+        // we are reading USART2_DR only when the first block of code has not been executed
+        // but even without that if block and with unconditional reading of DR register, it would be completely fine (because DR has been clearned or has stale data)
+        if (!(sr_snapshot & (1 << 5)))
+        {
+            volatile uint32_t clear = USART2_DR;
+            (void)clear; // to prevent the compiler from warning about this unused var
+        }
     }
 }
 
@@ -87,7 +112,7 @@ void usart2_init()
     // enabling USART, RXNEIE, TE, RE
     USART2_CR1 |= (1 << 13) | (1 << 5) | (1 << 3) | (1 << 2);
 
-    NVIC_ISER1 |= (1 << 6); // bit 6 is responsible for the interrupt position 38
+    NVIC_ISER1 = (1 << 6); // bit 6 is responsible for the interrupt position 38
 }
 
 void usart2_write_char(char c)
@@ -105,25 +130,4 @@ void usart2_write_string(char *string)
     {
         usart2_write_char(*string++);
     }
-}
-
-int main(void)
-{
-    usart2_init();
-    timer_init();
-
-    char *string = "Hello, World!";
-
-    uint32_t last_transmission = 0;
-
-    while (1)
-    {
-        if (ms_passed - last_transmission >= 500)
-        {
-            usart2_write_string(string);
-            last_transmission = ms_passed;
-        }
-    }
-
-    return 0;
 }

@@ -9,7 +9,7 @@ CFLAGS = -mcpu=cortex-m4 -mthumb -nostdlib -nostartfiles
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
-SRC = uart.c libraries/ring_buffer.c startup_stm32f411ceux.s
+SRC = uart.c libraries/ring_buffer.c libraries/led.c startup_stm32f411ceux.s
 ELF = program.elf
 BIN = program.bin
 
