@@ -21,13 +21,27 @@
 -
 
 **Evening:**
--
+- 
 
 **Problems encountered:**
 - (None today) etc
 
 **Lesson learned:**
 -
+
+# 2026-05-25
+
+**Morning:**
+-
+
+**Evening:**
+- Learned basics of the assembly startup file.
+
+**Problems encountered:**
+- (None today) etc
+
+**Lesson learned:**
+- Startup files .s.
 
 # 2026-05-24
 
