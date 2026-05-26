@@ -9,7 +9,7 @@
 ## Overview
 - Start date: April 23, 2026
 - Goal: 24-month automotive embedded engineer
-- Daily schedule: 4-4.5 hours (4:00 AM start)
+- Daily schedule: 4-4.5 hours (4:30 AM start)
 
 ## Completed Milestones
 
@@ -32,15 +32,21 @@
 # 2026-05-25
 
 **Morning:**
--
+- Finished UART interrupts.
+- Implemented handling of ORE and FE errors.
+- Implemented an atomic critical section in main to prevent race conditions.
+- Implemented fully reusable architecture independent LED library.
 
 **Evening:**
 - Learned basics of the assembly startup file.
 
 **Problems encountered:**
-- (None today) etc
+- It was quite hard to grasp all that race conditions stuff. But once understood, it started to make sense.
 
 **Lesson learned:**
+- ORE and FE error flags.
+- Atomic critical sections and race conditions.
+- Hardware abstraction layers.
 - Startup files .s.
 
 # 2026-05-24
