@@ -8,7 +8,7 @@ CFLAGS = -mcpu=cortex-m4 -mthumb -nostdlib -nostartfiles
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
-SRC = led_blink.c button_debouncer.c startup_stm32f411ceux.s
+SRC = transmitter.c startup_stm32f411ceux.s
 ELF = program.elf
 BIN = program.bin
 

@@ -95,7 +95,7 @@ int main(void)
     usart2_init();
     timer_init();
 
-    char *string = "Hello, World!";
+    char *string = "Hello, World!\r\n";
 
     uint32_t last_transmission = 0;
 
