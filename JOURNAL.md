@@ -21,13 +21,45 @@
 -
 
 **Evening:**
-- 
+-
 
 **Problems encountered:**
 - (None today) etc
 
 **Lesson learned:**
 -
+
+# 2026-05-27
+
+**Morning:**
+- Figured out that the LED is working perfectly at my breadboard since the circuit supplies between 1.3 mA and 5.9 mA to the LED. The LEDs in the kit I bought are rated all the way up to 20 mA for absolute maximum brightness, so running it at 1.3 mA - 5.9 mA means I am operating it in its power-saving indicator range.
+- Debugged and tested IWDG library in combination with LED, ring buffer and UART libraries. 
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Lesson learned:**
+-
+
+# 2026-05-26
+
+**Morning:**
+- Learned basics about IWDG (Independent Watchdog).
+- Implemented a reusable IWDG library.
+
+**Evening:**
+- Tested and debugged UART polling transmitter with an USART-to-USB adapter.
+- Started to test and debug UART interrupts project, encountered some problems with LEDs (half-bright).
+
+**Problems encountered:**
+- An LED brightly lights only at the top. Spent several hours to figure out what caused it.
+
+**Lesson learned:**
+- IWDG.
+- Testing and debugging of UART.
 
 # 2026-05-25
 
