@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    printf("=== Starting Rign Buffer Desktop Testbench ===\n\n");
+    printf("=== Starting Ring Buffer Desktop Testbench ===\n\n");
 
 // Setup a tiny 4-byte buffer (Max capacity will be 3 bytes due to sacrifice slot)
 #define TEST_SIZE 4
