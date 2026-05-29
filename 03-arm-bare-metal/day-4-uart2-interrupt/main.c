@@ -18,7 +18,7 @@ int main(void)
     led_init(&led_pa5);
     timer_init();
 
-    uint8_t proccessed_char;
+    uint8_t processed_char;
     uint32_t last_transmission = 0;
 
     while (1)
@@ -33,9 +33,9 @@ int main(void)
         // slower, and can technically introduce a tiny timing window you don't want.
         NVIC_ICER1 = (1 << 6);
 
-        proccessed_char = 0;
+        processed_char = 0;
         // we are safely checking and extracting data from our ring buffer
-        uint8_t data_available = ring_buffer_pop(&rx_buffer, &proccessed_char);
+        uint8_t data_available = ring_buffer_pop(&rx_buffer, &processed_char);
 
         // re-enable USART2 interrupts immediately
         NVIC_ISER1 = (1 << 6);
@@ -45,16 +45,16 @@ int main(void)
         {
             // simple command parser
             // if read "1", turn on an LED on pin PA5
-            if (proccessed_char == '1')
+            if (processed_char == '1')
             {
                 led_on(&led_pa5);
             }
-            else if (proccessed_char == '0')
+            else if (processed_char == '0')
             {
                 led_off(&led_pa5);
             }
 
-            proccessed_char = 0;
+            processed_char = 0;
         }
 
         // asynchronous non-blocking TX timing
