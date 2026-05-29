@@ -29,4 +29,8 @@
 #define SYST_RVR *(volatile uint32_t *)(0xE000E014)
 #define SYST_CVR *(volatile uint32_t *)(0xE000E018)
 
+void usart2_init();
+void usart2_write_char(char);
+void usart2_write_string(char *);
+
 #endif
