@@ -2,7 +2,7 @@
 
 A lightweight, bare-metal C application that tracks interaction via a tactile push-button on pin PB0 to control an external LED connected to pin **PA5** on the STM32F411 (Blackpill) development board.
 This repository implements a complete low-level driver stack without relying on standard vendor libraries or external HAL frameworks.
-Button noise filtering is handled via a dedicated algorithmic software state-machine debouncer developed during the *02-state-machines* learning stage.
+Button noise filtering is handled via a dedicated algorithmic software state-machine debouncer running inside a non-blocking execution window driven by the ARM Cortex-M `SysTick` peripheral.
 
 ## 📋 Hardware Connections
 The circuit was constructed on an 830-point breadboard using an **Active-Low configuration** with external pull-up resistor:
@@ -18,12 +18,12 @@ The circuit was constructed on an 830-point breadboard using an **Active-Low con
 ## 📂 Project Structure
 
 ```text
-├── led_blink.c       # Main application logic and busy-wait delay loop
+├── led_blink.c       # Application entry point, SysTick timebase configuration, and polling loop
 ├── led_blink.h       # Macro layouts and register maps
 ├── button_debouncer.c      # Algorithmic state-machine debouncer logic implementation
 ├── button_debouncer.h      # Debouncer states, thresholds, and abstract APIs
 ├── stm32f411.ld      # Linker script defining Flash/SRAM memory segments
-├── startup_stm32f411ceux.s  # Assembly startup file implementing vector table & Reset_Handler 
+├── startup_stm32f411ceux.s  # Assembly startup file implementing vector table & SysTick_Handler 
 └── Makefile         #GNU Make automation configuration to compile and flash the system    
 ```
 
@@ -32,6 +32,7 @@ The circuit was constructed on an 830-point breadboard using an **Active-Low con
 * **`RCC_BASE`** (`0x40023800`): Base memory address for the Reset and Clock Control peripheral.
 * **`GPIOA_BASE`** (`0x40020000`): Base memory address for General Purpose I/O Port A registers.
 * **`GPIOB_BASE`** (`0x40020400`): Base memory address for General Purpose I/O Port B registers.
+* **`SCS_BASE`** (`0xE000E010`): System Control Space base address hosting the core `SysTick` register group.
 
 
 ### Register Configuration & Bitwise Operations
@@ -74,6 +75,65 @@ The circuit was constructed on an 830-point breadboard using an **Active-Low con
     uint8_t raw_input = !((GPIOB_IDR >> 0) & 1);
  ```
 
+## ⏱️ Deterministic Hardware Timebase: ARM SysTick
+
+Instead of relying on unstable software busy-loops (`for` loops counting to arbitrary numbers), this driver establishes a deterministic, hardware-driven millisecond timebase utilizing the internal **ARM Cortex-M SysTick Timer**. This core peripheral acts as a dedicated 24-bit down-counter that generates periodic hardware exceptions directly managed by the processor core.
+
+### 1. Clock Configuration & Timing Calculations
+
+The application operates on the default internal high-speed oscillator (`HSI`) running at a fundamental clock frequency ($f_{CPU}$) of **16 MHz**. To configure a precise **1 millisecond (1 ms)** interrupt interval, the timer's reload register must be calculated using the following structural model:
+
+$$\text{Reload Value } (\text{RVR}) = (\text{Clock Frequency } \times \text{Target Interval}) - 1$$
+
+$$\text{RVR} = (16{,}000{,}000\text{ Hz} \times 0.001\text{ s}) - 1 = 16{,}000 - 1 = \mathbf{15{,}999}$$
+
+```c
+SYST_RVR = 15999; // Configures down-counter reset limit for a 1 ms period
+SYST_CVR = 0; // Clears the current register to force an immediate reload
+```
+
+### 2. Control Register Activation Matrix
+
+To activate the counter and unmask its underlying interrupt vector line, three distinct bits within the SysTick Control and Status Register (`SYST_CSR`) are written simultaneously:
+
+| Bit Position | Configuration Flag Name | Value | Explicit Hardware Impact |
+| ------------ | ----------------------- | ----- | ------------------------ |
+| **Bit 0** | `ENABLE` | `1` | Powers on and enables the counter mechanism |
+| **Bit 1** | `TICKINT` | `1` | Asserts a hardware exception vector when the counter down-counts to 0 |
+| **Bit 2** | `CLKSOURCE` | `1` | Selects the raw processor core clock (16 MHz HSI) rather than external scaling |
+
+```c
+ // flipping 3 bits: 2 - CLKSOURCE to 1 (processor clock), 1 - TICKINT to 1 (to allow interrups), 0 - ENABLE to 1 (to enable the counter)
+SYST_CSR |= (1 << 2) | (1 << 1) | (1 << 0);
+```
+
+### 3. Asynchronous ISR Management
+
+When the counter crosses zero, the hardware preempts the main runtime execution thread, jumping to position **15** within the vector table mapped in the assembly startup file (`startup_stm32f411ceux.s`). This location executes the C function `SysTick_Handler()`, incrementing a volatile global accumulator:
+
+```c
+volatile uint32_t ms_passed = 0;
+
+void SysTick_Handler(void)
+{
+    ms_passed++;
+}
+```
+
+### 4. Non-Blocking State Machine Execution
+
+Rather than polling the hardware input as fast as the CPU allows, the system uses a delta-time evaluation structure to instantiate a precise **100 ms execution window** for the state-machine debouncer update loop. This ensures that the debouncer updates at a fixed, predictable rate regardless of the density of your main thread code:
+
+```c
+ if (ms_passed - last_debounce_call >= 100) {
+    uint8_t raw_input = !((GPIOB_IDR >> 0) & 1);
+    uint8_t button_pressed = button_debouncer_update(&button_debouncer, raw_input, 10);
+    ...
+
+    last_debounce_call = ms_passed;
+}
+```
+
 ## 🚀 How to Build and Run
 The build ecosystem utilizes GNU Make and the `arm-none-eabi-` toolchain utility suite.
 
@@ -103,11 +163,11 @@ make clean
 
 ## 📊 Expected Behavior
 * While the physical button is left untouched, the input state floats high, filtering out accidental ground spikes, and the external LED on pin PA5 remains OFF.
-* Pressing down on the push-button shorts the trace to ground. The algorithmic debouncer sample routine parses the logic state changes across its execution cycles to filter noise.
+* Pressing down on the push-button shorts the trace to ground. The algorithmic debouncer sample routine parses the logic state shifts inside a strict **100 ms non-blocking scheduling window**.
 * Once a debounced press validation event is evaluated by the state machine API, the LED outputs a blink.
 
 ## 🗺️ Next Steps & Learning Roadmap
-* **Hardware Timers:** Replace the blocking software busy-wait loop with a precise, deterministic internal `SysTick` timer interrupt handler.
+* ☑️ **Hardware Timers:** Replace the blocking software busy-wait loop with a precise, deterministic internal `SysTick` timer interrupt handler.
 * ☑️ **External Input Handling:** Configure Port B registers to sample a mechanical push-button switch with digital software debouncing logic.
 * **Serial Communication:** Implement a basic asynchronous peripheral driver (UART) to transmit debugging frames directly to a host terminal.
 
