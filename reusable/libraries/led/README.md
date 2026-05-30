@@ -1,7 +1,7 @@
 # LED Blink Reusable Library
 
 This project provides a highly reusable, hardware-agnostic driver for initializing and toggling LEDs on STM32 microcontrollers. By avoiding hardcoded register addresses, GPIO port, or pin numbers, the library allows for dynamic multi-LED configurations.
-This implementation operates completely bare-metal without relying on the vendor HAL or external abstraction layer, utilizing direct register manipulation and standard C data types.
+This implementation operates completely bare-metal without relying on the vendor HAL or external abstraction layers, utilizing direct register manipulation and standard C data types.
 
 ## 📂 Project Structure
 
@@ -59,6 +59,7 @@ This driver exposes explicit functions to assert or de-assert the pin state clea
 Since this library does not contain a `main()` function, it is compiled directly into a reusable object file (`.o`) using the GNU ARM Embedded Toolchain (`arm-none-eabi-gcc`).
 
 Run the following command to compile the source code without invoking the linker:
+
 ```bash
 arm-none-eabi-gcc -c -mcpu=cortex-m4 -mthumb -Wall -O2 led.c -o led.o
 ```
@@ -105,7 +106,7 @@ arm-none-eabi-gcc main.o led.o -mcpu=cortex-m4 -mthumb -T linker_script.ld -o fi
 To make this driver fully production-ready for automotive deployment, the next development steps for this library are:
 1. **Hardware-level Debouncing Integration:** Pair this output driver with a basic input capture or GPIO reading module to manage physical button inputs safely without false edge triggering.
 2. **Current-Limiting Hardare Diagnostics:** Document the exact hardware constraints, such as calculating necessary series resistance ($R = \frac{V_{OH} - V_F}{I_F}$) to prevent over-current degradation of the internal GPIO switching transistor.
-3. **Bit-Banged Protocol Abstraction:** Use this base driver to build low-level, bit-banged software implementations for simple data transmission lines (e.g., synchronous clock generation or custom serial data streams).
+3. **Bit-Banged Protocol Abstraction:** Use this base driver to build low-level, bit-banged software implementation for simple data transmission lines (e.g., synchronous clock generation or custom serial data streams).
 
 ## 🪪 Author & License
 * **Author:** Dmytro Krapyvianskyi

@@ -110,7 +110,7 @@ arm-none-eabi-gcc -c -mcpu=cortex-m4 -mthumb -Wall -O2 ring_buffer.c -o ring_buf
 ```
 
 * `-c`: instructs the compiler to output the raw machine code object file (`ring_buffer.o`) and bypass the linking stage.
-* `-mcpu=cortex-m4 -mthumb`: Formats execution instructions explicitly for the target ARM microcontroller hardware.
+* `-mcpu=cortex-m4 -mthumb`: formats execution instructions explicitly for the target ARM microcontroller hardware.
 
 ### Integrate and Link Into Target Application
 

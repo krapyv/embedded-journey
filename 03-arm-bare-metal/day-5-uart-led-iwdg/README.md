@@ -26,7 +26,7 @@ This implementation explicitly samples hardware reset latches inside the Reset a
 
 When the microcontroller experiences a reset event, internal hardware latches inside the Control/Status Register (`RCC_CSR`) preserve the underlying root cause. This allows the application firmware to adapt its initialization sequence depending on the system's prior state.
 
-1. **Watchdog Reset Flag Handling (`IWDG_RSFT`, Bit 29):** If the watchdog countdown timer reaches zero, it forces a hardware reset, asserting bit 29 (`IWDG_RSTF`) in `RCC_CSR`. The bootloader logic reads this bit to intercept recovered failures immediately upon system restart.
+1. **Watchdog Reset Flag Handling (`IWDG_RSTF`, Bit 29):** If the watchdog countdown timer reaches zero, it forces a hardware reset, asserting bit 29 (`IWDG_RSTF`) in `RCC_CSR`. The bootloader logic reads this bit to intercept recovered failures immediately upon system restart.
 
 2. **Flag Clearing via Software (`RMVF`, Bit 24):** Reset flags inside `RCC_CSR` are sticky and remain set across subsequent soft resets. To ensure future faults are tracked accurately, the driver asserts the Remove Reset Flag bit (`RMVF`) by writing a 1 to bit 24, clearing the sticky state:
 

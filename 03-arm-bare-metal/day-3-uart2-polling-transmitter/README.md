@@ -25,7 +25,7 @@ Before accessing peripheral control structures, their respective clock domains m
 
 To round internal peripheral signals to physical silicon breakout pins, the GPIO pins must be explicitly detached from the standard General Purpose Input/Output latch and tied to the internal Alternate Function (AF) multiplexer matrix.
 
-1. **Mode Allocation (`GPIOx_MODER)`:** Pins `PA2` (TX) and `PA3` (RX) are allocated to Alternate Function mode by assigning the binary value `10` across their respective 2-bit channel blocks.
+1. **Mode Allocation (`GPIOx_MODER`):** Pins `PA2` (TX) and `PA3` (RX) are allocated to Alternate Function mode by assigning the binary value `10` across their respective 2-bit channel blocks.
 2. **Multiplexer Routing (`GPIOx_AFRL`):** The driver configures the low-register Alternate Function matrix (`AFRL`) to assign **AF7** (`0b0111`), explicitly mapping the physical pins directly to the USART2 TX and RX peripheral lines.
 
 ## 📐 Mathematical Modeling & Register Architecture
@@ -46,7 +46,7 @@ Given standard target parameters for this implementation:
 $$\text{USARTDIV} = \frac{16{,}000{,}000}{16 \times 115{,}200} = \mathbf{8.68055}$$
 
 To translate this floating-point scaling multiplier cleanly into the split integer/fraction bitfields of `USART2_BRR`:
-* **Mantissa (Integer Part):** 8 = **0X8**
+* **Mantissa (Integer Part):** 8 = **0x8**
 * **Fraction Part:** 0.68055 x 16 = 10.888 approx.= 11 = **0x0B**
 
 Combining these parameters into a unified 16-bit payload yields the register assignment code:

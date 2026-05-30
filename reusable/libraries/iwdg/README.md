@@ -17,9 +17,10 @@ There are no hardcoded register addresses or bloated external vendor libraries. 
 * **Pointer Arithmetic Offset:** Sub-registers (`IWDG_PR`, `IWDG_RLR`, `IWDG_SR`) are indexed dynamically via types pointer offsets relative to the base address, avoiding hardcoded macros and enabling single-driver multi-instance support if needed on dual-watchdog platforms.
 
 ### Register Configuration & Bitwise Operations
+
 This driver operates completely via raw pointer manipulation using an offset-based layout from the passed base register address:
 1. Key Register (`IWDG_KR` / Offset +0):
-    - `0xCCCC`: Armed an starts the watchdog counter.
+    - `0xCCCC`: Armed and starts the watchdog counter.
     - `0x5555`: Disables write protection for the Prescaler and Reload registers.
     - `0xAAAA`: Refreshes ("kicks") the counter back to its reload value.
 
@@ -27,7 +28,7 @@ This driver operates completely via raw pointer manipulation using an offset-bas
 
 3. Reload Register (`IWDG_RLR` / Offset +2): Holds the countdown value (0 to 0xFFF).
 
-4. Status Register (`IWDG_SR` / Offset + 3): Polled to verify when register updates are complete.
+4. Status Register (`IWDG_SR` / Offset +3): Polled to verify when register updates are complete.
 
 ## 🛠️ Hardware Architecture Overview
 ## Defensive Synchronization Loop
@@ -42,8 +43,8 @@ To handle the asynchronous clock domains between the core CPU clock and the Low-
     }
 ```
 
-- **Masking (`0x3`)**: Isolates the `PVU` (Prescaler Value Update) and `RVU` (Reload Value Update) flags to guarantee forward-compatibility if upper bits of the status register change in later chip revisions.
-- **Timeout escape**: Prevents a permanent CPU hand if the LSI silicon block experiences physical failure or fails to oscillate.
+- **Masking (`0x03`)**: Isolates the `PVU` (Prescaler Value Update) and `RVU` (Reload Value Update) flags to guarantee forward-compatibility if upper bits of the status register change in later chip revisions.
+- **Timeout escape**: Prevents a permanent CPU hang if the LSI silicon block experiences physical failure or fails to oscillate.
 
 ## 📐 Mathematical Modeling (Watchdog Window)
 
