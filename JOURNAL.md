@@ -29,6 +29,31 @@
 **Lesson learned:**
 -
 
+# 2026-05-30
+
+**Morning:**
+- Finished reading and fixing typos in the READMEs.md.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Lesson learned:**
+-
+
+# 2026-05-28, 2026-05-29
+
+- I had been writing READMEs.md for my newest projects.
+
+**Problems encountered:**
+- Documentation is hard. It is brutal. But there is no way to omit it.
+
+**Lesson learned:**
+- Docs suck. But you still need to write them.
+
+
 # 2026-05-27
 
 **Morning:**
