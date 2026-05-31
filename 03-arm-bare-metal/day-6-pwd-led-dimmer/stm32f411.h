@@ -3,11 +3,6 @@
 
 #include <stdint.h>
 
-#define RCC_BASE 0x40023800UL
-#define TIM2_BASE 0x40000000UL
-#define GPIOA_BASE 0x40020000UL
-#define GPIOB_BASE 0x40020400UL
-
 typedef struct
 {
     volatile uint32_t CR;           // 0x00
@@ -78,8 +73,42 @@ typedef struct
     volatile uint32_t AFRH;    // 0x24
 } GPIO_RegDef_t;
 
+// Alternate Function Modes
+typedef enum
+{
+    GPIO_AF0 = 0, // 0 (0b0000)
+    GPIO_AF1,     // 1 (0b0001)
+    GPIO_AF2,     // 2 (0b0010)
+    GPIO_AF3,     // 3 (0b0011)
+    GPIO_AF4,     // 4 (0b0100)
+    GPIO_AF5,     // 5 (0b0101)
+    GPIO_AF6,     // 6 (0b0110)
+    GPIO_AF7,     // 7 (0b0111)
+    GPIO_AF8,     // 8 (0b1000)
+    GPIO_AF9,     // 9 (0b1001)
+    GPIO_AF10,    // 10 (0b1010)
+    GPIO_AF11,    // 11 (0b1011)
+    GPIO_AF12,    // 12 (0b1100)
+    GPIO_AF13,    // 13 (0b1101)
+    GPIO_AF14,    // 14 (0b1110)
+    GPIO_AF15     // 15 (0b1111)
+
+} GPIO_AF_t;
+
+// Base addresses
+#define RCC_BASE 0x40023800UL
+#define TIM2_BASE 0x40000000UL
+#define TIM3_BASE 0x40000400UL
+#define TIM4_BASE 0x40000800UL
+#define TIM5_BASE 0x40000C00UL
+#define GPIOA_BASE 0x40020000UL
+#define GPIOB_BASE 0x40020400UL
+
 #define RCC ((RCC_RegDef_t *)RCC_BASE)
 #define TIM2 ((TIM_RegDef_t *)TIM2_BASE)
+#define TIM3 ((TIM_RegDef_t *)TIM3_BASE)
+#define TIM4 ((TIM_RegDef_t *)TIM4_BASE)
+#define TIM5 ((TIM_RegDef_t *)TIM5_BASE)
 #define GPIOA ((GPIO_RegDef_t *)GPIOA_BASE)
 #define GPIOB ((GPIO_RegDef_t *)GPIOB_BASE)
 
