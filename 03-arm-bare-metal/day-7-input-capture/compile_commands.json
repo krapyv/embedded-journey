@@ -1,0 +1,19 @@
+[
+ {
+  "directory": "/mnt/hdd/embedded-journey/03-arm-bare-metal/day-7-input-capture",
+  "arguments": [
+   "arm-none-eabi-gcc",
+   "-mcpu=cortex-m4",
+   "-mthumb",
+   "-nostdlib",
+   "-nostartfiles",
+   "-T",
+   "stm32f411.ld",
+   "input_capture_driver.c",
+   "startup_stm32f411ceux.s",
+   "-o",
+   "program.elf"
+  ],
+  "file": "startup_stm32f411ceux.s"
+ }
+]

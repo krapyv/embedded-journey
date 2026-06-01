@@ -1,0 +1,25 @@
+#ifndef INPUT_CAPTURE_DRIVER_H
+#define INPUT_CAPTURE_DRIVER_H
+
+#include <stdint.h>
+#include "stm32f411.h"
+
+typedef enum
+{
+    IC_RE = 0,   // 00
+    IC_FE,       // 01
+    IC_RESERVED, // 10
+    IC_BE        // 11
+} IC_Polarity_t;
+
+typedef struct
+{
+    TIM_RegDef_t *Instance;
+    GPIO_RegDef_t *Port;
+    uint32_t pin;
+    GPIO_AF_t af;
+    uint32_t channel;
+    IC_Polarity_t polarity;
+} IC_HandleTypeDef;
+
+#endif
