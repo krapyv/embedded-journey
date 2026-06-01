@@ -1,6 +1,12 @@
 #include "stm32f411.h"
 #include "input_capture_driver.h"
 
+uint32_t first_timestamp = 0, second_timestamp = 0, delta = 0;
+
+void TIM3_IRQHandler(void)
+{
+}
+
 void input_capture_init(IC_HandleTypeDef *ic)
 {
     if (ic->pin > 15 || ic->channel > 4)
@@ -193,8 +199,6 @@ int main(void)
     input_capture.polarity = IC_FE;
 
     input_capture_init(&input_capture);
-
-    uint32_t first_timestamp = 0, second_timestamp = 0, delta = 0;
 
     uint32_t polarity_lsb_pos = ((input_capture.channel - 1) * 4 + 1); // least significant bit
     uint32_t polarity_msb_pos = polarity_lsb_pos + 2;                  // most significant bit
