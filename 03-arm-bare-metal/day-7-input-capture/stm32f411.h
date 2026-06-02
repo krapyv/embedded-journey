@@ -73,6 +73,15 @@ typedef struct
     volatile uint32_t AFRH;    // 0x24
 } GPIO_RegDef_t;
 
+typedef struct
+{
+    volatile uint32_t SR;    // 0x00
+    volatile uint32_t DR;    // 0x04
+    volatile uint32_t BRR;   // 0x08
+    volatile uint32_t CR[3]; // 0x0C, 0x10, 0x14
+    volatile uint32_t GTPR;  // 0x18
+} USART_RegDef_t;
+
 // Alternate Function Modes
 typedef enum
 {
@@ -103,6 +112,7 @@ typedef enum
 #define TIM5_BASE 0x40000C00UL
 #define GPIOA_BASE 0x40020000UL
 #define GPIOB_BASE 0x40020400UL
+#define USART2_BASE 0x40004400UL
 
 #define RCC ((RCC_RegDef_t *)RCC_BASE)
 #define TIM2 ((TIM_RegDef_t *)TIM2_BASE)
@@ -111,5 +121,6 @@ typedef enum
 #define TIM5 ((TIM_RegDef_t *)TIM5_BASE)
 #define GPIOA ((GPIO_RegDef_t *)GPIOA_BASE)
 #define GPIOB ((GPIO_RegDef_t *)GPIOB_BASE)
+#define USART2 ((USART_RegDef_t *)USART2_BASE)
 
 #endif

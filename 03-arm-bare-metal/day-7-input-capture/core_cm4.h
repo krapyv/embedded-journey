@@ -41,8 +41,18 @@ typedef struct
     volatile uint32_t STIR; // 0xE000EF00
 } NVIC_RegDef_t;
 
+typedef struct
+{
+    volatile uint32_t CSR;   // 0x00
+    volatile uint32_t RVR;   // 0x04
+    volatile uint32_t CVR;   // 0x08
+    volatile uint32_t CALIB; // 0x0C
+} SYST_RegDef_t;
+
 #define NVIC_BASE (0xE000E100UL)
+#define SYST_BASE (0xE000E010UL)
 
 #define NVIC ((NVIC_RegDef_t *)NVIC_BASE)
+#define SYST ((SYST_RegDef_t *)SYST_BASE)
 
 #endif
