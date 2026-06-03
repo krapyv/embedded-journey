@@ -32,4 +32,7 @@ typedef struct
     volatile IC_Data_t data; // tracking data
 } IC_HandleTypeDef;
 
+void input_capture_init(IC_HandleTypeDef *ic);
+void nvic_interrupts_init(IC_HandleTypeDef *ic);
+
 #endif

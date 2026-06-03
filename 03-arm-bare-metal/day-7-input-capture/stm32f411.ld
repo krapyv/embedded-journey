@@ -28,8 +28,14 @@ SECTIONS
     } > RAM AT> FLASH
 
     .bss : {
+        . = ALIGN(4);
         _sbss = .;
         *(.bss*)
+        . = ALIGN(4);
         _ebss = .;
     } > RAM
+
+    . = ALIGN(4);
+    _end = .;
+    PROVIDE(end = .);
 }

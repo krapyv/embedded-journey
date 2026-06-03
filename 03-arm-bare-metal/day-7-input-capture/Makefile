@@ -2,13 +2,14 @@
 PREFIX = arm-none-eabi-
 CC = $(PREFIX)gcc
 OBJCOPY = $(PREFIX)objcopy
+INCLUDES = -I. -Ilibraries
 
 # Compiler flags (same for all STM32F411 projects)
-CFLAGS = -mcpu=cortex-m4 -mthumb -nostdlib -nostartfiles
+CFLAGS = -mcpu=cortex-m4 -mthumb -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
-SRC = input_capture_driver.c startup_stm32f411ceux.s
+SRC = main.c libraries/input_capture_driver.c libraries/ring_buffer.c libraries/uart.c startup_stm32f411ceux.s
 ELF = program.elf
 BIN = program.bin
 
@@ -17,7 +18,7 @@ all: $(BIN)
 
 # Link: .c and .s -> .elf
 $(ELF): $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SRC) -o $(ELF)
+	$(CC) $(CFLAGS) $(INCLUDES) $(LDFLAGS) $(SRC) -o $(ELF)
 
 # Convert: .elf -> .bin
 $(BIN): $(ELF)

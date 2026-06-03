@@ -2,23 +2,86 @@
 #include "core_cm4.h"
 #include "input_capture_driver.h"
 
-IC_HandleTypeDef input_capture;
+IC_HandleTypeDef input_capture; // memory allocated
 
+void TIM3_FirstEdgeHandler(uint32_t polarity_lsb, uint32_t polarity_msb)
+{
+    input_capture.data.first_timestamp = input_capture.Instance->CCR[input_capture.channel - 1];
+
+    // Toggle the polarity bits to the opposite of whatever they currently are
+    uint32_t current_polarity = (input_capture.Instance->CCER >> polarity_lsb) & 0x1;
+
+    input_capture.Instance->CCER &= ~((1 << polarity_msb) | (1 << polarity_lsb));
+
+    // if current_polarity is 0 (rising), make it 1 (falling)
+    // if it was 1 (falling), switch it to 0 (rising)
+    if (current_polarity == 0)
+    {
+        // falling edge is 01, so we need to set the LSB to 1
+        input_capture.Instance->CCER |= (1 << polarity_lsb);
+    }
+}
+
+void TIM3_SecondEdgeHandler(uint32_t polarity_lsb, uint32_t polarity_msb)
+{
+    input_capture.data.second_timestamp = input_capture.Instance->CCR[input_capture.channel - 1];
+
+    uint32_t total_overflow_ticks = 0;
+    if (input_capture.Instance == TIM2 || input_capture.Instance == TIM5)
+    {
+        // the overflow for these times takes almost 4.5 minutes
+        // so we do not actually need to track it in this driver
+        total_overflow_ticks = input_capture.data.overflow_count * 0;
+    }
+    else
+    {
+        // TIM3 and TIM4 are 16-bit timers, so the max value they hold is 2^16
+        total_overflow_ticks = (input_capture.data.overflow_count << 16); // 2^16 = 65536
+    }
+
+    input_capture.data.delta = total_overflow_ticks + (input_capture.data.second_timestamp - input_capture.data.first_timestamp);
+
+    // reset tracking data blocks
+    input_capture.data.overflow_count = 0;
+    input_capture.data.first_timestamp = 0;
+    input_capture.data.second_timestamp = 0;
+
+    // the total_overflow_ticks is in scope of this else block, so no need to set in to 0
+
+    // restore the original configuration
+    // clearing the bits
+    input_capture.Instance->CCER &= ~((1 << polarity_msb) | (1 << polarity_lsb));
+
+    // if it was IC_RE (rising edge), clearing the bits restored its value of 00
+    if (input_capture.polarity == IC_FE)
+    {
+        input_capture.Instance->CCER |= (1 << polarity_lsb);
+    }
+    else if (input_capture.polarity == IC_BE)
+    {
+        // falling edge is 01, so we need to set the LSB to 1
+        input_capture.Instance->CCER |= ((1 << polarity_msb) | (1 << polarity_lsb));
+    }
+}
 void TIM3_IRQHandler(void)
 {
     uint32_t ccif_mask = (1 << input_capture.channel);
+
+    uint32_t sr_var = input_capture.Instance->SR;
+
     uint32_t polarity_lsb_pos = ((input_capture.channel - 1) * 4 + 1); // least significant bit
     uint32_t polarity_msb_pos = polarity_lsb_pos + 2;
 
-    if (input_capture.Instance->SR & (1 << 0))
+    // overflow/update flags handling
+    if (sr_var & (1 << 0))
     {
+        input_capture.Instance->SR = ~(1 << 0);
+
         if (input_capture.data.first_timestamp != 0)
         {
             // count the overflow if measurements are in progress
             input_capture.data.overflow_count++;
         }
-
-        input_capture.Instance->SR &= ~(1 << 0);
     }
 
     if (input_capture.Instance->SR & ccif_mask)
@@ -28,74 +91,21 @@ void TIM3_IRQHandler(void)
         // update flag has been cleared right after it was processed
 
         // to prevent the situations when the new edge happens while we are processing the previous one, we are clearing the register immediately
-        input_capture.Instance->SR &= ~ccif_mask;
+        input_capture.Instance->SR = ~ccif_mask;
 
         if (input_capture.data.first_timestamp == 0)
         {
-            input_capture.data.first_timestamp = input_capture.Instance->CCR[input_capture.channel - 1];
-
-            // Toggle the polarity bits to the opposite of whatever they currently are
-            uint32_t current_polarity = (input_capture.Instance->CCER >> polarity_lsb_pos) & 0x1;
-
-            input_capture.Instance->CCER &= ~((1 << polarity_msb_pos) | (1 << polarity_lsb_pos));
-
-            // if current_polarity is 0 (rising), make it 1 (falling)
-            // if it was 1 (falling), switch it to 0 (rising)
-            if (current_polarity == 0)
-            {
-                // falling edge is 01, so we need to set the LSB to 1
-                input_capture.Instance->CCER |= (1 << polarity_lsb_pos);
-            }
+            TIM3_FirstEdgeHandler(polarity_lsb_pos, polarity_msb_pos);
         }
         else
         {
-            input_capture.data.second_timestamp = input_capture.Instance->CCR[input_capture.channel - 1];
-
-            uint32_t total_overflow_ticks = 0;
-            if (input_capture.Instance == TIM2 || input_capture.Instance == TIM5)
-            {
-                // the overflow for these times takes almost 4.5 minutes
-                // so we do not actually need to track it in this driver
-                total_overflow_ticks = input_capture.data.overflow_count * 0;
-            }
-            else
-            {
-                // TIM3 and TIM4 are 16-bit timers, so the max value they hold is 2^16
-                total_overflow_ticks = (input_capture.data.overflow_count << 16); // 2^16 = 65536
-            }
-
-            input_capture.data.delta = total_overflow_ticks + (input_capture.data.second_timestamp - input_capture.data.first_timestamp);
-
-            // reset tracking data blocks
-            input_capture.data.overflow_count = 0;
-            input_capture.data.first_timestamp = 0;
-            input_capture.data.second_timestamp = 0;
-
-            // the total_overflow_ticks is in scope of this else block, so no need to set in to 0
-
-            // restore the original configuration
-            // clearing the bits
-            input_capture.Instance->CCER &= ~((1 << polarity_msb_pos) | (1 << polarity_lsb_pos));
-
-            // if it was IC_RE (rising edge), clearing the bits restored its value of 00
-            if (input_capture.polarity == IC_FE)
-            {
-                input_capture.Instance->CCER |= (1 << polarity_lsb_pos);
-            }
-            else if (input_capture.polarity == IC_BE)
-            {
-                // falling edge is 01, so we need to set the LSB to 1
-                input_capture.Instance->CCER |= ((1 << polarity_msb_pos) | (1 << polarity_lsb_pos));
-            }
+            TIM3_SecondEdgeHandler(polarity_lsb_pos, polarity_msb_pos);
         }
     }
 }
 
 void nvic_interrupts_init(IC_HandleTypeDef *ic)
 {
-    // enabling Capture/Compare Interrupt and Update Interrupt (to keep track of very long button presses)
-    ic->Instance->DIER |= (1 << ic->channel) | (1 << 0);
-
     if (ic->Instance == TIM2)
     {
         NVIC->ISER[0] |= (1 << 28);
@@ -291,33 +301,9 @@ void input_capture_init(IC_HandleTypeDef *ic)
         ic->Instance->CCER |= ((1 << polarity_msb_pos) | (1 << polarity_lsb_pos));
     }
 
+    // enabling Capture/Compare Interrupt and Update Interrupt (to keep track of very long button presses)
+    ic->Instance->DIER |= (1 << ic->channel) | (1 << 0);
+
     // enable the counter in CR1 (setting bit 0 CEN to 1)
     ic->Instance->CR1 |= (1 << 0);
-}
-
-int main(void)
-{
-    input_capture.Instance = TIM3;
-    input_capture.Port = GPIOB;
-    input_capture.pin = 0;
-    input_capture.af = GPIO_AF2;
-    input_capture.channel = 3;
-    input_capture.polarity = IC_FE;
-
-    input_capture.data.overflow_count = 0;
-    input_capture.data.first_timestamp = 0;
-    input_capture.data.second_timestamp = 0;
-    input_capture.data.delta = 0;
-
-    nvic_interrupts_init(&input_capture);
-    input_capture_init(&input_capture);
-
-    uint32_t polarity_lsb_pos = ((input_capture.channel - 1) * 4 + 1); // least significant bit
-    uint32_t polarity_msb_pos = polarity_lsb_pos + 2;                  // most significant bit
-
-    while (1)
-    {
-    }
-
-    return 0;
 }
