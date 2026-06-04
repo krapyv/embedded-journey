@@ -15,6 +15,13 @@ typedef enum
     IWDG_PRESCALER_256_ALT = 0x07, // 0b111
 } IWDG_Prescaler_t;
 
+typedef enum
+{
+    IWDG_CMD_UNLOCK = 0x5555, // unlocks access to PR and RLR registers
+    IWDG_CMD_FEED = 0xAAAA,   // "kicks/feeds" the dog to reset the countdown
+    IWDG_CMD_START = 0xCCCC   // Starts the watchdog timer
+} IWDG_Command_t;
+
 typedef struct
 {
     volatile uint32_t *IWDG_BASE_REG;

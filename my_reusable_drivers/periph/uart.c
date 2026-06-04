@@ -1,13 +1,7 @@
 #include "uart.h"
 
-volatile uint32_t ms_passed = 0; // our timer
 RingBuffer_t rx_buffer;
 uint8_t raw_rx_storage[16];
-
-void SysTick_Handler(void)
-{
-    ms_passed++;
-}
 
 void USART2_IRQHandler(void)
 {
@@ -44,26 +38,6 @@ void USART2_IRQHandler(void)
             (void)clear; // to prevent the compiler from warning about this unused var
         }
     }
-}
-
-// busy-wait loop
-// void delay(uint32_t ms)
-// {
-//     uint32_t start = ms_passed;
-
-//     while ((ms_passed - start) < ms)
-//         ;
-// }
-
-void timer_init()
-{
-    // set SYST_CSR bit 2 (CLKSOURCE) to 1 (it is a processor clock), bit 1 (TICKINT) to 1 (to enable interruptions), bit 0 (ENABLE) to 1 to enable the counter
-    // instead of using three parts OR, we could use 0x7 (in binary 0b0111)
-    SYST->RVR = 15999; // 1 ms on 16 MHz processor
-
-    SYST->CVR = 0; // to clear anything that could be inside
-
-    SYST->CSR |= 0x7; // there is << 0, so just 0x7
 }
 
 void usart2_init()

@@ -3,18 +3,18 @@
 void IWDG_kick(IWDG_HandleTypeDef *wdg)
 {
     // kick the watchdog
-    *(wdg->IWDG_BASE_REG + 0) = 0xAAAA;
+    *(wdg->IWDG_BASE_REG + 0) = IWDG_CMD_FEED;
 }
 
 void IWDG_init(IWDG_HandleTypeDef *wdg)
 {
     // start the watchdog
     // offset: 0x00
-    *(wdg->IWDG_BASE_REG + 0) = 0xCCCC;
+    *(wdg->IWDG_BASE_REG + 0) = IWDG_CMD_START;
 
     // enable access to the IWDG_PR and IWDG_RLR
     // offset: 0x00
-    *(wdg->IWDG_BASE_REG + 0) = 0x5555;
+    *(wdg->IWDG_BASE_REG + 0) = IWDG_CMD_UNLOCK;
 
     // set the prescaler register
     // offset: 0x04
