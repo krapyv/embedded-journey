@@ -29,10 +29,14 @@
 **Lesson learned:**
 -
 
-# 2026-05-30
+# 2026-06-04
 
 **Morning:**
-- Finished reading and fixing typos in the READMEs.md.
+- Added a 104 (100 nF) ceramic capacitor in order to create RC filter to filter out mechanical switch bounces.
+- Tested the circuit with a multimeter.
+- Tested the program.
+- Learned basic information about the retargeting system-layer functions.
+- Made up the logs in the JOURNAL, describing all the events/details from the last 4 days.
 
 **Evening:**
 -
@@ -42,6 +46,94 @@
 
 **Lesson learned:**
 -
+
+# 2026-06-03
+
+**Morning:**
+- Fixed UART.c due to the changes in the .h file.
+- Redirected standard C print functions directly to mycustom UART driver hardware (or so I thought).
+- Assembled the electrical circuit with a tactile push button, the Blackpill, 10K Ohms resistor, an UART-to-USB adapter.
+- Started to debug the program via ST-LINK.
+
+**Evening:**
+- Continued debugging.
+- Simplified the TIM3_IRQHandler.
+- Moved Update/Interrupt enablement to the end of the Input Capture init function.
+- Wrote `_write` function to override a weak and empty toolchain stub.
+- The program has been flushed and works correctly -> I still need to filter mechanical switch bounces.
+
+**Problems encountered:**
+- Well, the debug sessions were not pleasant.
+- My misunderstanding of toolchain stubs and where I should enable Capture/Compare Interrupt and Update Interrupt (DIER) bits caused me several hard hours :)
+
+**Lesson learned:**
+- Embedded debugging (ST-LINK).
+- Retargeting system-layer functions like `_write`.
+
+# 2026-06-02
+
+**Morning:**
+- Integrated NVIC to the Input Capture.
+
+**Evening:**
+- Integrated UART to the Input Capture.
+- Redefined UART.h as a driver file.
+
+**Problems encountered:**
+- Forgot to enable NVIC interrupts.
+
+**Lesson learned:**
+- Custom libraries integration.
+
+# 2026-06-01
+
+**Morning:**
+- Implemented the basic functionality of input capture
+- Developed and implemented input button timestamps capture.
+
+**Evening:**
+- Developed the input capture interrupt test function.
+- Started implementing the NVIC configuration struct.
+- Learned offset calculation and the basics of hex math.
+
+**Problems encountered:**
+- Ambiguity of offsets: i did not know why and how they are calculated.
+
+**Lesson learned:**
+- NVIC register map.
+- Offset calculation.
+- HEX math.
+
+
+# 2026-05-31 
+
+**Morning:**
+- Finished the PWM LED Dimmer.
+
+**Evening:**
+- Learned basic information about Input Capture and why do I need.
+
+**Problems encountered:**
+- Understanding of hardware mapping structs vs configuration handles;
+
+**Lesson learned:**
+- TIM hardware registers.
+
+
+# 2026-05-30
+
+**Morning:**
+- Finished reading and fixing typos in the READMEs.md.
+- Defined the hardware mapping structs for the LED Dimmer
+
+**Evening:**
+- Continued to work on the LED Dimmer
+
+**Problems encountered:**
+- None
+
+**Lesson learned:**
+- Basic aspects of PWM (Pulse Width Modulation).
 
 # 2026-05-28, 2026-05-29
 
