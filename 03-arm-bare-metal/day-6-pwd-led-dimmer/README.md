@@ -1,15 +1,19 @@
-# Reusable PWM Peripheral Driver Module
+# PWM Led Driver
 
-This directory contains a reusable, register-level, hardware-agnostic Pulse Width Modulation (PWM) peripheral driver for STM32F411 microcontroller. Operating entirely bare-metal without relying on bloated abstraction layers, the driver allows any general-purpose timer (`TIM2` to `TIM5`) to modulate an LED signal on any compatible General Purpose Input/Output (`GPIO`) pin. 
+This project implements a reusable, register-level, hardware-agnostic Pulse Width Modulation (PWM) peripheral driver for STM32F411 microcontroller. Operating entirely bare-metal without relying on bloated abstraction layers, the driver allows any general-purpose timer (`TIM2` to `TIM5`) to modulate an LED signal on any compatible General Purpose Input/Output (`GPIO`) pin.
+
+The accompanying testbench application demonstrates a localized, non-blocking breathing loop on the onboard user indicator LED (Pin `PA5` via `TIM2_CH1`), validating edge-aligned signal generation, alternate-function multiplexing, and dynamic capture/compare register modification. 
 
 ## 📂 Project Structure
 
 ```text
-├── core/               # Centralized hardware configuration definitions
-│   └── stm32f411.h     # Core memory map and explicit register structs
-└── periph/             # Reusable peripheral driver modules
-    ├── pwm_driver.c    # Timer gating, AF routing, and CCMR configuration
-    └── pwm_driver.h    # Driver configuration handles and public APIs
+├── main.c              # Application logic, configuration profiles, and the duty-cycle breathing loop
+├── pwm_driver.c        # Multi-channel timer clock gating, Alternate Function routing, and CCMR configuration
+├── pwm_driver.h        # Driver configuration handles, register shift helpers, and function abstractions
+├── stm32f411.h        # Core memory map definitions, peripheral boundaries, and explicit register structs
+├── startup_stm32f411ceux.s       # Assembly startup file implementing vector table & Reset_Handle   
+├── stm32f411.ld  # Linker script defining Flash/SRAM memory segments
+└── Makefile      # GNU Make automation configuration to compile and flash the system
 ```
 
 ## 🧠 Core Low-Level Concepts
@@ -64,6 +68,11 @@ The Duty Cycle ratio ($D$) represents the proportion of time the LED remains on 
 
 $$D = \frac{\text{Capture/Compare Value } (CCR)}{ARR + 1}$$
 
+```c
+pwm.Period = 15999;
+pwm.Pulse = 8000;
+```
+
 ## 🛠️ Unified Register Mapping Architecture
 
 This framework relies on structural layout overlays to interact with memory-mapped registers. Because the structure mappings exactly mirror the memory geometry of the microcontroller's hardware, the multi-channel `CCR` configurations are represented as a contiguous array of 32-bit types (`uint32_t CCR[4]`).
@@ -110,59 +119,42 @@ typedef struct
 } PWM_HandleTypeDef;
 ```
 
-## 🚀 Driver Integration Guide
+## 🚀 System Verification & Execution
 
-Because this peripheral module isolates operational driver logic from hardware memory geometry definitions, `pwm_driver.c` expects to locate `stm32f411.h` via the compiler's global search path. This prevents hardcoding fragile relative paths directly inside the source files, keeping the driver truly portable.
+### 1. The Breathing LED Implementation Algorithm
 
-### 1. Source Integration Layout
-
-When instantiating the module inside an application file, include the core register maps alongside the peripheral APIs:
+The application achieves a smooth "breathing" illumination loop by adjusting the LED's duty cycle over time using a state delta tracker variable (`step`). The value increments or decrements linearly every cycle:
 
 ```c
-#include "stm32f411.h" // resolved via build system include paths
-#include "pwm_driver.h"
+ while (1)
+    {
+        brightness += step;
 
-void application_init(void) {
-    PWM_HandleTypeDef h_pwm = {
-        .Instance = TIM2,
-        .Port = GPIOA,
-        .pin = 5,
-        .af = GPIO_AF1,
-        .Period = 15999,
-        .Pulse = 8000,
-        .channel = 1
-    };
+        if (brightness >= 15000 || brightness <= 500)
+        {
+            step = -step;
+        }
 
-    led_init(&h_pwm);
-    pwm_init(&h_pwm);
-}
+        pwm.Instance->CCR[pwm.channel - 1] = brightness;
+
+        for (volatile int i = 0; i < 100000; i++)
+            ;
+    }
 ```
 
-## 2. Build System Path Configuration (Makefile)
+### 2. Compilation and Target Flash Deployment
 
-To resolve includes cleanly when compilation blocks cross sibling folder boundaries, you must explicitly expose the directory paths to the preprocessor using -I flag.
+Compile the reusable code tree using standard cross-compilation toolchain (`arm-none-eabi-gcc`) and upload the binary image using GNU Make automation commands:
 
-Assuming your library architecture places core files and peripheral files in neighboring directories:
+```bash
+# wipe out previous compilation symbols and build executable image
+make clean && make
 
-```text
-├── core/
-│   └── stm32f411.h
-└── periph/
-    ├── pwm_driver.c
-    └── pwm_driver.h
+# deploy the binary safely down to the target microchip memory
+make flash
 ```
 
-Append these search directories directly to your global compilation flags variable inside your `Makefile`:
-
-```makefile
-# Define include search paths for neighboring module structures
-INC_DIRS += -I../core
-INC_DIRS += -I../periph
-
-# Append include directories to the GNU C Compiler configuration flags
-CFLAGS += $(INC_DIRS)
-CFLAGS += -mcpu=cortex-m4 -mthumb -Wall -O2
-```
+Once flashed successfully, the hardware pin `PA5` will drive the onboard LED through a non-blocking breathing cycle, operating completely independently of any CPU intervention beyond the `CCR` register adjustments.
 
 ## 🗺️  Next Steps & Learning Roadmap
 
