@@ -6,16 +6,14 @@ A core feature of this module is its dual-edge handling mechanism, which dynamic
 ## 📂 Project Structure
 
 ```text
-├── main.c              # Application entry point, structure instantiation, and polling display loop
-├── input_capture_driver.c      # Low-level pin routing, timer clock gating, CCMR filtering, and ISR handlers
-├── input_capture_driver.h      # Handle abstractions, structure definitions, and public API signatures
-├── uart.c      # Non-blocking RingBuffer-backed UART driverr and printf redirection
-├── uart.h      # UART macros, base register boundary maps, and function declarations
-├── stm32f411.h         # Core peripheral base addresses and structural memory map layouts
-├── core_cm4.h      # ARM Cortex-M4 core peripheral access layer (NVIC interfaces)
-├── startup_stm32f411ceux.s       # Assembly startup file implementing vector table & Reset_Handle
-├── stm32f411.ld  # Linker script defining Flash/SRAM memory segments
-└── Makefile      # GNU Make automation configuration to compile and flash the system
+├── core/               # Centralized hardware configuration definitions
+    ├── core_cm4.h      # ARM Cortex-M4 core peripheral access layer (NVIC interfaces)
+│   └── stm32f411.h     # Core memory map and explicit register structs
+└── periph/             # Reusable peripheral driver modules
+    ├── input_capture_driver.c      # Low-level pin routing, timer clock gating, CCMR filtering, and ISR handlers
+    ├── input_capture_driver.h      # Handle abstractions, structure definitions, and public API signatures
+    ├── uart.c      # Non-blocking RingBuffer-backed UART driverr and printf redirection
+    └── uart.h      # UART macros, base register boundary maps, and function declarations APIs
 ```
 
 ## 🧠 Core Low-Level Concepts
@@ -176,7 +174,7 @@ To suppress this behavior before it reaches the microcontroller, a **104 ceramic
 
 ## 🚀 Driver Integration & Usage Guide
 
-### 1. Application Implementation (main.c)
+### 1. Application Implementation Example (main.c)
 
 To deploy the driver, instantiate the target handle globally and implement a polling verification sequence inside your application's execution loop:
 
@@ -250,6 +248,37 @@ Button Hold Duration: 5 s 873 ms (Raw Ticks: 93971584)
 Button Hold Duration: 1 s 342 ms (Raw Ticks: 21485248)
 Button Hold Duration: 0 s 727 ms (Raw Ticks: 11636096)
 Button Hold Duration: 3 s 469 ms (Raw Ticks: 55518624)
+```
+
+## 3. Build System Path Configuration (Makefile)
+
+To resolve includes cleanly when compilation blocks cross sibling folder boundaries, you must explicitly expose the directory paths to the preprocessor using -I flag.
+
+Assuming your library architecture places core files and peripheral files in neighboring directories:
+
+```text
+├── core/
+    ├── core_cm4.h
+│   └── stm32f411.h
+└── periph/
+    ├── uart.c
+    ├── uart.h
+    ├── ring_buffer.c
+    ├── ring_buffer.h
+    ├── input_capture_driver.c
+    └── input_capture_driver.h
+```
+
+Append these search directories directly to your global compilation flags variable inside your `Makefile`:
+
+```makefile
+# Define include search paths for neighboring module structures
+INC_DIRS += -I../core
+INC_DIRS += -I../periph
+
+# Append include directories to the GNU C Compiler configuration flags
+CFLAGS += $(INC_DIRS)
+CFLAGS += -mcpu=cortex-m4 -mthumb -Wall -O2
 ```
 
 ## 🗺️   Next Steps & Learning Roadmap
