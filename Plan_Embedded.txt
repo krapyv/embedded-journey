@@ -104,7 +104,7 @@ Week	Topic	Morning Practice	Evening Theory	Mini-Project
 9	SysTick ✅, NVIC	Interrupt-driven timer	ARM vector table✅	1ms system tick ✅
 10	UART (polling)	Configure baud ✅, transmit 	Datasheet: USART section	"Hello World" over serial
 11	UART (interrupt)✅	Ring buffer ✅, RX interrupt✅	Data structures: circular buffer ✅	Echo server✅
-12	Timers (PWM, input capture, Independent watchdog ✅)	Servo control, pulse measurement	Electronics: RC servos	LED dimmer + knob reader
+12	Timers (PWM ✅, input capture ✅, Independent watchdog ✅)	Servo control, pulse measurement	Electronics: RC servos	LED dimmer + knob reader
 13	ADC, DMA	Continuous sampling at 10kHz	Data structures: double buffer	Audio sampler (basic)
 14	I2C	Read temperature sensor (BMP280)	Protocol analysis (logic analyzer)	Sensor logger
 15	SPI	Communicate with EEPROM	Compare I2C vs SPI	Config storage
