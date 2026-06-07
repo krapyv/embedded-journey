@@ -29,6 +29,48 @@
 **Lesson learned:**
 -
 
+# 2026-06-07
+
+**Morning:**
+- Finished the potentiometer sampling project development with Claude as my strict tutor (that does not give me any code, just challenges me) - 9 hours in total.
+
+**Evening:**
+- Updated the Bought electronics list.
+- Updated the JOURNAL adding logs 04.06 - 07.06.
+
+**Problems encountered:**
+- In general, no problems. But this development architecture session shows me that in automotive embedded writing code is the easiest part :) It is awesome!
+
+**Lesson learned:**
+- Architectural development.
+- ADC + DMA.
+
+# 2026-06-06
+
+**Morning:**
+- Learned theory about both the ADC and DMA.
+- Started development of the potentiometer sampling project using the Claude Pro as my strict tutor who navigates and challenges me.
+- Implemented the DMA and ADC typedef structs in my core header file.
+
+**Problems encountered:**
+- This project requires quite many registers and much knowledge. I like it :)
+
+**Lesson learned:**
+- ADC.
+- DMA.
+
+# 2026-06-05
+
+**Morning:**
+- Wrote READMEs.md for the Input Capture (project and reusable driver).
+
+**Evening:**
+- Bought necessary components for upcoming topics (I2C, SPI, ADC+DMA etc).
+- Bought Claude Pro subscription.
+
+**Problems encountered:**
+- Realized I do not have a potentiometer for the ADC+DMA Sample project.
+
 # 2026-06-04
 
 **Morning:**
@@ -39,13 +81,14 @@
 - Made up the logs in the JOURNAL, describing all the events/details from the last 4 days.
 
 **Evening:**
--
+- Creating the reusable drivers structure with all completed drivers.
+- Wrote READMEs.md for the PWM (project and reusable driver).
 
 **Problems encountered:**
-- (None today) etc
+- None
 
 **Lesson learned:**
--
+- RC filters.
 
 # 2026-06-03
 
