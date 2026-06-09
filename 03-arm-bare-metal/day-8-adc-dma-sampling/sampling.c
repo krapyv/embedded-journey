@@ -175,6 +175,9 @@ void adc_init()
 {
     // ---- ADC_CR2 CONFIGURATION ----
 
+    // SWSTART: bit 30 (set to 0)
+    ADC1->CR2 &= ~(1U << 30);
+
     // EXTEN: bits 29:28
     // 01 - trigger detection on the rising edge
     // 0x3 = 0b11, 0x1 = 1 = 0x01
@@ -193,6 +196,40 @@ void adc_init()
 
     // ALIGN : bit 11 (set to 0)
     ADC1->CR2 &= ~(1U << 11);
+
+    // DDS : bit 9
+    ADC1->CR2 |= (1U << 9);
+
+    // DMA : bit 8
+    ADC1->CR2 |= (1U << 8);
+
+    // CONT: bit 1 (set to 0)
+    ADC1->CR2 &= (1U << 1);
+
+    // ---- ADC_CCR CONFIGURATION ----
+    // ADCPRE: bit 17:16
+    // 0x3 = 0b11
+    ADC->CommonRegisters.CCR &= ~(0x3U << 16);
+    ADC->CommonRegisters.CCR |= (ADC_PRESCALER << 16);
+
+    // ---- ADC_SMPR2 CONFIGURATION ----
+
+#if (TARGET_ADC_CHANNEL <= 9)
+    // ADC_SMPR2 handles channels 0 to 9
+
+    // each channel has 3 bits inside the register
+
+    // 0b111 = 0x7
+    ADC1->SMPR2 &= ~(0x7U << (TARGET_ADC_CHANNEL * 3));
+    ADC1->SMPR2 |= (ADC_SAMPLE_CYCLES << (TARGET_ADC_CHANNEL * 3));
+#else
+#error "Invalid target ADC channel assignment! Must use channels 0 to 9."
+#endif
+
+    // ---- CONVERTER ENABLING ----
+    // ADC_CR2
+    // ADON: bit 0
+    ADC1->CR2 |= (1U << 0);
 }
 
 void uart_init()
