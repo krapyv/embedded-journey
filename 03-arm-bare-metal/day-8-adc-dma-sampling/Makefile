@@ -9,7 +9,7 @@ SHARED_CORE_DIR = /mnt/hdd/embedded-journey/my_reusable_drivers
 INCLUDES = -I. -I${SHARED_CORE_DIR}/core -I${SHARED_CORE_DIR}/periph
 
 # Compiler flags (same for all STM32F411 projects)
-CFLAGS = -mcpu=cortex-m4 -mthumb -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc
+CFLAGS = -mcpu=cortex-m4 -mthumb -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
