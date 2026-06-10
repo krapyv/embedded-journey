@@ -2,7 +2,8 @@
   "C_Cpp.default.includePath": [
     "${workspaceFolder}/**",
     "/mnt/hdd/embedded-journey/my_reusable_drivers/core",
-    "/mnt/hdd/embedded-journey/my_reusable_drivers/periph"
+    "/mnt/hdd/embedded-journey/my_reusable_drivers/periph",
+    "/mnt/hdd/embedded-journey/my_reusable_drivers/utils"
   ],
   "C_Cpp.intelliSenseEngine": "default",
   "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"

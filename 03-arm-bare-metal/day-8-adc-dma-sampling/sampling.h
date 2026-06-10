@@ -32,9 +32,9 @@
 
 #define ADC_BUFFER_SIZE 1000U
 
-typedef struct
-{
-    GPIO_RegDef_t *Port;
-} SAMP_HandleTypeDef;
+extern volatile uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
+extern volatile uint32_t overrun_count;
+extern volatile uint8_t dma_half_a_ready;
+extern volatile uint8_t dma_half_b_ready;
 
 #endif

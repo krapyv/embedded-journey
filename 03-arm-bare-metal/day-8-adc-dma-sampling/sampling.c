@@ -2,23 +2,46 @@
 #include "stm32f411.h"
 #include "sampling.h"
 
-static volatile uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
+volatile uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
+volatile uint32_t overrun_count = 0U;
+volatile uint8_t dma_half_a_ready = 0U;
+volatile uint8_t dma_half_b_ready = 0U;
 
 void DMA2_Stream0_IRQHandler(void)
 {
-    // TCIF: transfer complete interrupt, stream 0 - bit 5
-    if (DMA2->LISR & (1UL << 5))
+    // HTIF: half transfer interrupt, stream 0 - bit 4
+    if (DMA2->LISR & (1UL << 4U) != 0UL)
     {
-        // clearing the TCIF
-        DMA2->LIFCR = (1UL << 5);
+
+        // clearlng the HTIF
+        DMA2->LIFCR = (1UL << 4U);
+
+        __DMB();
+
+        dma_half_a_ready = 1U;
     }
 
-    // HTIF: hakf transfer interrupt, stream 0 - bit 4
-    if (DMA2->LISR & (1UL << 4))
+    // TCIF: transfer complete interrupt, stream 0 - bit 5
+    if (DMA2->LISR & (1UL << 5U) != 0UL)
     {
+        // clearing the TCIF
+        DMA2->LIFCR = (1UL << 5U);
 
-        // clearing the HTIF
-        DMA2->LIFCR = (1UL << 4);
+        __DMB();
+
+        dma_half_b_ready = 1U;
+    }
+
+    // TEIF: transfer error interrupt, stream 0 - bit 3
+    if (DMA2->LISR & (1UL << 3U))
+    {
+        // clear all error flags for the stream 0
+        // bit 3 (TEIF), bit 2 (DMEIF) and bit 0 (FEIF)
+        DMA2->LIFCR = (1UL << 3U) | (1UL << 2U) | (1UL << 0U);
+
+        DMA2->S0NDTR = ADC_BUFFER_SIZE;
+
+        DMA2->S0CR |= (1UL << 0U);
     }
 }
 
@@ -154,10 +177,10 @@ void dma_init(void)
     DMA2->S0CR |= (1UL << 3U);
 
     // set DMA_PAR (peripheral address)
-    DMA2->S0PAR = &ADC1->DR;
+    DMA2->S0PAR = (uint32_t)&(ADC1->DR);
 
     // set DMA_M0AR (declared buffer)
-    DMA2->S0M0AR = &adc_raw_buffer;
+    DMA2->S0M0AR = (uint32_t)adc_raw_buffer;
 
     // set DMA_NDTR (number of data items/buffer length)
     DMA2->S0NDTR = ADC_BUFFER_SIZE;
@@ -222,7 +245,7 @@ void adc_init(void)
     ADC1->CR2 |= (1UL << 8U);
 
     // CONT: bit 1 (set to 0)
-    ADC1->CR2 &= (1UL << 1U);
+    ADC1->CR2 &= ~(1UL << 1U);
 
     // ---- ADC_CCR CONFIGURATION ----
     // ADCPRE: bit 17:16
