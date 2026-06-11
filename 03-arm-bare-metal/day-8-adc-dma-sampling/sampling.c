@@ -7,18 +7,47 @@ volatile uint32_t overrun_count = 0U;
 volatile uint8_t dma_half_a_ready = 0U;
 volatile uint8_t dma_half_b_ready = 0U;
 
+void DMA1_Stream6_IRQHandler(void)
+{
+    if ((DMA1->HISR & (1UL << 21U)) != 0UL)
+    {
+        DMA1->HIFCR = (1UL << 21U) | (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
+
+        __DMB();
+
+        if (DMA1->S6M0AR == (uint32_t)&adc_raw_buffer[0])
+        {
+            // the half A has finished transmitting
+            dma_half_a_ready = 0U;
+        }
+        else
+        {
+            // the half B has finished transmitting
+            dma_half_b_ready = 0U;
+        }
+
+        __DMB();
+    }
+}
+
 void DMA2_Stream0_IRQHandler(void)
 {
     // HTIF: half transfer interrupt, stream 0 - bit 4
     if (DMA2->LISR & (1UL << 4U) != 0UL)
     {
-
         // clearlng the HTIF
         DMA2->LIFCR = (1UL << 4U);
 
-        __DMB();
+        if (dma_half_a_ready != 0U)
+        {
+            overrun_count++; // previous data was never freed
+        }
+        else
+        {
+            dma_half_a_ready = 1U;
+        }
 
-        dma_half_a_ready = 1U;
+        __DMB();
     }
 
     // TCIF: transfer complete interrupt, stream 0 - bit 5
@@ -27,9 +56,16 @@ void DMA2_Stream0_IRQHandler(void)
         // clearing the TCIF
         DMA2->LIFCR = (1UL << 5U);
 
-        __DMB();
+        if (dma_half_b_ready != 0U)
+        {
+            overrun_count++;
+        }
+        else
+        {
+            dma_half_b_ready = 1U;
+        }
 
-        dma_half_b_ready = 1U;
+        __DMB();
     }
 
     // TEIF: transfer error interrupt, stream 0 - bit 3
@@ -203,6 +239,9 @@ void dma_init(void)
 
     DMA1->S6CR &= ~(0x3UL << 6U);
     DMA1->S6CR |= (1UL << 6U);
+
+    // TCIE: bit 4
+    DMA1->S6CR |= (1UL << 4U);
 }
 
 void nvic_init(void)
@@ -210,6 +249,10 @@ void nvic_init(void)
     // DMA2_Stream0 has the position 56 in the vector table of interrupts
     // 56 / 32 = 1, 56 % 32 = 24. ISER[1] bit 24
     NVIC->ISER[1] = (1UL << 24U);
+
+    // DMA1_Stream6 has the position 17 in the vector table of interrupts
+    // 17 / 32 = 0, 17 % 32 = 17. ISER[0] bit 17
+    NVIC->ISER[0] = (1UL << 17U);
 }
 
 void adc_init(void)
@@ -276,10 +319,7 @@ void adc_init(void)
 void uart_init(void)
 {
     // pretty much full initialization is handled by the UART custom driver
-
-    // ---- CR3 CONFIGURATION ----
-    // DMAT (DMA enable transmitter): bit 7
-    USART2->CR[2] |= (1UL << 7U);
+    usart2_init();
 }
 
 void pipeline_enabling(void)

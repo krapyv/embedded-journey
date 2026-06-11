@@ -37,4 +37,12 @@ extern volatile uint32_t overrun_count;
 extern volatile uint8_t dma_half_a_ready;
 extern volatile uint8_t dma_half_b_ready;
 
+void clocks_init(void);
+void gpio_init(void);
+void tim_init(void);
+void dma_init(void);
+void nvic_init(void);
+void adc_init(void);
+void uart_init(void);
+void pipeline_enabling(void);
 #endif
