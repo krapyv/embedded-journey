@@ -1,5 +1,6 @@
 #include "sampling.h"
 #include "uart.h"
+#include <stdio.h>
 
 int main(void)
 {
@@ -14,22 +15,14 @@ int main(void)
 
     while (1)
     {
-        if ((dma_half_a_ready == 1U) && (dma_half_b_ready == 1U))
-        {
-            overrun_count++;
 
-            __DMB();
-            dma_half_a_ready = 0U;
-            dma_half_b_ready = 0U;
-
-            // drop the corrupt data
-
-            continue;
-        }
         if (dma_half_a_ready == 1U)
         {
+
+            printf("[HEALTH: OVERRUNS=%lu]\r\n", overrun_count);
+
             // stream the data [0; N/2 - 1]
-            if (usart2_stream_dma((uint16_t *)&adc_raw_buffer[0], ADC_BUFFER_SIZE / 2U) == 0U)
+            if (usart2_stream_dma((uint16_t *)&adc_raw_buffer[0], ADC_BUFFER_SIZE / 2U) == 1U)
             {
                 dma_half_a_ready = 2U; // 2U - in-flight
                 __DMB();
@@ -45,8 +38,10 @@ int main(void)
 
         if (dma_half_b_ready == 1U)
         {
+            printf("[HEALTH: OVERRUNS=%lu]\r\n", overrun_count);
+
             // stream the data [N/2; N - 1]
-            if (usart2_stream_dma((uint16_t *)&adc_raw_buffer[ADC_BUFFER_SIZE / 2U], ADC_BUFFER_SIZE / 2U) == 0U)
+            if (usart2_stream_dma((uint16_t *)&adc_raw_buffer[ADC_BUFFER_SIZE / 2U], ADC_BUFFER_SIZE / 2U) == 1U)
             {
                 dma_half_b_ready = 2U; // 2U - in-flight
                 __DMB();

@@ -36,6 +36,7 @@ extern volatile uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
 extern volatile uint32_t overrun_count;
 extern volatile uint8_t dma_half_a_ready;
 extern volatile uint8_t dma_half_b_ready;
+extern uint16_t *volatile current_uart_dma_buffer;
 
 void clocks_init(void);
 void gpio_init(void);

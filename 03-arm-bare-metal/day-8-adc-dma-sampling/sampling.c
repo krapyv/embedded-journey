@@ -1,28 +1,50 @@
 #include "core_cm4.h"
 #include "stm32f411.h"
 #include "sampling.h"
+#include <stdio.h>
 
-volatile uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
+uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
 volatile uint32_t overrun_count = 0U;
 volatile uint8_t dma_half_a_ready = 0U;
 volatile uint8_t dma_half_b_ready = 0U;
 
 void DMA1_Stream6_IRQHandler(void)
 {
-    if ((DMA1->HISR & (1UL << 21U)) != 0UL)
+    uint32_t status_snapshop = DMA1->HISR;
+
+    if ((status_snapshop & ((1UL << 19U) | (1UL << 18U) | (1UL << 16U))) != 0UL)
+    {
+        overrun_count++;
+
+        DMA1->HIFCR = (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
+
+        // force-release the software lock
+        if (current_uart_dma_buffer == &adc_raw_buffer[0])
+        {
+            dma_half_a_ready = 0U;
+        }
+        else if (current_uart_dma_buffer == &adc_raw_buffer[ADC_BUFFER_SIZE / 2U])
+        {
+            dma_half_b_ready = 0U;
+        }
+
+        __DMB();
+        return; // transmission failed
+    }
+
+    // Transfer complete TCIF6
+    if ((status_snapshop & (1UL << 21U)) != 0UL)
     {
         DMA1->HIFCR = (1UL << 21U) | (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
 
         __DMB();
 
-        if (DMA1->S6M0AR == (uint32_t)&adc_raw_buffer[0])
+        if (current_uart_dma_buffer == &adc_raw_buffer[0])
         {
-            // the half A has finished transmitting
             dma_half_a_ready = 0U;
         }
-        else
+        else if (current_uart_dma_buffer == &adc_raw_buffer[ADC_BUFFER_SIZE / 2U])
         {
-            // the half B has finished transmitting
             dma_half_b_ready = 0U;
         }
 
@@ -33,7 +55,7 @@ void DMA1_Stream6_IRQHandler(void)
 void DMA2_Stream0_IRQHandler(void)
 {
     // HTIF: half transfer interrupt, stream 0 - bit 4
-    if (DMA2->LISR & (1UL << 4U) != 0UL)
+    if ((DMA2->LISR & (1UL << 4U)) != 0UL)
     {
         // clearlng the HTIF
         DMA2->LIFCR = (1UL << 4U);
@@ -51,7 +73,7 @@ void DMA2_Stream0_IRQHandler(void)
     }
 
     // TCIF: transfer complete interrupt, stream 0 - bit 5
-    if (DMA2->LISR & (1UL << 5U) != 0UL)
+    if ((DMA2->LISR & (1UL << 5U)) != 0UL)
     {
         // clearing the TCIF
         DMA2->LIFCR = (1UL << 5U);
@@ -69,13 +91,26 @@ void DMA2_Stream0_IRQHandler(void)
     }
 
     // TEIF: transfer error interrupt, stream 0 - bit 3
-    if (DMA2->LISR & (1UL << 3U))
+    if ((DMA2->LISR & (1UL << 3U)) != 0U)
     {
+        DMA2->S0CR &= ~(1UL << 0U);
+        DMA1->S6CR &= ~(1UL << 0U); // clear the enable bit
+
+        // wait until the hardware confirms the stream is completely disabled
+        while ((DMA1->S6CR & (1UL << 0U)) != 0UL)
+            ;
         // clear all error flags for the stream 0
-        // bit 3 (TEIF), bit 2 (DMEIF) and bit 0 (FEIF)
-        DMA2->LIFCR = (1UL << 3U) | (1UL << 2U) | (1UL << 0U);
+        // bit 5 (TCIF), bit 4 (HTIF), bit 3 (TEIF), bit 2 (DMEIF) and bit 0 (FEIF)
+        DMA2->LIFCR = (1UL << 5U) | (1UL << 4U) | (1UL << 3U) | (1UL << 2U) | (1UL << 0U);
+
+        DMA1->HIFCR = (1UL << 21U) | (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
 
         DMA2->S0NDTR = ADC_BUFFER_SIZE;
+
+        current_uart_dma_buffer = NULL;
+
+        dma_half_a_ready = 0U;
+        dma_half_b_ready = 0U;
 
         DMA2->S0CR |= (1UL << 0U);
     }
@@ -327,9 +362,6 @@ void pipeline_enabling(void)
     // DMA2 Stream 0 enabling
     // EN: bit 0
     DMA2->S0CR |= (1UL << 0U);
-
-    // DMA1 Stream 6 enabling
-    DMA1->S6CR |= (1UL << 0U);
 
     // TIM2 enabling
     // CEN: bit 0
