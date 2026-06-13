@@ -5,8 +5,8 @@
 
 uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
 volatile uint32_t overrun_count = 0U;
-volatile uint8_t dma_half_a_ready = 0U;
-volatile uint8_t dma_half_b_ready = 0U;
+volatile uint32_t dma_half_a_ready = 0U;
+volatile uint32_t dma_half_b_ready = 0U;
 
 void DMA1_Stream6_IRQHandler(void)
 {
@@ -93,16 +93,18 @@ void DMA2_Stream0_IRQHandler(void)
     // TEIF: transfer error interrupt, stream 0 - bit 3
     if ((DMA2->LISR & (1UL << 3U)) != 0U)
     {
+        // disable both DMAs (even though the S0 has encountered the error, we still need to manually clear the bit)
         DMA2->S0CR &= ~(1UL << 0U);
         DMA1->S6CR &= ~(1UL << 0U); // clear the enable bit
 
         // wait until the hardware confirms the stream is completely disabled
         while ((DMA1->S6CR & (1UL << 0U)) != 0UL)
             ;
-        // clear all error flags for the stream 0
+        // clear all flags for the stream 0
         // bit 5 (TCIF), bit 4 (HTIF), bit 3 (TEIF), bit 2 (DMEIF) and bit 0 (FEIF)
         DMA2->LIFCR = (1UL << 5U) | (1UL << 4U) | (1UL << 3U) | (1UL << 2U) | (1UL << 0U);
 
+        // clear the flags for stream 6: bit 21 - TCIF, bit 19 - TEIF, bit 18 - DMIEF, bit 16 - FEIF
         DMA1->HIFCR = (1UL << 21U) | (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
 
         DMA2->S0NDTR = ADC_BUFFER_SIZE;

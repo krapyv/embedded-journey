@@ -6,11 +6,11 @@ int main(void)
 {
     clocks_init();
     gpio_init();
-    tim_init();
     dma_init();
-    nvic_init();
-    adc_init();
     uart_init();
+    adc_init();
+    nvic_init();
+    tim_init();
     pipeline_enabling();
 
     while (1)
