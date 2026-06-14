@@ -1,6 +1,7 @@
 #include "core_cm4.h"
 #include "stm32f411.h"
 #include "sampling.h"
+#include "uart.h"
 #include <stdio.h>
 
 uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
@@ -16,14 +17,14 @@ void DMA1_Stream6_IRQHandler(void)
     {
         overrun_count++;
 
-        DMA1->HIFCR = (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
+        DMA1->HIFCR = (1UL << 21U) | (1UL << 20U) | (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
 
         // force-release the software lock
-        if (current_uart_dma_buffer == &adc_raw_buffer[0])
+        if (dma_half_a_ready == 2U)
         {
             dma_half_a_ready = 0U;
         }
-        else if (current_uart_dma_buffer == &adc_raw_buffer[ADC_BUFFER_SIZE / 2U])
+        else if (dma_half_b_ready == 2U)
         {
             dma_half_b_ready = 0U;
         }
@@ -35,15 +36,15 @@ void DMA1_Stream6_IRQHandler(void)
     // Transfer complete TCIF6
     if ((status_snapshop & (1UL << 21U)) != 0UL)
     {
-        DMA1->HIFCR = (1UL << 21U) | (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
+        DMA1->HIFCR = (1UL << 21U) | (1UL << 20U) | (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
 
         __DMB();
 
-        if (current_uart_dma_buffer == &adc_raw_buffer[0])
+        if (dma_half_a_ready == 2U)
         {
             dma_half_a_ready = 0U;
         }
-        else if (current_uart_dma_buffer == &adc_raw_buffer[ADC_BUFFER_SIZE / 2U])
+        else if (dma_half_b_ready == 2U)
         {
             dma_half_b_ready = 0U;
         }
@@ -60,7 +61,7 @@ void DMA2_Stream0_IRQHandler(void)
         // clearlng the HTIF
         DMA2->LIFCR = (1UL << 4U);
 
-        if (dma_half_a_ready != 0U)
+        if (dma_half_a_ready == 1U)
         {
             overrun_count++; // previous data was never freed
         }
@@ -78,7 +79,7 @@ void DMA2_Stream0_IRQHandler(void)
         // clearing the TCIF
         DMA2->LIFCR = (1UL << 5U);
 
-        if (dma_half_b_ready != 0U)
+        if (dma_half_b_ready == 1U)
         {
             overrun_count++;
         }
@@ -108,8 +109,6 @@ void DMA2_Stream0_IRQHandler(void)
         DMA1->HIFCR = (1UL << 21U) | (1UL << 19U) | (1UL << 18U) | (1UL << 16U);
 
         DMA2->S0NDTR = ADC_BUFFER_SIZE;
-
-        current_uart_dma_buffer = NULL;
 
         dma_half_a_ready = 0U;
         dma_half_b_ready = 0U;
@@ -279,6 +278,9 @@ void dma_init(void)
 
     // TCIE: bit 4
     DMA1->S6CR |= (1UL << 4U);
+
+    DMA1->S6PAR = (uint32_t)&(USART2->DR);
+    DMA1->S6CR |= (1UL << 10);
 }
 
 void nvic_init(void)
