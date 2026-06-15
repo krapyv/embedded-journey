@@ -60,4 +60,18 @@ __attribute__((always_inline)) static inline void __DMB(void)
     __asm volatile("dmb" ::: "memory");
 }
 
+__attribute__((always_inline)) static inline void __NOP(void)
+{
+    __asm volatile("nop");
+}
+
+static inline void __disable_irq(void)
+{
+    __asm__ volatile("cpsid i" : : : "memory");
+}
+
+static inline void __enable_irq(void)
+{
+    __asm__ volatile("cpsie i" : : : "memory");
+}
 #endif
