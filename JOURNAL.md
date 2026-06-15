@@ -29,6 +29,71 @@
 **Lesson learned:**
 -
 
+# 2026-06-15
+
+**Morning:**
+- Wrote a README.md for the ADC+DMA Sampling project.
+
+**Evening:**
+- Reread the README.md, fixed typos.
+- Added the JOURNAL logs 08.06 - 15.06.
+
+**Problems encountered:**
+- I do not remember exactly what have I done a week ago lmao
+
+**Lesson learned:**
+- I need to write the Logs every day, not once a week, because I do not remember exactly e.g. what problems I had 6 days ago etc.
+
+# 2026-06-13 & 2026-06-14
+
+**All day** 
+- Program revision. Logic understanding.
+- Debugging on the breadboard with the Black Pill and a potentiometer.
+- Some fixes intergration.
+
+**Problems encountered:**
+- The project has grown more than I expected :) Very many hidden details to know and notice. But it is how it is.
+
+**Lesson learned:**
+- Hardware bare-metal debugging.
+
+# 2026-06-12
+
+**Morning:**
+- Finally finished the IRQ handlers. The project is basically done.
+
+# 2026-06-11
+
+**Morning:**
+- Impemented ISRs (Interrupt Service Routine handlers) for the DMA1 and DMA2.
+
+# 2026-06-10
+
+**Morning:**
+- Made the UART2 reusable driver more modular, developed ISR for DMA2_Stream0 with the Claude.
+
+**Evening:**
+- Implemented the DMA2 interrupt function and started writing the main loop.
+
+# 2026-06-09
+
+**Morning:**
+- Continued implementing initialization functions in ADC+DMA Sampling project.
+
+**Evening:**
+- Finished ADC_init function.
+
+# 2026-06-08
+
+**Morning:**
+- Started implementing the ADC+DMA Sampling projects: reread all architectural details and started implementing clock enabling mechanism.
+
+**Evening:**
+- Wrote the Clock initialization function
+
+**Lesson learned:**
+- ADC+DMA architectural details.
+
 # 2026-06-07
 
 **Morning:**

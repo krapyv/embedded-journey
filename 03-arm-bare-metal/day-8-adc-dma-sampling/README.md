@@ -7,12 +7,12 @@ ADC1 Channel 0 is triggered at 10 kHz by TIM2, with samples transferred via DMA2
 * **Bus Topology:** DMA2 Stream 0 (ADC1) -> SRAM -> CPU (ASCII conversion) -> DMA1 Stream 6 -> USART2 TX
 * **Clock Domain:** 16 MHz HSI (SYSCLK/AHB/APB1/APB2)
 * **Serial Configuration:** 921,600 baud. `USART->BRR = 0x11` - integer truncation of 17.36, yielding ~2.08% baud error
-* **Hardware Configurability:** Compile-time macros for GPIO port selection (Port A/B), ADC sample time cycles, and circular buffer dimentions.
+* **Hardware Configurability:** Compile-time macros for GPIO port selection (Port A/B), ADC sample time cycles, and circular buffer dimentions
 
 ## Project Structure
 
 ```text
-├── main.c              # Application entry point, initialization sequence, and background scheduling loop
+├── main.c          # Application entry point, initialization sequence, and background scheduling loop
 ├── sampling.c      # Configures the ADC1 trigger chain and handles DMA transfer interrupts
 ├── sampling.h      # Shared state flags, hardware macros, and initialization API signatures
 ├── app_config.h    # Reusable UART driver compile-time configuration and baud-time parameters
@@ -20,7 +20,7 @@ reusable_drivers/
 ├── core/   # ARM Cortex-M4 and STM32F411 register definitions
     ├── core_cm4.h      # Register layout definitions for NVIC and SysTick architectures
     └── stm32f411.h     # Memory boundaries and register definitions for AHB/APB peripherals
-└── periph/ # Portable peripheral drivers (UART)
+└── periph/     # Portable peripheral drivers (UART)
     ├── uart.c      # USART2 register configuration and DMA1 Stream 6 transfer invocation
     └── uart.h      # USART2 bit definitions, control macros, and function declarations
 ├── startup_stm32f411ceux.s       # Vector table definition, stack allocation, and Reset_Handler assembly
@@ -79,10 +79,10 @@ Connect your hardware components according to the terminal layout below:
 
 ### Build and Flash
 
-Clone the repository, navigate to the project directory, and executre the toolchain commands:
+Clone the repository, navigate to the project directory, and execute the toolchain commands:
 
 ```bash
-# Clean previous build artifacts and compiled the firware binary
+# Clean previous build artifacts and compile the firmware binary
 make clean
 make all
 
@@ -110,13 +110,13 @@ You should instantly see the real-time telemetry stream outputting raw potentiom
 
 ### Real-Time Overrun Counter Accumulation
 
-* **The Symptom:** Under sustained 10 kHz sampling, the telemetry logs show sequential, rhythmic incremenetation of the `Ovrns` counter (`+1` per line).
+* **The Symptom:** Under sustained 10 kHz sampling, the telemetry logs show sequential, rhythmic incrementation of the `Ovrns` counter (`+1` per line).
 
 * **The Mechanics:** The software tracks missing frames by evaluating the synchronization flags (`dma_half_a_ready` and `dma_half_b_ready`) inside the background scheduling loop. An overrun is registered when a new DMA half-transfer interrupt fires before the main loop has finished formating and clearing the previous frame's flag.
 
 * **Current Status:** The structural bottleneck - whether it stems from APB/AHB bus matrix contention, DMA stream priority starvation, or execution latency inside the `Newlib Nano` string-formatting library under unoptimized (`-O0`) compilation - has not yet been isolated. The pipeline currently runs with this systematic delay, meaning telemetry processing lags exactly one frame behind the real-time hardware clock injection window.
 
-## 🗺️   Next Steps & Learning Roadmap
+##  Next Steps & Learning Roadmap
 
 This roadmap focuses exclusively on optimizing the existing telemetry pipeline, resolving the documented runtime overruns, and extending host-side data utility.
 
@@ -143,7 +143,7 @@ This roadmap focuses exclusively on optimizing the existing telemetry pipeline, 
 - Implement real-time string parsing to extract the `Pot` and `Ovrns` values into a structured format (CSV/JSON).
 - Integrate `matplotlib` to plot the live 10 kHz analog signal curve and track the overrun accumulation over long runtime intervals.
 
-## 🪪 Author & License
+## Author & License
 * **Author:** Dmytro Krapyvianskyi
 * **License:** This project is open-source software licensed under the MIT License.
 
