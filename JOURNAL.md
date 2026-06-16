@@ -29,6 +29,20 @@
 **Lesson learned:**
 -
 
+# 2026-06-16
+
+**Morning and evening:**
+- Learned info about I2C: basic theory, MOSFET, edge cases, buses, logic analyzers, bit loop etc.
+- Learned basic inforation about Half-duplex.
+
+**Problems encountered:**
+- A lot of information :) It is awesome, but a bit hard xD
+
+**Lesson learned:**
+- I2C.
+- Buses.
+- Half-duplex.
+
 # 2026-06-15
 
 **Morning:**
