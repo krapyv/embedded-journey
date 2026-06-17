@@ -29,6 +29,17 @@
 **Lesson learned:**
 -
 
+# 2026-06-17
+
+**Morning:**
+- Soldered all new arrived chips.
+
+**Evening:**
+- Started developing the BMP280 Temperature and pressure reading project.
+
+**Lesson learned:**
+- BMP280.
+
 # 2026-06-16
 
 **Morning and evening:**
