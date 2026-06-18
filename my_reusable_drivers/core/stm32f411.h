@@ -175,6 +175,20 @@ typedef struct
     ADC_CommonRegisters_RegDef_t CommonRegisters;
 } ADC_Global_RegDef_t;
 
+typedef struct
+{
+    volatile uint32_t CR1;   // 0x00, Control register 1
+    volatile uint32_t CR2;   // 0x04, Control register 2
+    volatile uint32_t OAR1;  // 0x08, Own address register 1
+    volatile uint32_t OAR2;  // 0x0C, Own address register 2
+    volatile uint32_t DR;    // 0x10, Data register
+    volatile uint32_t SR1;   // 0x14, Status register 1
+    volatile uint32_t SR2;   // 0x18, Status register 2
+    volatile uint32_t CCR;   // 0x1C, Clock control register
+    volatile uint32_t TRISE; // 0x20, TRISE register
+    volatile uint32_t FLTR;  // 0x24, FLTR register
+} I2C_RegDef_t;
+
 // Alternate Function Modes
 typedef enum
 {
@@ -220,7 +234,9 @@ typedef enum
 
 #define ADC1_BASE 0x40012000UL
 
-#
+#define I2C1_BASE 0x40005400UL
+#define I2C2_BASE 0x40005800UL
+#define I2C3_BASE 0x40005C00UL
 
 // ================== Registers ==================
 
@@ -245,4 +261,8 @@ typedef enum
 
 #define ADC ((ADC_Global_RegDef_t *)ADC1_BASE)
 #define ADC1 ((ADC_RegDef_t *)ADC1_BASE)
+
+#define I2C1 ((I2C_RegDef_t *)I2C1_BASE)
+#define I2C2 ((I2C_RegDef_t *)I2C2_BASE)
+#define I2C3 ((I2C_RegDef_t *)I2C3_BASE)
 #endif
