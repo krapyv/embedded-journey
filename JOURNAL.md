@@ -29,6 +29,19 @@
 **Lesson learned:**
 -
 
+# 2026-06-18
+
+**Morning:**
+- Wrote the I2C type definition struct to my custom stm32f411 header file.
+- Started developing the I2C Temperature and pressure project.
+
+**Evening:**
+- Continued the project development.
+- Understood and calculated CCR and TRISE.
+
+**Lesson learned:**
+- I2C CCR and TRISE - timing registers.
+
 # 2026-06-17
 
 **Morning:**
