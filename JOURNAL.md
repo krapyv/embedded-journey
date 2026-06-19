@@ -29,6 +29,17 @@
 **Lesson learned:**
 -
 
+# 2026-06-19
+
+**Morning and evening:**
+- Continuing the development of the I2C Thermometer and Barometer Readings: timing and BMP280 registers.
+
+**Problems encountered:**
+- Well, it is not a problem, but it is hard. I love it :)
+
+**Lesson learned:**
+- BMP280 Bosch datasheets.
+
 # 2026-06-18
 
 **Morning:**
