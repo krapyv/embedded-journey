@@ -29,6 +29,20 @@
 **Lesson learned:**
 -
 
+# 202x-xx-xx
+
+**Morning:**
+- Understood the mechanism behind SCL and SDA lines.
+
+**Morning and evening**:
+- Continued developing the I2C Thermometer and Barometer Readings project.
+
+**Problems encountered:**
+- (None today) etc
+
+**Lesson learned:**
+-
+
 # 2026-06-19
 
 **Morning and evening:**
