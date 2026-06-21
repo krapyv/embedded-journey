@@ -29,7 +29,22 @@
 **Lesson learned:**
 -
 
-# 202x-xx-xx
+# 2026-06-21
+
+**Morning:**
+- Finished developing the I2C Thermometer and Barometer Readings project.
+- Started implementing the I2C driver.
+
+**Evening:**
+- Reread all the implementation process and details.
+
+**Problems encountered:**
+- Too much information :) It is awesome
+
+**Lesson learned:**
+- BMP280 transactions.
+
+# 2026-06-20
 
 **Morning:**
 - Understood the mechanism behind SCL and SDA lines.
