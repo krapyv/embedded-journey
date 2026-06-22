@@ -29,6 +29,21 @@
 **Lesson learned:**
 -
 
+# 2026-06-22
+
+**Morning:**
+- Implemented I2C initialization function.
+
+**Evening:**
+- Enhanced the init function.
+- Started implementing Master_Transmit function.
+
+**Problems encountered:**
+- Difficulty to grasp how the I2C files and BMP280 files are connected since we are not writing the register of BMP280 like we are doing it with the STM32.
+
+**Lesson learned:**
+- I2C Registers.
+
 # 2026-06-21
 
 **Morning:**
