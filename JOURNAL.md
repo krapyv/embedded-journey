@@ -18,6 +18,17 @@
 # 202x-xx-xx
 
 **Morning:**
+- Finished I2C_Master_Transmit and implemented I2C_Master_Read functions.
+
+**Evening:**
+- Developed the I2C_Master_Write_Read (Master_Transmit_Receive) function. Implementation is next.
+
+**Lesson learned:**
+- I2C functions development.
+
+# 202x-xx-xx
+
+**Morning:**
 -
 
 **Evening:**
