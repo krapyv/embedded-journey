@@ -18,17 +18,6 @@
 # 202x-xx-xx
 
 **Morning:**
-- Finished I2C_Master_Transmit and implemented I2C_Master_Read functions.
-
-**Evening:**
-- Developed the I2C_Master_Write_Read (Master_Transmit_Receive) function. Implementation is next.
-
-**Lesson learned:**
-- I2C functions development.
-
-# 202x-xx-xx
-
-**Morning:**
 -
 
 **Evening:**
@@ -39,6 +28,31 @@
 
 **Lesson learned:**
 -
+
+# 2026-06-24
+
+**Morning:**
+- Implemented I2C_Master_Transmit_Receive function.
+
+**Evening:**
+- Started debugging the driver. Encountered the POS bit in CR1.
+
+**Problems encountered:**
+- Realized that for 2 byte transaction, I need to involve the POS bit and its mechanics.
+
+**Lesson learned:**
+- The POS bit in CR1.
+
+# 2026-06-23
+
+**Morning:**
+- Finished I2C_Master_Transmit and implemented I2C_Master_Read functions.
+
+**Evening:**
+- Developed the I2C_Master_Write_Read (Master_Transmit_Receive) function. Implementation is next.
+
+**Lesson learned:**
+- I2C functions development.
 
 # 2026-06-22
 
