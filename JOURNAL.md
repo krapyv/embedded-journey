@@ -26,8 +26,26 @@
 **Problems encountered:**
 - (None today) etc
 
+**Root cause at the register level:**
+- 
+
 **Lesson learned:**
 -
+
+# 2026-06-25:
+
+**Morning:**
+- Implemented 2-byte receive I2C function with POS.
+- Simplified "dummy" readings in order to clear the flags: if the register is read in a poll, there is no additional redundant read etc.
+
+**Evening:**
+- Rewrote polling functions to achive better unification and reusability.
+
+**Problems encountered:**
+- I am clearing the POS bit and re-enable the ACK bti unconditionally in the errror return ways. I guess I need to clear the POS only if it is set and re-enable the ACK only when it disabled.
+
+**Lesson learned:**
+- POS=1 shifts the ACK/NACK control point from RxNE (current byte in DR) to BTF (next byte in shift register). This is what makes it possible to NACK byte 2 while still receiving byte 1, without the CPU missing the timing window.
 
 # 2026-06-24
 
@@ -41,7 +59,7 @@
 - Realized that for 2 byte transaction, I need to involve the POS bit and its mechanics.
 
 **Lesson learned:**
-- The POS bit in CR1.
+- The POS bit in CR1. Honestly, I did not know that it is cost-effective to handle separately not only one-byte receive transaction, but also two-byte receiving transaction.
 
 # 2026-06-23
 
