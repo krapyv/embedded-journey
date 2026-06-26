@@ -32,7 +32,29 @@
 **Lesson learned:**
 -
 
-# 2026-06-25:
+# 2026-06-26
+
+**Morning:**
+- Refactored all polling loops in the I2C driver by making it a separate function, optimizing all register reads to single-write and preventing the POS and ACK from clearing and re-enabling during Write trasactions.
+- Developed a timeout SysTick mechanism via function pointer to provide abstraction to hook up different types of counters. SysTick timer is set for the next verstion, when I am going to move my poll loops to interrupt-driven solution.
+
+**Evening:**
+- Discovered that I need to take snapshots of what I am doing and use them in my upcoming Linkedin posts.
+- Fixed lack of PE disenablement in I2C_init to prevent setting the I2C register bits with possibly ON PE bit after SWRST recovery etc.
+- Explicitly cleared PUPDR register bits in I2C_init to make sure they are unset.
+- Started developing the architecture of the BMP280 driver.
+
+**Problems encountered:**
+- 
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- Single-Write vs. Read-Modify-Read. For the register like SR1/SR2 with its Write-0-to-Clear protection. Single-Write is wonderful.
+- PE bit should be cleared explicitly in the top of the init function, not just be assumed to zeroed out after reboot etc.
+
+# 2026-06-25
 
 **Morning:**
 - Implemented 2-byte receive I2C function with POS.
