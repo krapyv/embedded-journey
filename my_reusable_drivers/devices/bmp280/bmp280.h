@@ -2,6 +2,7 @@
 #define BMP280_H
 
 #include <stdint.h>
+#include "i2c.h"
 
 #define BMP280_REG_ID 0xD0
 #define BMP280_REG_RESET 0xE0
@@ -19,5 +20,29 @@
 #define BMP280_REG_CALIB_START 0x88
 // 0xA0 and 0xA1 are reserved
 #define BMP280_REG_CALIB_LENGTH 24 // (0x9F - 0x88) + 1 = 0x17 + 1 = 23 + 1 = 24
+
+typedef struct
+{
+    uint16_t dig_T1; // 0x88/0x89
+    int16_t dig_T2;  // 0x8A/0x8B
+    int16_t dig_T3;  // 0x8C/0x8D
+    uint16_t dig_P1; // 0x8E/0x8F
+    int16_t dig_P2;  // 0x90/0x91
+    int16_t dig_P3;  // 0x92/0x93
+    int16_t dig_P4;  // 0x94/0x95
+    int16_t dig_P5;  // 0x96/0x97
+    int16_t dig_P6;  // 0x98/0x99
+    int16_t dig_P7;  // 0x9A/0x9B
+    int16_t dig_P8;  // 0x9C/0x9D
+    int16_t dig_P9;  // 0x9E/0x9F
+} BMP280_Calib_t;
+
+typedef struct
+{
+    I2C_HandleTypeDef *hi2c;
+    BMP280_Calib_t calib;
+    uint8_t slave_addr;
+
+} BMP280_HandleTypeDef;
 
 #endif
