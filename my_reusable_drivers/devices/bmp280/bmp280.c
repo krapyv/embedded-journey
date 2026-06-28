@@ -49,13 +49,8 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
         return BMP280_ERROR;
     }
 
-    // to simplify the parameter passing
-    I2C_HandleTypeDef *hi2c = hbmp->hi2c;
-    uint8_t slave_addr = hbmp->slave_addr;
-
     // configuring the "ctrl_meas" register
-    BMP280_Ctrl_Meas_t meas = hbmp->ctrl_meas;
-    uint8_t reconstructed_meas = ((uint8_t)meas.osrs_t << 5) | ((uint8_t)meas.osrs_p << 2) | (meas.mode);
+    uint8_t reconstructed_meas = ((uint8_t)hbmp->ctrl_meas.osrs_t << 5) | ((uint8_t)hbmp->ctrl_meas.osrs_p << 2) | (hbmp->ctrl_meas.mode);
 
     // two-byte transmit buffer
     const uint8_t transmit_length = 2;
@@ -63,7 +58,7 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
         (uint8_t)BMP280_REG_CTRL_MEAS, reconstructed_meas};
 
     // I2C write to 0xF4
-    if (I2C_Master_Transmit(hi2c, slave_addr, transmit, transmit_length) != I2C_OK)
+    if (I2C_Master_Transmit(hbmp->hi2c, hbmp->slave_addr, transmit, transmit_length) != I2C_OK)
     {
         return BMP280_ERR_CONFIG;
     }
@@ -79,7 +74,7 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
 
     do
     {
-        if (I2C_Master_Transmit_Receive(hi2c, slave_addr, &pSend, &status_reg, 1, 1) != I2C_OK)
+        if (I2C_Master_Transmit_Receive(hbmp->hi2c, hbmp->slave_addr, &pSend, &status_reg, 1, 1) != I2C_OK)
         {
             return BMP280_ERROR;
         }
@@ -127,4 +122,55 @@ BMP280_Status_t BMP280_ReadMeasurements(BMP280_HandleTypeDef *hbmp, int32_t *pre
     *temp_adc = (int32_t)((uint32_t)raw_adc[3] << 12) | ((uint32_t)raw_adc[4] << 4) | ((uint32_t)raw_adc[5] >> 4);
 
     return BMP280_OK;
+}
+
+// returns temperature in DegC, resolution is 0.01 DegC (5123 equals 51.23 Degrees)
+int32_t BMP280_Temp_Compensate(BMP280_HandleTypeDef *hbmp, int32_t temp_adc, int32_t *t_fine)
+{
+    int32_t var1, var2, T;
+    var1 = (((temp_adc >> 3) - ((int32_t)hbmp->calib.dig_T1 << 1)) * ((int32_t)hbmp->calib.dig_T2)) >> 11;
+    var2 = (((((temp_adc >> 4) - ((int32_t)hbmp->calib.dig_T1)) * ((temp_adc >> 4) - ((int32_t)hbmp->calib.dig_T1))) >> 12) * ((int32_t)hbmp->calib.dig_T3)) >> 14;
+
+    *t_fine = var1 + var2;
+    T = (*t_fine * 5 + 128) >> 8;
+
+    return T;
+}
+
+// returns pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits).
+// 24674867 = 24674867/256 = 96386.2 Pa = 963.862 hPa
+uint32_t BMP280_Pressure_Compensate(BMP280_HandleTypeDef *hbmp, int32_t press_adc, int32_t t_fine)
+{
+    int64_t var1, var2, p;
+    var1 = ((int64_t)t_fine) - 128000;
+    var2 = var1 * var1 * (int64_t)hbmp->calib.dig_P6;
+    var2 = var2 + ((var1 * (int64_t)hbmp->calib.dig_P5) << 17);
+    var2 = var2 + (((int64_t)hbmp->calib.dig_P4) << 35);
+    var1 = ((var1 * var1 * (int64_t)hbmp->calib.dig_P3) >> 8) + ((var1 * (int64_t)hbmp->calib.dig_P2) << 12);
+    var1 = ((((int64_t)1) << 47) + var1) * ((int64_t)hbmp->calib.dig_P1) >> 33;
+
+    if (var1 == 0)
+    {
+        return 0; // avoid exception caused by division by zero
+    }
+
+    p = 1048576 - press_adc;
+    p = (((p << 31) - var2) * 3125) / var1;
+    var1 = (((int64_t)hbmp->calib.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
+    var2 = (((int64_t)hbmp->calib.dig_P8) * p) >> 19;
+    p = ((p + var1 + var2) >> 8) + (((int64_t)hbmp->calib.dig_P7) << 4);
+
+    return (uint32_t)p;
+}
+
+// high-lever function that manages compensation calculations
+void BMP280_CalculateData(BMP280_HandleTypeDef *hbmp, int32_t press_adc, int32_t temp_adc, int32_t *temp, uint32_t *press)
+{
+    int32_t t_fine = 0;
+
+    *temp = BMP280_Temp_Compensate(hbmp, temp_adc, &t_fine);
+
+    *press = BMP280_Pressure_Compensate(hbmp, press_adc, t_fine);
+
+    return;
 }
