@@ -1,8 +1,15 @@
+#include <stdio.h>
 #include "bmp280.h"
 #include "systick.h"
 
 BMP280_Status_t BMP280_Calibration(BMP280_HandleTypeDef *hbmp)
 {
+    // early rejection of a transaction with invalid parameters
+    if (hbmp == NULL || hbmp->hi2c == NULL)
+    {
+        return BMP280_ERROR;
+    }
+
     // declare and initialize the arrays
     uint8_t pSend = BMP280_REG_CALIB_START;
     uint8_t pReceive[BMP280_REG_CALIB_LENGTH] = {0};
@@ -36,6 +43,12 @@ BMP280_Status_t BMP280_Calibration(BMP280_HandleTypeDef *hbmp)
 
 BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
 {
+    // early rejection of a transaction with invalid parameters
+    if (hbmp == NULL || hbmp->hi2c == NULL)
+    {
+        return BMP280_ERROR;
+    }
+
     // to simplify the parameter passing
     I2C_HandleTypeDef *hi2c = hbmp->hi2c;
     uint8_t slave_addr = hbmp->slave_addr;
@@ -75,6 +88,43 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
             return BMP280_ERR_TIMEOUT;
         }
     } while (status_reg & (1 << 3));
+
+    return BMP280_OK;
+}
+
+BMP280_Status_t BMP280_ReadMeasurements(BMP280_HandleTypeDef *hbmp, int32_t *press_adc, int32_t *temp_adc)
+{
+    // early rejection of a transaction with invalid parameters
+    if (hbmp == NULL || hbmp->hi2c == NULL)
+    {
+        return BMP280_ERROR;
+    }
+
+    // burst read of raw adc measurement values
+    // 6 bytes - 3 of pressure, 3 of temperature
+    const uint8_t burst_read_length = 6;
+    uint8_t raw_adc[burst_read_length] = {0};
+
+    uint8_t burst_start = (uint8_t)BMP280_REG_PRESS_MSB;
+
+    if (I2C_Master_Transmit_Receive(hbmp->hi2c, hbmp->slave_addr, &burst_start, raw_adc, 1, 6) != I2C_OK)
+    {
+        return BMP280_ERROR;
+    }
+
+    // after the transmission we have 6 bytes:
+    // raw_adc[0] - 0xF7 - MSB of pressure
+    // raw_adc[1] - 0xF8 - LSB of pressure
+    // raw_adc[2] - 0xF9 (bits 7, 6, 5, 4) - XLSB of pressure
+    // raw_adc[3] - 0xFA - MSB of temperature
+    // raw_adc[4] - 0xFB - LSB of temperature
+    // raw_adc[5] - 0xFC (bits 7, 6, 5, 4) - XLSB of temperature
+
+    // pressure adc reconstruction
+    *press_adc = (int32_t)((uint32_t)raw_adc[0] << 12) | ((uint32_t)raw_adc[1] << 4) | ((uint32_t)raw_adc[2] >> 4);
+
+    // temperature adc reconstruction
+    *temp_adc = (int32_t)((uint32_t)raw_adc[3] << 12) | ((uint32_t)raw_adc[4] << 4) | ((uint32_t)raw_adc[5] >> 4);
 
     return BMP280_OK;
 }
