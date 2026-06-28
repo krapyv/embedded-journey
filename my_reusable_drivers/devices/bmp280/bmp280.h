@@ -30,6 +30,33 @@ typedef enum
     BMP280_ERR_CONFIG
 } BMP280_Status_t;
 
+typedef enum
+{
+    BMP280_OSRS_P_SKIPPED = 0, // 000
+    BMP280_OSRS_P_OVRSMP_1,    // 001
+    BMP280_OSRS_P_OVRSMP_2,    // 010
+    BMP280_OSRS_P_OVRSMP_4,    // 011
+    BMP280_OSRS_P_OVRSMP_8,    // 100
+    BMP280_OSRS_P_OVRSMP_16,   // 101
+} BMP280_OSRS_P_t;
+
+typedef enum
+{
+    BMP280_OSRS_T_SKIPPED = 0, // 000
+    BMP280_OSRS_T_OVRSMP_1,    // 001
+    BMP280_OSRS_T_OVRSMP_2,    // 010
+    BMP280_OSRS_T_OVRSMP_4,    // 011
+    BMP280_OSRS_T_OVRSMP_8,    // 100
+    BMP280_OSRS_T_OVRSMP_16,   // 101
+} BMP280_OSRS_T_t;
+
+typedef enum
+{
+    BMP280_SLEEP_MODE = 0,  // 00
+    BMP280_FORCED_MODE = 1, // 01
+    BMP280_NORMAL_MODE = 3  // 11
+} BMP280_PWR_MODES_t;
+
 typedef struct
 {
     uint16_t dig_T1; // 0x88/0x89
@@ -48,10 +75,17 @@ typedef struct
 
 typedef struct
 {
+    BMP280_OSRS_T_t osrs_t;
+    BMP280_OSRS_P_t osrs_p;
+    BMP280_PWR_MODES_t mode;
+} BMP280_Ctrl_Meas_t;
+
+typedef struct
+{
     I2C_HandleTypeDef *hi2c;
     BMP280_Calib_t calib;
+    BMP280_Ctrl_Meas_t ctrl_meas;
     uint8_t slave_addr;
-
 } BMP280_HandleTypeDef;
 
 #endif

@@ -1,4 +1,5 @@
 #include "bmp280.h"
+#include "systick.h"
 
 BMP280_Status_t BMP280_Calibration(BMP280_HandleTypeDef *hbmp)
 {
@@ -29,6 +30,51 @@ BMP280_Status_t BMP280_Calibration(BMP280_HandleTypeDef *hbmp)
     hbmp->calib.dig_P7 = ((int16_t)pReceive[19] << 8) | pReceive[18];
     hbmp->calib.dig_P8 = ((int16_t)pReceive[21] << 8) | pReceive[20];
     hbmp->calib.dig_P9 = ((int16_t)pReceive[23] << 8) | pReceive[22];
+
+    return BMP280_OK;
+}
+
+BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
+{
+    // to simplify the parameter passing
+    I2C_HandleTypeDef *hi2c = hbmp->hi2c;
+    uint8_t slave_addr = hbmp->slave_addr;
+
+    // configuring the "ctrl_meas" register
+    BMP280_Ctrl_Meas_t meas = hbmp->ctrl_meas;
+    uint8_t reconstructed_meas = ((uint8_t)meas.osrs_t << 5) | ((uint8_t)meas.osrs_p << 2) | (meas.mode);
+
+    // two-byte transmit buffer
+    const uint8_t transmit_length = 2;
+    uint8_t transmit[transmit_length] = {
+        (uint8_t)BMP280_REG_CTRL_MEAS, reconstructed_meas};
+
+    // I2C write to 0xF4
+    if (I2C_Master_Transmit(hi2c, slave_addr, transmit, transmit_length) != I2C_OK)
+    {
+        return BMP280_ERR_CONFIG;
+    }
+
+    // polling the bit 3 register 0xF3 "status" to track whether the transaction is ongoing or finished or error
+
+    // capture the start timestamp
+    uint32_t start = SysTick_GetTick();
+    uint8_t pSend = (uint8_t)BMP280_REG_STATUS;
+    uint8_t status_reg = 0;
+
+    // poll the bit 3 of the register "status"
+
+    do
+    {
+        if (I2C_Master_Transmit_Receive(hi2c, slave_addr, &pSend, &status_reg, 1, 1) != I2C_OK)
+        {
+            return BMP280_ERROR;
+        }
+        if (SysTick_GetTick() - start >= 15U)
+        {
+            return BMP280_ERR_TIMEOUT;
+        }
+    } while (status_reg & (1 << 3));
 
     return BMP280_OK;
 }
