@@ -32,6 +32,24 @@
 **Lesson learned:**
 -
 
+# 2026-06-27
+
+**Morning:**
+- Implemented the header file bmp280.h.
+- Started developing the driver file bmp280.c with Claude as my strict tutor who does not give me code but navigate me and lets me find answers myself.
+
+**Evening:**
+- Analyzed how to create embedded posts on Linkedin, how often (twice a week), how much time should I spend for a one post (10-20 minutes). I do not need to become a content maker, I have totally different goal. I just need to be consequent in posting twice a week about interesting things in my projects or about things I found hard to understand and grasp.
+
+**Problems encountered:**
+- I'm still not get used to the fact that I cannot just write registers from memory map to manipulate the BMP registers :) Because all I can do using it is to manipulate the Blackpils registers, not the external peripheral's one.
+
+**Root cause at the register level:**
+- BMP280 is an external chip. I have direct access only to the STM32F411 BlackPill. With BMP280 I should manipulate through that BlackPill and I2C protocol communication.
+
+**Lesson learned:**
+- Every communication, even a simple polling of a bit inside a particular register, in BMP280 requires I2C transaction. It is heavy xD
+
 # 2026-06-26
 
 **Morning:**
