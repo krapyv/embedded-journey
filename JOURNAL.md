@@ -32,6 +32,30 @@
 **Lesson learned:**
 -
 
+# 2026-06-28
+
+**Morning:**
+- Wrote the JOURNAL entry for 27.06.
+- Implemented BMP280 Calibration function.
+- Developed and implemented SysTick reusable driver to use it in the BMP driver functions (BMP280 Trigger Measurements function).
+
+**Evening:**
+- Implemented BMP280 Trigger Measurements function.
+- Implemented BMP280 Read Measurements function.
+- Implemented BMP280 Temperature and Pressure Compensate functions, alongside with the high-level BMP280 Calculate Data function that manages the Compensate calculations.
+
+**Problems encountered:**
+- Variable-Length Arrays: did not know that the C standard strictly forbids initializing a VLA at the moment of declarion.
+- Forgot for a moment that in C arrays are initialized using curly braces {}, not square brackets :)
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- BMP280 Driver: the necessesity of timeout handling if the status register is not changing to the "Measurement done!" state.
+- Variable-Length Arrays and how to use them. Runtime length variable are not allowed to use with the VLA (uint8_t size = 2), so I needed to use compile-time constant (const uint32_t size = 2).
+- Reminded myself how to initialize the arrays. It is trivial, but even that is forgottable a bit from time to time in a midst of new informations. 
+
 # 2026-06-27
 
 **Morning:**
