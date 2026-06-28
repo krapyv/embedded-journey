@@ -17,9 +17,18 @@
 #define BMP280_REG_TEMP_XLSB 0xFC
 
 // Register of calibration data
-#define BMP280_REG_CALIB_START 0x88
+#define BMP280_REG_CALIB_START (uint8_t)0x88
 // 0xA0 and 0xA1 are reserved
 #define BMP280_REG_CALIB_LENGTH 24 // (0x9F - 0x88) + 1 = 0x17 + 1 = 23 + 1 = 24
+
+typedef enum
+{
+    BMP280_OK = 0,
+    BMP280_ERROR,
+    BMP280_ERR_TIMEOUT,
+    BMP280_ERR_CHIP_ID,
+    BMP280_ERR_CONFIG
+} BMP280_Status_t;
 
 typedef struct
 {

@@ -55,6 +55,8 @@ typedef struct
 #define NVIC ((NVIC_RegDef_t *)NVIC_BASE)
 #define SYST ((SYST_RegDef_t *)SYST_BASE)
 
+#define SYST_CVR_MAX_RELOAD 0x00FFFFFFUL
+
 __attribute__((always_inline)) static inline void __DMB(void)
 {
     __asm volatile("dmb" ::: "memory");
