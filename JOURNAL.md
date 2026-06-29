@@ -32,6 +32,29 @@
 **Lesson learned:**
 -
 
+# 2026-06-29
+
+**Morning:**
+- Implemented BMP280 Init function.
+- Developed and implemented a testing loop inside main.c.
+- Fixed all the linking issues before the flashing to the BlackPill. 
+
+**Evening:**
+- Dismantled the previous circuit on the breadboard.
+- Constructed a new circuit for th project testing:  BlackPill's B6 (SCL) connected to row 42, B7 (SDA) connected to row 43. The BMP280 sits on rows 40-45 (40 - VCC, 41 - GND, 42 - SCL, 43 - SDA, 44 -CSB, 45 - SDO)). before SDA and SCL wires on rows 42 and 43 (before the BMP280) there are two resistors 4.7K ohms connected SCL to 3.3v power rail and SDA to 3.3v power rail. CSB connected to 3.3V because it is I2C, SDO is connected to GND rail because the address is 0x76.
+The UART-USB adapter has 4 pins (VCC, GND, TXD, RXD). GND is connected to GND rail. TXD is connected to PA3 (RX2) breadboard row. RXD is connected to PA2 (TXD) breadboard row. VCC is not connected because the adapter connected by USB.
+
+**Problems encountered:**
+- uint8_t etc. appeared undefined after assemlying the entire program. Changed the compiler in "c_cpp_properties.json" from "clang" to "arm-none-eabi". A trivial issue, but it was suprisingly to me that `uint8_t` etc can be undefined :)
+- Other errors during compilation process. Fixed all of them by including missing header files or standard libraries.
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- `<inttypes.h>` and portability solution to a potential cross-compilation problem: PRId32 and PRIu32.
+- Linking stage may be even trickier that the process of writing the program.
+
 # 2026-06-28
 
 **Morning:**
