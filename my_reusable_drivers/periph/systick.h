@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+// frequency variants
+#define SYSTICK_FREQUENCY_16MHZ 16000000U
+
 // function headers
 
 // init function

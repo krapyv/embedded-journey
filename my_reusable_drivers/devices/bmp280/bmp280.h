@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "i2c.h"
 
+#define BMP280_CHIP_ID 0x58
+
 #define BMP280_REG_ID 0xD0
 #define BMP280_REG_RESET 0xE0
 #define BMP280_REG_STATUS 0xF3
@@ -20,6 +22,10 @@
 #define BMP280_REG_CALIB_START (uint8_t)0x88
 // 0xA0 and 0xA1 are reserved
 #define BMP280_REG_CALIB_LENGTH 24 // (0x9F - 0x88) + 1 = 0x17 + 1 = 23 + 1 = 24
+
+// Slave address variants
+#define BMP280_I2C_ADDR 0x76     // SDO-low variant
+#define BMP280_I2C_ADDR_ALT 0x77 // SDO-high variant
 
 typedef enum
 {
@@ -87,5 +93,14 @@ typedef struct
     BMP280_Ctrl_Meas_t ctrl_meas;
     uint8_t slave_addr;
 } BMP280_HandleTypeDef;
+
+// function headers
+BMP280_Status_t BMP280_Calibration(BMP280_HandleTypeDef *hbmp);
+BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp);
+BMP280_Status_t BMP280_ReadMeasurements(BMP280_HandleTypeDef *hbmp, int32_t *press_adc, int32_t *temp_adc);
+int32_t BMP280_Temp_Compensate(BMP280_HandleTypeDef *hbmp, int32_t temp_adc, int32_t *t_fine);
+uint32_t BMP280_Pressure_Compensate(BMP280_HandleTypeDef *hbmp, int32_t press_adc, int32_t t_fine);
+void BMP280_CalculateData(BMP280_HandleTypeDef *hbmp, int32_t press_adc, int32_t temp_adc, int32_t *temp, uint32_t *press);
+BMP280_Status_t BMP280_Init(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas);
 
 #endif

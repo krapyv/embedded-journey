@@ -54,8 +54,7 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
 
     // two-byte transmit buffer
     const uint8_t transmit_length = 2;
-    uint8_t transmit[transmit_length] = {
-        (uint8_t)BMP280_REG_CTRL_MEAS, reconstructed_meas};
+    uint8_t transmit[2] = {(uint8_t)BMP280_REG_CTRL_MEAS, reconstructed_meas};
 
     // I2C write to 0xF4
     if (I2C_Master_Transmit(hbmp->hi2c, hbmp->slave_addr, transmit, transmit_length) != I2C_OK)
@@ -98,7 +97,7 @@ BMP280_Status_t BMP280_ReadMeasurements(BMP280_HandleTypeDef *hbmp, int32_t *pre
     // burst read of raw adc measurement values
     // 6 bytes - 3 of pressure, 3 of temperature
     const uint8_t burst_read_length = 6;
-    uint8_t raw_adc[burst_read_length] = {0};
+    uint8_t raw_adc[6] = {0};
 
     uint8_t burst_start = (uint8_t)BMP280_REG_PRESS_MSB;
 
@@ -173,4 +172,33 @@ void BMP280_CalculateData(BMP280_HandleTypeDef *hbmp, int32_t press_adc, int32_t
     *press = BMP280_Pressure_Compensate(hbmp, press_adc, t_fine);
 
     return;
+}
+
+BMP280_Status_t BMP280_Init(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas)
+{
+    // first of all, make sure that the CHIP ID is 0x58 by doing a Transmit-Receive transaction
+    uint8_t id_register = (uint8_t)BMP280_REG_ID;
+    uint8_t received_id = 0;
+
+    if (I2C_Master_Transmit_Receive(hbmp->hi2c, hbmp->slave_addr, &id_register, &received_id, 1U, 1U) != I2C_OK)
+    {
+        return BMP280_ERROR;
+    }
+
+    // if received_id is not 0x58, then we have wrong device on the bus or a dead bus (floating SDA line returns 0xFF)
+    if (received_id != (uint8_t)BMP280_CHIP_ID)
+    {
+        return BMP280_ERR_CHIP_ID;
+    }
+
+    // if the received_id corresponds with our anticipated result, populate ctrl_meas inside the handle
+    hbmp->ctrl_meas = meas;
+
+    // call the BMP280_Calibration to gather and reconstruct calibration bytes
+    if (BMP280_Calibration(hbmp) != BMP280_OK)
+    {
+        return BMP280_ERROR;
+    }
+
+    return BMP280_OK;
 }
