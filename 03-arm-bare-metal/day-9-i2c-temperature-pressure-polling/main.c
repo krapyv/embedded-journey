@@ -5,7 +5,7 @@
 #include "i2c.h"
 #include "uart.h"
 
-void main(void)
+int main(void)
 {
     // define and initialize structs
     I2C_HandleTypeDef hi2c = {
@@ -29,7 +29,7 @@ void main(void)
     SysTick_Init((uint32_t)SYSTICK_FREQUENCY_16MHZ);
     if (BMP280_Init(&hbmp, meas) != BMP280_OK)
     {
-        return;
+        return 1;
     }
     usart2_init();
 
@@ -38,7 +38,7 @@ void main(void)
     {
         if (BMP280_TriggerMeasurements(&hbmp) != BMP280_OK)
         {
-            return;
+            return 1;
         }
 
         int32_t press_adc = 0;
@@ -46,7 +46,7 @@ void main(void)
 
         if (BMP280_ReadMeasurements(&hbmp, &press_adc, &temp_adc) != BMP280_OK)
         {
-            return;
+            return 1;
         }
 
         int32_t temp_value = 0;
@@ -54,7 +54,8 @@ void main(void)
         BMP280_CalculateData(&hbmp, press_adc, temp_adc, &temp_value, &press_value);
 
         printf("Temp: %" PRId32 " degC | Press: %" PRIu32 " hPa\r\n", temp_value / 100, press_value / 256 / 100);
+        fflush(stdout);
     }
 
-    return;
+    return 0;
 }

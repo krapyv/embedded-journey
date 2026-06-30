@@ -32,6 +32,21 @@
 **Lesson learned:**
 -
 
+# 2026-06-30
+
+**Morning and evening:**
+- Debugging of the I2C Temperature and Pressure readings.
+
+**Problems encountered:**
+- Too much hung poll loops xD 
+- Too much moments in which nanoseconds and microseconds made a difference.
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- Debugging is hard. Maybe it is the most time-consuming activity in embedded. You need to trace down what does not work. And it sucks :) Love it :)
+
 # 2026-06-29
 
 **Morning:**
