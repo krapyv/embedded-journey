@@ -36,6 +36,7 @@
 
 **Morning:**
 - Finished debugging the I2C BMP280 Temperature Pressure Readings program. Fixed the last remaining problem. Now it works, printing the readings in human-readable format over UART with 115200 baud rate.
+- Wrote a LinkedIn post about RXNE vs BTF for the final byte in N >= 3 receive in I2C.
 
 **Evening:**
 -
