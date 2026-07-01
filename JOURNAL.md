@@ -32,20 +32,87 @@
 **Lesson learned:**
 -
 
+# 2026-07-01
+
+**Morning:**
+- Finished debugging the I2C BMP280 Temperature Pressure Readings program. Fixed the last remaining problem. Now it works, printing the readings in human-readable format over UART with 115200 baud rate.
+
+**Evening:**
+-
+
+**Bugs encountered:**
+1. Back-to-back I2C transactions failing due to STOP not completing before next START.
+**Symptom:** CDB stalls at line 282 in I2C_PollHardwareBusy immediately after entering I2C_Master_Transmit during BMP280_TriggerMeasurements execution. The function spins forever on SR2 BUSY bit never clearing. Minicom silent because no measurement has been triggered and made.
+
+**Root cause:** 
+1.Software: After successfully finishing the calibration data issuing over the lines and its reconstruction, the CPU initialized the UART driver and entered the TriggerMeasurements function. The bus was still BUSY. After receiving the last N-1 byte during the calibration data receiving, the function did not wait for the BUSY condition being detected by the hardware. It exited immediately.
+
+2. Electrical: After STOP is generated, BUSY clears only when SDA and SCL both return to their HIGH state. On my breadboard, I have 4.7 kOhms external resistors and 10 kOhms external resistor on the BMP280 chip. The rise time of an open-drain line is goverened by RC - the pull-up resistance times the bus capacitance. The resistance in parallel equals (10 kOhms * 4.7 kOhms) / (10 kOhms + 4.7 kOhms) = approximately 3.2 kOhms. 
+RC = 3.2 kOhms * 100 * 10^(-12) = 32 microseconds. 1 CPU's cycles = 1 / 16 000 000 = 62.5 nanoseconds.
+
+So 32 microseconds / 62.5 nanoseconds = 51.2 = approximately 51 CPU clock cyclesuntil both the lines are HIGH.
+
+Additionally, I need roughly 3-5 RC constants for a clean logic HIGH. That's 153 - 255 CPU cycles minimum between STOP and a reliable BUSY = 0. Meanwhile the code burns maybe 10-20 cycles returning through function calls before hitting I2C_PollHardwareBusy.
+
+**Fix:** After the last N-1 byte has been read from the DR, I added the loop while (I2C->CR1 & (1 << 9)) to wait until STOP bit in CR1 is cleared by hardware that means that the STOP is detected and the lines have returned to idle. Only then return from the HAL function.
+
+**Lesson learned:**
+- Register writes that generate bus events are not instantaneous. The gap between software writing a control bit and the physical electrical consequence completing is governed by bus physics, not CPU speed. Any function that generates STOP must confirm STOP completion before returning - otherwise the next transaction races against an electrically busy bus.
+
 # 2026-06-30
 
 **Morning and evening:**
 - Debugging of the I2C Temperature and Pressure readings.
 
-**Problems encountered:**
+**My thoughts about debugging:**
 - Too much hung poll loops xD 
 - Too much moments in which nanoseconds and microseconds made a difference.
+- Now it breaks on BMP280_TriggerMeasurements function.
 
-**Root cause at the register level:**
--
+**Bugs encountered:**
+1. CSB/SDO floating pins causing erratic bus behavior
+
+Not specifically a bug because I fixed it before even flashing the program to the BlackPill. But simultaneously if I did not find out that I need to connect the CSB to 3.3V rail to get I2C mode and the SDO to GND to get the address 0x76, then I would have had the BMP280 chil that acts for some time like I2C chip, then like SPI chip, or even better: the I2C transactions would have ended with errors due to the fact, that no chip whatsoever has the address 0x76 (if at the moment the BMP280 had its SDO high, so the address 0x77).
+
+In my mental model, I somehow omitted it and only debug session allowed me to fully grasp that if the BMP280 has 6 pins, all 6 of them are in use.
+
+2. RXNE vs BTF for the final byte in N >= 3 receive.
+**Symptom:** GDB stuck at the line 241: I2C_PollHardwareFlags called in I2C_Master_Transmit_Receive function during BMP280_Calibration.
+RXNE never fires. Minicom silent since BMP280_Calibration is a part of BMP280_Init that should complete before UART2 initialization, so UART2 had never had an ocassion to initialiaze.
+
+**Root cause:** RXNE signals that a byte has been transferred from the shift register into DR - but for the final byte, the master issues NACK, which tells the slave to stop driving SDA after the 8th bit, so the 9th clock pulse produces no valid data transition, the shift register never completes a transfer, and RXNE never asserts.
+
+**Hardware consequence:** SCL is held low by the peripheral's clock stretching mechanism while the master polls indefinitely - the bus freezes.
+
+**Fix:** For the final two bytes of an N >= 3 receive, BTF must replace RXNE - BTF fires when both DR and the shift register are simultaneously full, which happens before the ACK/NACK decision is made, giving software the deterministic window to clear ACK, read DR, set STOP, and read the final byte directly from DR without any further polling.
+
+3. ACK clear timing relative to shift register state
+**Symptom:** The CDB stalls at the BTF poll for byte N-2, not even reaching the DR read. The minicom still silent because UART has never been initialized yet.
+
+**Root cause:** After the fix of the bug 2, the ACK bit clearing stays immediately after the main loop 0...N-3 exits - immediately after reading DR for byte N-3 (the last byte handled by the RXNE loop).
+The I2C needs 90 microseconds for the byte (8 bits + 1 ACK/NACK). The CPU executes a single instruction in 62.5 nanoseconds. Between the last byte reading of the byte N-3 and the ACK clearing elapse 2-4 CPU cycles. 4 CPU cycles = 250 ns.
+During that 250 ns the I2C pulled over the lines: 250 ns / 10 000 ns per bit = 0.025 bit (2.5% of the first bit out of 9). It means that ACK clearing arrives essentially at the very start of that byte's transfer, not after it. It is too early.
+Clearing ACK here causes the master to NACK byte N-2 itself, not byte N-1 as intended.
+
+**Fix:** The reference manual for STM32F411 presents a general sequence for N > 2 byte reception, from N-2 data reception:
+• Wait until BTF = 1 (data N-2 in DR, data N-1 in shift register, SCL stretched low until data N-2 is read)
+• Set ACK low
+• Read data N-2
+• Wait until BTF = 1 (data N-1 in DR, data N in shift register, SCL stretched low until a data N-1 is read)
+• Set STOP high
+• Read data N-1 and N.
+
+For my receive transmission (0...N-2) for bytes N-2 and N-1 it simplifies to:
+• BTF wait
+• ACK clear 
+• DR read (byte N-2) 
+• STOP
+• DR read (byte N-1).
 
 **Lesson learned:**
 - Debugging is hard. Maybe it is the most time-consuming activity in embedded. You need to trace down what does not work. And it sucks :) Love it :)
+- CSB and SDO must be connected to VCC/GND depending on what configuration you need. With these pins floating, the bus behaves erratically and unpredictably.
+- The ACK/NACK decision for a byte is made at the transition point - the moment that byte moves from the shift register into DR (freeing the shift register for the next incoming byte). That's when the 9th clock pulse fires and the hardware samples whatever value is currently in the ACK bit. This is also why the 0 to N-3 loop never needed to think about ACK explicitly - it defaults to 1 (set during init), and every byte transitions shift-register-to-DR with ACK=1 automatically, requesting the next byte.
 
 # 2026-06-29
 
