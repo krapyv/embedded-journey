@@ -39,7 +39,7 @@
 - Wrote a LinkedIn post about RXNE vs BTF for the final byte in N >= 3 receive in I2C.
 
 **Evening:**
--
+- Started developing the Interrupt-Driven Architecture for the I2C BMP280 Temperature and Pressure Readings project.
 
 **Bugs encountered:**
 1. Back-to-back I2C transactions failing due to STOP not completing before next START.
@@ -59,6 +59,7 @@ Additionally, I need roughly 3-5 RC constants for a clean logic HIGH. That's 153
 
 **Lesson learned:**
 - Register writes that generate bus events are not instantaneous. The gap between software writing a control bit and the physical electrical consequence completing is governed by bus physics, not CPU speed. Any function that generates STOP must confirm STOP completion before returning - otherwise the next transaction races against an electrically busy bus.
+- Interrupt-Driven Architecture is hard to grasp and implement. But it is wonderful, because it sucks. So that's why I need to do it :)
 
 # 2026-06-30
 
