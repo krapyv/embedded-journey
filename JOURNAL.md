@@ -38,7 +38,7 @@
 - Continued to develop the Interrupt-Driven Architecture for I2C driver.
 
 **Evening:**
--
+- Continue developing and tracing possible race conditions, parts of code that requires critical sections and interrupt prioriries of ISR.
 
 **Problems encountered:**
 - (None today) etc
@@ -47,7 +47,7 @@
 -
 
 **Lesson learned:**
--
+- Interrupts are hard. You cannot guarantee that everything would happen just like you predicted, because you never know when one interrupt would stretch a bit and then would be interrupted by the interrupt with higher priority (lower number = higher priority). 
 
 # 2026-07-01
 
