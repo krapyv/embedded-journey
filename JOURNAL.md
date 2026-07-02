@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 2026-07-02
+
+**Morning:**
+- Continued to develop the Interrupt-Driven Architecture for I2C driver.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-01
 
 **Morning:**
