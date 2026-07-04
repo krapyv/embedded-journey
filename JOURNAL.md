@@ -32,6 +32,46 @@
 **Lesson learned:**
 -
 
+# 2026-07-04
+
+**Morning:**
+- Finished developing the I2C BMP280 Interrupt-Driven Architecture
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- Memory regions, types and attributes: memory system ordering of memory. It is fascinating that even Normal-to-Normal accesses are not guaranteed to be in order.
+- DMB vs DSB: DMB ensures that ongoing memory transactions completely before  subsequent memory transactions, meanwhile DSB ensures that ongoing memory transactions complete before subsequent instructions execute. Their gigantic architectural costs difference: DMB takes roughly 1-2 CPU cycles on M4, DSB can take from 4 to 20+ CPU cycles depending on the bus congestion. For the time-critical ISRs, it is enormous difference and a gamechanger.
+- Guaranteed minimum time: to guarantee that a least one full millisecond of real wall-clock time has physically elapsed, regardless of how badly the snapshot aligns with the clock phase (is was made 1 CPU cycle before underflow - the real time of 62.5 ns, or immediately after the reload - the real time 1 ms), the best solution is to always budget a minimum tick count of 2.
+
+Guaranteed Minimum Time = (Budgeted Ticks - 1) * Tick Period.
+
+So if the budget is 2 ticks: the worst-case is (2 - 1) * 1 ms = 1 ms minimum guaranteed wait.
+
+# 2026-07-03
+
+**Morning:**
+-
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+- 
+
+**Lesson learned:**
+-
+
 # 2026-07-02
 
 **Morning:**
@@ -66,11 +106,9 @@
 1.Software: After successfully finishing the calibration data issuing over the lines and its reconstruction, the CPU initialized the UART driver and entered the TriggerMeasurements function. The bus was still BUSY. After receiving the last N-1 byte during the calibration data receiving, the function did not wait for the BUSY condition being detected by the hardware. It exited immediately.
 
 2. Electrical: After STOP is generated, BUSY clears only when SDA and SCL both return to their HIGH state. On my breadboard, I have 4.7 kOhms external resistors and 10 kOhms external resistor on the BMP280 chip. The rise time of an open-drain line is goverened by RC - the pull-up resistance times the bus capacitance. The resistance in parallel equals (10 kOhms * 4.7 kOhms) / (10 kOhms + 4.7 kOhms) = approximately 3.2 kOhms. 
-RC = 3.2 kOhms * 100 * 10^(-12) = 32 microseconds. 1 CPU's cycles = 1 / 16 000 000 = 62.5 nanoseconds.
+RC = 3.2 kOhms * 100 * 10^(-12) = 0.32 microseconds = 320 ns. 1 CPU's cycles = 1 / 16 000 000 = 62.5 nanoseconds.
 
-So 32 microseconds / 62.5 nanoseconds = 51.2 = approximately 51 CPU clock cyclesuntil both the lines are HIGH.
-
-Additionally, I need roughly 3-5 RC constants for a clean logic HIGH. That's 153 - 255 CPU cycles minimum between STOP and a reliable BUSY = 0. Meanwhile the code burns maybe 10-20 cycles returning through function calls before hitting I2C_PollHardwareBusy.
+So 320 nanoseconds / 62.5 nanoseconds = approximately 5 CPU clock cycles until both the lines are HIGH.
 
 **Fix:** After the last N-1 byte has been read from the DR, I added the loop while (I2C->CR1 & (1 << 9)) to wait until STOP bit in CR1 is cleared by hardware that means that the STOP is detected and the lines have returned to idle. Only then return from the HAL function.
 
