@@ -35,7 +35,9 @@
 # 2026-07-04
 
 **Morning:**
-- Finished developing the I2C BMP280 Interrupt-Driven Architecture
+- Finished developing the I2C thread-safety and receive sequencing for the Interrupt-Driven Architecture.
+- Developed Transmit and Receive transaction types in Interrupt-Driver Architecture.
+- Started developing the Master_Transmit_Receive's repeated-start handoff - the point where ISR is running in TX-phase and has to pivot into RX-phase without returning to the main loop in between.
 
 **Evening:**
 -
