@@ -40,7 +40,7 @@
 - Started developing the Master_Transmit_Receive's repeated-start handoff - the point where ISR is running in TX-phase and has to pivot into RX-phase without returning to the main loop in between.
 
 **Evening:**
--
+- Finished developing the Master_Transmit_Receive's repeated-start handoff.
 
 **Problems encountered:**
 - (None today) etc
@@ -56,6 +56,9 @@
 Guaranteed Minimum Time = (Budgeted Ticks - 1) * Tick Period.
 
 So if the budget is 2 ticks: the worst-case is (2 - 1) * 1 ms = 1 ms minimum guaranteed wait.
+- Within a single ISR execution, there is no way it can interrupt itself. For the I2C Event IRQ Handler at this point of the program development, there is no second reader that can observe an incomplete state update, the main loop is frozen, so no danger is around. 
+Also noted: there is a hazard posibility in the future code expansion: when we add DMA, the DMA countroller could read phase independently of the ISR, so that 1-2 cpu clock cycle window between the index update and the phase update could bring problems. For now there is no current race, but preserved ordering discipline is case a second bus master is introduced.
+- Ordering discipline: index-then-state - introduced because the main loop could be caught mid-read by an ISR firing at an arbitrary instant.
 
 # 2026-07-03
 
