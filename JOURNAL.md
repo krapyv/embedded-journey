@@ -37,17 +37,22 @@
 **Morning:**
 - Reread the whole design implementation conversation with Claude who acts like a strict tutor who only guides me and makes me think about everything myself, with no answers or code snippets from its side.
 
+**Afternoon:**
+- Implemented struct handler.
+- Started developing ISR handlers EV and ERR and their timing issues. EV (priority 38) can interrupt ERR handler (priority 39) mid-write, so ordering rule index-then-state does not work.
+
 **Evening:**
 -
 
 **Problems encountered:**
-- (None today) etc
+- Too many interrupt problems. I am tired of them xD
 
 **Root cause at the register level:**
 -
 
 **Lesson learned:**
 - The transitioning from the wait busy polling to the interrupt-driven architecture - need to think about many things: timing, contexts, possible interruptions of other ISRs etc.
+- Two I2C interrupts handlers with different priorities create interrupt mid-write problem.
 
 # 2026-07-04
 
