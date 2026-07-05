@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 2026-07-05
+
+**Morning:**
+- Reread the whole design implementation conversation with Claude who acts like a strict tutor who only guides me and makes me think about everything myself, with no answers or code snippets from its side.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- The transitioning from the wait busy polling to the interrupt-driven architecture - need to think about many things: timing, contexts, possible interruptions of other ISRs etc.
+
 # 2026-07-04
 
 **Morning:**
