@@ -42,10 +42,11 @@
 - Started developing ISR handlers EV and ERR and their timing issues. EV (priority 38) can interrupt ERR handler (priority 39) mid-write, so ordering rule index-then-state does not work.
 
 **Evening:**
--
+- Wrote a LinkedIn post about Normal-to-Normal memory accesses are not guaranteed to arrive in order.
 
 **Problems encountered:**
 - Too many interrupt problems. I am tired of them xD
+- Still have difficulties understanding e.g. I2C_EV interrupt that can interrupt I2C_ERR handler because of higher interrupt priority. But I am fighting.
 
 **Root cause at the register level:**
 -
