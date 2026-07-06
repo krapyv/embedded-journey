@@ -38,16 +38,16 @@
 - Continued designing the I2C ER_IRQHandler: BERR recovery that requires SWRST, NVIC_ClearPendingIRQ (for possible EV_IRQHandler interrupt), GPIO_IDR to check during the I2C reset phase if the SCL and SDA pins are high or low (if high, then the bus is free, because the external pull-up resistors pulled the line high).
 
 **Evening:**
--
+- Designed the Clock-bang recovery sequence (manual toggling of SCL line through GPIO) to drag the external sensor out of the forever locked state when it holds the SDA LOW.
 
 **Problems encountered:**
 - It is not a problem, but I did not know that there are so many things you need to think about when designing an IRQ handler :)
 
 **Root cause at the register level:**
--
+- SWRST (Bit 15 in CR1) should be 1 during the Clock-banging recovery sequence to preven a chaotic and unpredicable internal state of I2C after returning to MODER AF.
 
 **Lesson learned:**
--
+- Bit-banging and Clock-banging recovery sequence.
 
 
 # 2026-07-05
