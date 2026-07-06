@@ -32,6 +32,24 @@
 **Lesson learned:**
 -
 
+# 2026-07-06
+
+**Morning:**
+- Continued designing the I2C ER_IRQHandler: BERR recovery that requires SWRST, NVIC_ClearPendingIRQ (for possible EV_IRQHandler interrupt), GPIO_IDR to check during the I2C reset phase if the SCL and SDA pins are high or low (if high, then the bus is free, because the external pull-up resistors pulled the line high).
+
+**Evening:**
+-
+
+**Problems encountered:**
+- It is not a problem, but I did not know that there are so many things you need to think about when designing an IRQ handler :)
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
+
 # 2026-07-05
 
 **Morning:**
