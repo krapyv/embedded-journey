@@ -32,6 +32,27 @@
 **Lesson learned:**
 -
 
+# 2026-07-07
+
+**Morning:**
+- Finished designing the I2C_ERR_IRQHandler. Started implementing the Handler.
+
+**Evening:**
+- Implemented I2C_Reinit() function.
+- Added Interrupt enablement to both I2C_Init and Reinit.
+- Created the first skeleton of I2C1_EV_IRQHandler.
+- Almost finished implementing the main loop ERROR branching with explicit I2C_BERR branch that handles the GPIO Clock-Banging.
+
+**Problems encountered:**
+- (None)
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- BSRR register in GPIO: it allows to change the state of individual pins atomically (in a single CPU instruction cycle) without using a read-modify-write operation (ODR mechanics).
+- NVIC's Write-1-to-clear ICPR (Interrupt Clear-Pending Register) and ICER (Interrupt Clear-Enable Register): a direct write assignment instead of a read-modify-write (|=) operation.
+
 # 2026-07-06
 
 **Morning:**
