@@ -5,6 +5,9 @@
 #include "i2c.h"
 #include "uart.h"
 
+// globally declared vaiable with physically allocated memory in RAM
+I2C_HandleTypeDef hi2c;
+
 int main(void)
 {
     // define and initialize structs
