@@ -32,6 +32,30 @@
 **Lesson learned:**
 -
 
+# 2026-07-08
+
+**Morning:**
+- Implemented GPIO Clock-banging sequence to drag the stuck peripheral through an infinite lock with SDA line held low.
+- Implemented bit-banging STOP-issuing.
+- Implemented a distiction between BERR recovery sequence and ARLO/AF recoveries. Since the BERR is a superset of ARLO and AF (if the bus has all three errors, handling BERR with SWRST clears all evidence of ARLO/AF and provides the ultimate recovery by reseting the peripheral and reinitializing it), we should handle BERR if available or if there is no BERR, ARLO/AF.
+- Implemented the branching inside AF recovery sequence: if there are both ARLO/AF, then the MCU has lost its "controller status", so it is now a target. Targets perform "STOP conditions" by pulling off the lines letting them float. So the STOP issuing in the AF recovery is a redundant one if the MCU is a target.
+- Fixed read-modify-write error flags clearing (hi2c.Instance->SR1 &= ~(1 << 9)). If hardware sets some other bit to SR1 in the handful of cycles between the read and the write-baco of one of those two RMW statements and the bit comes after the CPU has read the state of the SR1, but before it has written it modified back, CPU does not know that there is a new bit and that it should reread the register. It just modifies the old register value and writes it to the SR1. So the new bit is gone.
+The solution: hi2c.Instance->SR1 = ~((1 << 13) | (1 << 9) | (1 << 5)). A single write to the SR1: bits 5 and 13 are reserved bits, writing 0 or 1 to them does nothing, but according to spect-compliance/MISRA hygiene we should write to them only their reset values (0x0000). 
+Also bits 7, 6, 4 to 0 are read-only, so writing 1 to them does nothing. Other bits are write-0-to-clear, writing 1 to them has no harm whatsoever.
+
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-07
 
 **Morning:**

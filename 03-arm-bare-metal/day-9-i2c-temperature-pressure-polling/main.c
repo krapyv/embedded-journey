@@ -51,7 +51,7 @@ int main(void)
 
         if (current_state == I2C_STATE_ERROR)
         {
-            if (hi2c.error_code == I2C_ERROR_BERR)
+            if (hi2c.error_code & I2C_ERROR_BERR)
             {
                 // the SWRST is already 1 and not yet cleared
 
@@ -129,7 +129,7 @@ int main(void)
                             ;
 
                         // release the SCL line high
-                        hi2c.scl_port->BSRR = (1 << (hi2c.scl_pin));
+                        hi2c.scl_port->BSRR = (1 << hi2c.scl_pin);
 
                         for (volatile uint32_t i = 0; i < 50; i++)
                             ;
@@ -138,11 +138,125 @@ int main(void)
                     if (bus_released)
                     {
                         // generate stop
+                        // STOP sequence: SCL goes low, SDA goes low, SCL goes high, SDA goes high
+
+                        // first of all, configure the SDA pin as General Purpose Output (01)
+
+                        // clear the bits (a pin has 2 bits in MODER)
+                        // 0b0011 = 0x3
+                        hi2c.sda_port->MODER &= ~(0x3 << (hi2c.sda_pin * 2));
+
+                        // set the bits
+                        // 0b0001 = 0x1
+                        hi2c.sda_port->MODER |= (0x1 << (hi2c.sda_pin * 2));
+
+                        // make sure that SDA pin is Open-Drain
+                        hi2c.sda_port->OTYPER |= (1 << hi2c.sda_pin);
+
+                        /* ----- SEQUENCE -----*/
+                        // SCL goes low
+                        hi2c.scl_port->BSRR = (1 << (hi2c.scl_pin + 16));
+                        for (volatile uint32_t i = 0; i < 50; i++)
+                            ;
+
+                        // SDA goes low
+                        hi2c.sda_port->BSRR = (1 << (hi2c.sda_pin + 16));
+                        for (volatile uint32_t i = 0; i < 50; i++)
+                            ;
+
+                        // SCL goes high
+                        hi2c.scl_port->BSRR = (1 << hi2c.scl_pin);
+                        for (volatile uint32_t i = 0; i < 50; i++)
+                            ;
+
+                        // SDA goes high
+                        hi2c.sda_port->BSRR = (1 << hi2c.sda_pin);
+                        for (volatile uint32_t i = 0; i < 50; i++)
+                            ;
                     }
 
                     // return the pins to AF
+                    /* ----- set the MODER for SCL pin and SDA pin to Alternate function ----- */
+                    // value: 10
+
+                    // one pin takes 2 bits, so (2 * pin_number):
+                    // e.g. pin 6 takes 2*6 = 12 => 13:12
+                    // pin 7 takes 2*7 = 14 => 15:14
+                    // pin 0 takes 2*0 = 0 => 1:0
+
+                    // clear the MODER bits
+                    // 11 = 0x3
+                    hi2c.scl_port->MODER &= ~(0x3 << (2 * hi2c.scl_pin));
+                    hi2c.sda_port->MODER &= ~(0x3 << (2 * hi2c.sda_pin));
+
+                    // set the MODER bits
+                    // 10 = 0x2
+                    hi2c.scl_port->MODER |= (0x2 << (2 * hi2c.scl_pin));
+                    hi2c.sda_port->MODER |= (0x2 << (2 * hi2c.sda_pin));
+
+                    /* ----- set the AFRL for SCL pin and SDA pin to AF4 ----- */
+                    // AF4 value: 0100
+
+                    // AFRL/AFRH uses 4 bits per 1 pin
+
+                    if (hi2c.scl_pin >= 8)
+                    {
+                        // pins 8-15 are set in AFRH
+
+                        // clear the AFRH bits
+                        // 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0xF
+                        hi2c.scl_port->AFRH &= ~(0xF << (4 * (hi2c.scl_pin - 8))); // scl_pin - 8 to prevent overflow of 32 bit register
+
+                        // set the bits to AF4
+                        hi2c.scl_port->AFRH |= (GPIO_AF4 << (4 * (hi2c.scl_pin - 8)));
+                    }
+                    else
+                    {
+                        // pins 0-7 are set in AFRL
+
+                        // clear the AFRL bits
+                        // 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0xF
+                        hi2c.scl_port->AFRL &= ~(0xF << (4 * hi2c.scl_pin));
+
+                        // set the bits to AF4
+                        hi2c.scl_port->AFRL |= (GPIO_AF4 << (4 * hi2c.scl_pin));
+                    }
+
+                    if (hi2c.sda_pin >= 8)
+                    {
+                        // pins 8-15 are set in AFRH
+
+                        // clear the AFRH bits
+                        // 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0xF
+                        hi2c.sda_port->AFRH &= ~(0xF << (4 * (hi2c.sda_pin - 8))); // sda_pin - 8 to prevent overflow of 32 bit register
+
+                        // set the bits to AF4
+                        hi2c.sda_port->AFRH |= (GPIO_AF4 << (4 * (hi2c.sda_pin - 8)));
+                    }
+                    else
+                    {
+                        // pins 0-7 are set in AFRL
+
+                        // clear the AFRL bits
+                        // 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0xF
+                        hi2c.sda_port->AFRL &= ~(0xF << (4 * hi2c.sda_pin));
+
+                        // set the bits to AF4
+                        hi2c.sda_port->AFRL |= (GPIO_AF4 << (4 * hi2c.sda_pin));
+                    }
                 }
+
+                // clear the SWRST bit to move the peripheral out of reset
+                hi2c.Instance->CR1 &= ~(1 << 15);
+
+                // reinitialize the I2C peripheral
+                I2C_Reinit();
+
+                hi2c.state = I2C_STATE_IDLE;
+                continue;
             }
+
+            hi2c.error_code = I2C_ERROR_NONE;
         }
         // if (BMP280_TriggerMeasurements(&hbmp) != BMP280_OK)
         // {
