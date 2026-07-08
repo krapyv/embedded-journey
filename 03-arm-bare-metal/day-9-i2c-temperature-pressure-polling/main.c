@@ -256,6 +256,14 @@ int main(void)
                 continue;
             }
 
+            if (hi2c.error_code & I2C_ERROR_AF)
+            {
+            }
+
+            if (hi2c.error_code & I2C_ERROR_ARLO)
+            {
+            }
+
             hi2c.error_code = I2C_ERROR_NONE;
         }
         // if (BMP280_TriggerMeasurements(&hbmp) != BMP280_OK)

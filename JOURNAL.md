@@ -45,7 +45,7 @@ Also bits 7, 6, 4 to 0 are read-only, so writing 1 to them does nothing. Other b
 
 
 **Evening:**
--
+- Started designing and developing the AF and ARLO main loop error branches with SWRST as a fallback path.
 
 **Problems encountered:**
 - (None today) etc
