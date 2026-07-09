@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 2026-07-09:
+
+**Morning:**
+- Started implementing I2C_EV_IRQHandler and its state machines. I'm not quite sure what I am doing but it is ok :)
+
+**Evening:**
+- Continued implementing I2C_EV_IRQHandler: RxE and BTF state machines.
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-08
 
 **Morning:**

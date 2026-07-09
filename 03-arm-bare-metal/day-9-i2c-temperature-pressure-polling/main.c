@@ -50,7 +50,11 @@ int main(void)
         {
         }
 
-        if (current_state == I2C_STATE_ERROR)
+        else if (current_state == I2C_STATE_RX_BUSY)
+        {
+        }
+
+        else if (current_state == I2C_STATE_ERROR)
         {
             if (hi2c.error_code & I2C_ERROR_BERR)
             {
