@@ -8,6 +8,7 @@
 // globally declared vaiable with physically allocated memory in RAM
 I2C_HandleTypeDef hi2c;
 
+// TODO: reusable SWRST-precondition function, the refusal contract, and HARD_FAULT
 int main(void)
 {
     // define and initialize structs
@@ -253,18 +254,16 @@ int main(void)
                 I2C_Reinit();
 
                 hi2c.state = I2C_STATE_IDLE;
+                hi2c.error_code = I2C_ERROR_NONE;
                 continue;
             }
-
-            if (hi2c.error_code & I2C_ERROR_AF)
+            else if (hi2c.error_code & (I2C_ERROR_AF | I2C_ERROR_ARLO))
             {
+                // TODO: add SysTick timeout, SWRST escalation
+                hi2c.state = I2C_STATE_IDLE;
+                hi2c.error_code = I2C_ERROR_NONE;
+                continue;
             }
-
-            if (hi2c.error_code & I2C_ERROR_ARLO)
-            {
-            }
-
-            hi2c.error_code = I2C_ERROR_NONE;
         }
         // if (BMP280_TriggerMeasurements(&hbmp) != BMP280_OK)
         // {
