@@ -8,16 +8,43 @@
 // globally declared vaiable with physically allocated memory in RAM
 I2C_HandleTypeDef hi2c;
 
+void I2C_PollStopConfirmation()
+{
+    uint32_t start = SysTick_GetTick();
+    uint8_t success = 0;
+
+    while ((SysTick_GetTick() - start) <= 2)
+    {
+        // BUSY bit 1 polling
+        if (!(hi2c.Instance->SR2 & (1 << 1)))
+        {
+            // if it is 0, the STOP is detected, the lines are settled
+            success = 1;
+            break;
+        }
+    }
+
+    if (success)
+    {
+        hi2c.state = I2C_STATE_DONE;
+    }
+    else
+    {
+        // timeout error
+    }
+
+    return;
+}
+
 // TODO: reusable SWRST-precondition function, the refusal contract, and HARD_FAULT
 int main(void)
 {
     // define and initialize structs
-    I2C_HandleTypeDef hi2c = {
-        .channel = I2C_CHANNEL_1,
-        .scl_port = GPIOB,
-        .scl_pin = 6,
-        .sda_port = GPIOB,
-        .sda_pin = 7};
+    hi2c.channel = I2C_CHANNEL_1;
+    hi2c.scl_port = GPIOB;
+    hi2c.scl_pin = 6;
+    hi2c.sda_port = GPIOB;
+    hi2c.sda_pin = 7;
 
     BMP280_HandleTypeDef hbmp = {
         .hi2c = &hi2c,
@@ -29,7 +56,7 @@ int main(void)
         .mode = BMP280_FORCED_MODE};
 
     // peripherals init
-    I2C_Init(&hi2c);
+    I2C_Init();
     SysTick_Init((uint32_t)SYSTICK_FREQUENCY_16MHZ);
     if (BMP280_Init(&hbmp, meas) != BMP280_OK)
     {
@@ -46,11 +73,12 @@ int main(void)
 
         I2C_State_t current_state = hi2c.state;
 
-        if (current_state == I2C_STATE_DONE)
+        if (current_state == I2C_STATE_FINISHING)
         {
+            I2C_PollStopConfirmation();
         }
 
-        else if (current_state == I2C_STATE_RX_BUSY)
+        else if (current_state == I2C_STATE_DONE)
         {
         }
 
