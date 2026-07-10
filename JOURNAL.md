@@ -32,6 +32,25 @@
 **Lesson learned:**
 -
 
+# 2026-07-10
+
+**Morning:**
+- Finished implementing I2C_EV_IRQHandler.
+- Debugged and fixed I2C_EV_IRQHandler.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- Honestly, interrupts did not make much sense to me. But I've started grasping that topic. It is hard, but I love it!
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- ITBUFEN does not change what SR1 reports. TXE and RXNE are set in SR1 by the shift-register/DR hardware logic regardless of ITBUFEN's value - that biy only controls whether the NVIC interrupt line gets pulsed for TXE/RXNE. So my attempt to use `(sr1_snapshot & (1 << 2) && ((cr2_snapshot & (1 << 10)) == 0))` to distinguish whether TXE/RXNE or BTF is really the cause of interrupt was not successful. 
+So I removed the ITBUFEN check and just placed the BTF branch before the RXNE/TXE to prioritize the BTF when both it and the RXNE/TXE are set.
+
 # 2026-07-09:
 
 **Morning:**
