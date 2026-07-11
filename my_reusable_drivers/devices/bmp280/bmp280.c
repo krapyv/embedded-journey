@@ -41,9 +41,8 @@ BMP280_Status_t BMP280_Calibration(BMP280_HandleTypeDef *hbmp)
     return BMP280_OK;
 }
 
-BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
+BMP280_Status_t BMP280_WriteCtrlMeas(BMP280_HandleTypeDef *hbmp)
 {
-    // early rejection of a transaction with invalid parameters
     if (hbmp == NULL || hbmp->hi2c == NULL)
     {
         return BMP280_ERROR;
@@ -59,7 +58,18 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
     // I2C write to 0xF4
     if (I2C_Master_Transmit(hbmp->slave_addr, transmit, transmit_length) != I2C_OK)
     {
-        return BMP280_ERR_CONFIG;
+        return BMP280_ERROR; // parameters are null or there are errors on the bus during BUSY waiting
+    }
+
+    return BMP280_OK;
+}
+
+BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
+{
+    // early rejection of a transaction with invalid parameters
+    if (hbmp == NULL || hbmp->hi2c == NULL)
+    {
+        return BMP280_ERROR;
     }
 
     // polling the bit 3 register 0xF3 "status" to track whether the transaction is ongoing or finished or error
@@ -82,7 +92,6 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
             return BMP280_ERR_TIMEOUT;
         }
     } while (status_reg & (1 << 3));
-
     return BMP280_OK;
 }
 
@@ -201,4 +210,31 @@ BMP280_Status_t BMP280_Init(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas)
     }
 
     return BMP280_OK;
+}
+
+void BMP280_Poll(BMP280_HandleTypeDef *hbmp)
+{
+    switch (hbmp->state)
+    {
+    case BMP280_STATE_IDLE:
+
+        break;
+    case BMP280_STATE_CALIBRATION:
+        break;
+    case BMP280_STATE_TRIGGER:
+        BMP280_TriggerMeasurements(hbmp);
+        break;
+    case BMP280_STATE_MEASURING:
+        break;
+    case BMP280_STATE_READ_MEASURAMENTS:
+        break;
+    case BMP280_STATE_COMPENSATE:
+        break;
+    case BMP280_STATE_READY:
+        break;
+    case BMP280_STATE_ERROR:
+        break;
+    case BMP280_STATE_FAULT:
+        break;
+    }
 }

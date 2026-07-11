@@ -65,13 +65,21 @@ typedef enum
 
 typedef enum
 {
+    BMP280_REQUEST_NONE = 0,
+    BMP280_REQUEST_FIRED = 1,
+} BMP280_Request_Status_t;
+
+typedef enum
+{
     BMP280_STATE_IDLE = 0,
     BMP280_STATE_CALIBRATION,
     BMP280_STATE_TRIGGER,
     BMP280_STATE_MEASURING,
-    BMP280_STATE_READ_EASURAMENTS,
+    BMP280_STATE_READ_MEASURAMENTS,
     BMP280_STATE_COMPENSATE,
-    BMP280_STATE_READY
+    BMP280_STATE_READY,
+    BMP280_STATE_ERROR,
+    BMP280_STATE_FAULT
 } BMP280_State_t;
 
 typedef struct
@@ -103,6 +111,10 @@ typedef struct
     BMP280_Calib_t calib;
     BMP280_Ctrl_Meas_t ctrl_meas;
     uint8_t slave_addr;
+    BMP280_State_t state;
+    BMP280_Request_Status_t request_status;
+    uint8_t retries;
+    uint32_t start_timeout_ms; // for polling
 } BMP280_HandleTypeDef;
 
 // function headers
