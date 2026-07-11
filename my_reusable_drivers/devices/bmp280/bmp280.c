@@ -15,7 +15,7 @@ BMP280_Status_t BMP280_Calibration(BMP280_HandleTypeDef *hbmp)
     uint8_t pReceive[BMP280_REG_CALIB_LENGTH] = {0};
 
     // call the Transmit_Receive transaction function
-    if (I2C_Master_Transmit_Receive(hbmp->hi2c, hbmp->slave_addr, &pSend, pReceive, 1, BMP280_REG_CALIB_LENGTH) != I2C_OK)
+    if (I2C_Master_Transmit_Receive(hbmp->slave_addr, &pSend, pReceive, 1U, BMP280_REG_CALIB_LENGTH) != I2C_OK)
     {
         // if the transaction failed, exit the function
         return BMP280_ERROR;
@@ -57,7 +57,7 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
     uint8_t transmit[2] = {(uint8_t)BMP280_REG_CTRL_MEAS, reconstructed_meas};
 
     // I2C write to 0xF4
-    if (I2C_Master_Transmit(hbmp->hi2c, hbmp->slave_addr, transmit, transmit_length) != I2C_OK)
+    if (I2C_Master_Transmit(hbmp->slave_addr, transmit, transmit_length) != I2C_OK)
     {
         return BMP280_ERR_CONFIG;
     }
@@ -73,7 +73,7 @@ BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp)
 
     do
     {
-        if (I2C_Master_Transmit_Receive(hbmp->hi2c, hbmp->slave_addr, &pSend, &status_reg, 1, 1) != I2C_OK)
+        if (I2C_Master_Transmit_Receive(hbmp->slave_addr, &pSend, &status_reg, 1U, 1U) != I2C_OK)
         {
             return BMP280_ERROR;
         }
@@ -101,7 +101,7 @@ BMP280_Status_t BMP280_ReadMeasurements(BMP280_HandleTypeDef *hbmp, int32_t *pre
 
     uint8_t burst_start = (uint8_t)BMP280_REG_PRESS_MSB;
 
-    if (I2C_Master_Transmit_Receive(hbmp->hi2c, hbmp->slave_addr, &burst_start, raw_adc, 1, 6) != I2C_OK)
+    if (I2C_Master_Transmit_Receive(hbmp->slave_addr, &burst_start, raw_adc, 1U, 6U) != I2C_OK)
     {
         return BMP280_ERROR;
     }
@@ -180,7 +180,7 @@ BMP280_Status_t BMP280_Init(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas)
     uint8_t id_register = (uint8_t)BMP280_REG_ID;
     uint8_t received_id = 0;
 
-    if (I2C_Master_Transmit_Receive(hbmp->hi2c, hbmp->slave_addr, &id_register, &received_id, 1U, 1U) != I2C_OK)
+    if (I2C_Master_Transmit_Receive(hbmp->slave_addr, &id_register, &received_id, 1U, 1U) != I2C_OK)
     {
         return BMP280_ERROR;
     }

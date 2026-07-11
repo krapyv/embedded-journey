@@ -36,6 +36,7 @@
 
 **Morning:**
 - Finished implementing Interrupt-Driven main loop with its error handling paths.
+- Developed the state-machine for BMP280.c.
 
 **Evening:**
 -
