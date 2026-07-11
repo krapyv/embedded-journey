@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 2026-07-11
+
+**Morning:**
+- Finished implementing Interrupt-Driven main loop with its error handling paths.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- Interrupts are hard. You will spend much more time designing the program than actually writing it :)
+
 # 2026-07-10
 
 **Morning:**

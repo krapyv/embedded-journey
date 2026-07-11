@@ -30,7 +30,9 @@ void I2C_PollStopConfirmation()
     }
     else
     {
-        // timeout error
+        // in reality it is a software-detected STOP-confirmation timeout, not a real BERR
+        hi2c.error_code = I2C_ERROR_BERR;
+        hi2c.state = I2C_STATE_ERROR;
     }
 
     return;
