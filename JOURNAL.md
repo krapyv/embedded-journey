@@ -38,17 +38,23 @@
 - Finished implementing Interrupt-Driven main loop with its error handling paths.
 - Developed the state-machine for BMP280.c.
 
+**Afternoon:**
+- Started implementing the state-machine and refactoring the existing functions of the BMP280 driver.
+
 **Evening:**
--
+- Wrote a Linkedin post about ITBUFEN and my bug from yesterday.
 
 **Problems encountered:**
-- (None today) etc
+- I thought the BMP280 driver would not require much changes. It seems I was wrong. State-machine + functions changes + polls :)
 
 **Root cause at the register level:**
 -
 
 **Lesson learned:**
 - Interrupts are hard. You will spend much more time designing the program than actually writing it :)
+- I am using a state machine that depends on one I2C transaction per state. BMP280_TriggerMeasurements function had two I2C transactions. I have spent maybe more than an hour trying to grasp what do I need to do with that. 
+I started to wrap the I2C transactions in different IFs, placed the I2C_STATE_DONE polling busy-wait loop after the first transaction. 
+Only then I understand that I can split them in two functions and introduce another state to safely handle the interrupt-driven transactions.
 
 # 2026-07-10
 
