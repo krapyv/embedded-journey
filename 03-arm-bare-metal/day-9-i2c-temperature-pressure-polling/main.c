@@ -20,7 +20,8 @@ int main(void)
 
     BMP280_HandleTypeDef hbmp = {
         .hi2c = &hi2c,
-        .slave_addr = BMP280_I2C_ADDR};
+        .slave_addr = BMP280_I2C_ADDR,
+        .isInitialized = 0};
 
     BMP280_Ctrl_Meas_t meas = {
         .osrs_p = BMP280_OSRS_P_OVRSMP_1,
@@ -30,36 +31,47 @@ int main(void)
     // peripherals init
     I2C_Init();
     SysTick_Init((uint32_t)SYSTICK_FREQUENCY_16MHZ);
-    if (BMP280_Init(&hbmp, meas) != BMP280_OK)
-    {
-        return 1;
-    }
-    usart2_init();
+
+    uint8_t isUsartInitialized = 0;
 
     // test loop
     while (1)
     {
-
         I2C_Process();
-        if (BMP280_TriggerMeasurements(&hbmp) != BMP280_OK)
+
+        BMP280_Poll(&hbmp, meas);
+
+        if (!hbmp.isInitialized)
         {
-            return 1;
+            if (BMP280_Init(&hbmp, meas) != BMP280_OK)
+            {
+                return 1; // the escalation to the higher layer of code
+                // when i say this "return 1" a weel after i have written the main.c, i was like "wtf is this return 1 xD"
+            }
         }
-
-        int32_t press_adc = 0;
-        int32_t temp_adc = 0;
-
-        if (BMP280_ReadMeasurements(&hbmp, &press_adc, &temp_adc) != BMP280_OK)
+        else
         {
-            return 1;
+            if (!isUsartInitialized)
+            {
+                usart2_init();
+                isUsartInitialized = 1;
+            }
+
+            if (hbmp.state == BMP280_STATE_READY)
+            {
+                printf("Temp: %" PRId32 " degC | Press: %" PRIu32 " hPa\r\n", hbmp.temp_value / 100, hbmp.press_value / 256 / 100);
+                fflush(stdout);
+
+                // BMP start measurements
+                hbmp.state = BMP280_STATE_CTRL_MEAS;
+            }
+
+            if (hbmp.state == BMP280_STATE_FAULT)
+            {
+                printf("The BMP280 sensor experienced hard fault!");
+                fflush(stdout);
+            }
         }
-
-        int32_t temp_value = 0;
-        uint32_t press_value = 0;
-        BMP280_CalculateData(&hbmp, press_adc, temp_adc, &temp_value, &press_value);
-
-        printf("Temp: %" PRId32 " degC | Press: %" PRIu32 " hPa\r\n", temp_value / 100, press_value / 256 / 100);
-        fflush(stdout);
     }
 
     return 0;

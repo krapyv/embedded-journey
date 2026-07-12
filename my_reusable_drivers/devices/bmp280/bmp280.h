@@ -71,11 +71,21 @@ typedef enum
 
 typedef enum
 {
+    BMP280_START_TICK_NEVER_CAPTURED = 0,
+    BMP280_START_TICK_ALREADY_CAPTURED = 1
+} BMP280_Start_Tick_Status_t;
+
+typedef enum
+{
     BMP280_STATE_IDLE = 0,
-    BMP280_STATE_CALIBRATION,
-    BMP280_STATE_TRIGGER,
+    BMP280_STATE_REQUEST_CHIP_ID,
+    BMP280_STATE_INIT,
+    BMP280_STATE_READ_CALIBRATION,
+    BMP280_STATE_RECONSTRUCT_CALIBRATION,
+    BMP280_STATE_CTRL_MEAS,
     BMP280_STATE_MEASURING,
     BMP280_STATE_READ_MEASURAMENTS,
+    BMP280_STATE_RECONSTRUCT_MEASURAMENTS,
     BMP280_STATE_COMPENSATE,
     BMP280_STATE_READY,
     BMP280_STATE_ERROR,
@@ -113,17 +123,36 @@ typedef struct
     uint8_t slave_addr;
     BMP280_State_t state;
     BMP280_Request_Status_t request_status;
-    uint8_t retries;
-    uint32_t start_timeout_ms; // for polling
+    uint8_t retries;             // reset only on full-cycle success
+    uint32_t measure_start_tick; // for measure status polling
+    BMP280_Start_Tick_Status_t measure_start_tick_status;
+    uint8_t register_addr;     // for register-address byte ahead of each Transmit_Receive
+    uint8_t raw_calib[24];     // dedicated RX buffer for calibration burst
+    uint8_t raw_adc[6];        // dedicated RX buffer for pressure/temp burst
+    uint8_t ctrl_meas_tx[2];   // dedicated TX buffer for the CTRL_MEAS write
+    uint8_t status_reg_state;  // dedicated RX byte for status register current state
+    uint8_t requested_chip_id; // TX field for requested chip id
+
+    int32_t press_adc;
+    int32_t temp_adc;
+
+    int32_t temp_value;
+    uint32_t press_value;
+
+    uint8_t isInitialized;
 } BMP280_HandleTypeDef;
 
 // function headers
-BMP280_Status_t BMP280_Calibration(BMP280_HandleTypeDef *hbmp);
-BMP280_Status_t BMP280_TriggerMeasurements(BMP280_HandleTypeDef *hbmp);
-BMP280_Status_t BMP280_ReadMeasurements(BMP280_HandleTypeDef *hbmp, int32_t *press_adc, int32_t *temp_adc);
+BMP280_Status_t BMP280_ReadCalibration(BMP280_HandleTypeDef *hbmp);
+void BMP280_ReconstructCalibration(BMP280_HandleTypeDef *hbmp);
+BMP280_Status_t BMP280_WriteCtrlMeas(BMP280_HandleTypeDef *hbmp);
+BMP280_Status_t BMP280_Measuring(BMP280_HandleTypeDef *hbmp);
+BMP280_Status_t BMP280_ReadMeasurements(BMP280_HandleTypeDef *hbmp);
+void BMP280_ReconstructMeasurements(BMP280_HandleTypeDef *hbmp);
 int32_t BMP280_Temp_Compensate(BMP280_HandleTypeDef *hbmp, int32_t temp_adc, int32_t *t_fine);
 uint32_t BMP280_Pressure_Compensate(BMP280_HandleTypeDef *hbmp, int32_t press_adc, int32_t t_fine);
-void BMP280_CalculateData(BMP280_HandleTypeDef *hbmp, int32_t press_adc, int32_t temp_adc, int32_t *temp, uint32_t *press);
+void BMP280_CalculateData(BMP280_HandleTypeDef *hbmp);
 BMP280_Status_t BMP280_Init(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas);
+void BMP280_Poll(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas);
 
 #endif
