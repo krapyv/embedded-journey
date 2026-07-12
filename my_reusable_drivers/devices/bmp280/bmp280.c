@@ -308,6 +308,8 @@ BMP280_Status_t BMP280_Init(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas)
         return BMP280_ERROR;
     }
 
+    hbmp->request_status = BMP280_REQUEST_FIRED;
+
     return BMP280_OK;
 }
 
