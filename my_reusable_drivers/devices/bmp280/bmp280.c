@@ -26,13 +26,13 @@ BMP280_Status_t BMP280_ReadCalibration(BMP280_HandleTypeDef *hbmp)
     hbmp->register_addr = BMP280_REG_CALIB_START;
 
     // call the Transmit_Receive transaction function
-    if (I2C_Master_Transmit_Receive(hbmp->slave_addr, &(hbmp->register_addr), &(hbmp->raw_calib), 1U, BMP280_REG_CALIB_LENGTH) != I2C_OK)
+    if (I2C_Master_Transmit_Receive(hbmp->slave_addr, &(hbmp->register_addr), hbmp->raw_calib, 1U, BMP280_REG_CALIB_LENGTH) != I2C_OK)
     {
         // if the transaction failed, exit the function
         return BMP280_ERROR;
     }
 
-    hbmp->state = BMP280_REQUEST_FIRED;
+    hbmp->request_status = BMP280_REQUEST_FIRED;
 
     return BMP280_OK;
 }
@@ -86,11 +86,11 @@ BMP280_Status_t BMP280_WriteCtrlMeas(BMP280_HandleTypeDef *hbmp)
     uint8_t reconstructed_meas = ((uint8_t)hbmp->ctrl_meas.osrs_t << 5) | ((uint8_t)hbmp->ctrl_meas.osrs_p << 2) | (hbmp->ctrl_meas.mode);
 
     // two-byte transmit buffer
-    const uint8_t transmit_length = 2;
-    uint8_t transmit[2] = {(uint8_t)BMP280_REG_CTRL_MEAS, reconstructed_meas};
+    hbmp->ctrl_meas_tx[0] = (uint8_t)BMP280_REG_CTRL_MEAS;
+    hbmp->ctrl_meas_tx[1] = reconstructed_meas;
 
     // I2C write to 0xF4
-    if (I2C_Master_Transmit(hbmp->slave_addr, transmit, transmit_length) != I2C_OK)
+    if (I2C_Master_Transmit(hbmp->slave_addr, hbmp->ctrl_meas_tx, 2U) != I2C_OK)
     {
         return BMP280_ERROR; // parameters are null or there are errors on the bus during BUSY waiting
     }
@@ -128,14 +128,16 @@ BMP280_Status_t BMP280_Measuring(BMP280_HandleTypeDef *hbmp)
             {
                 hbmp->state = BMP280_STATE_READ_MEASURAMENTS;
             }
-
-            // the current transaction is done, so check for timeout
-            if (SysTick_GetTick() - hbmp->measure_start_tick >= 15U)
+            else
             {
-                // reset the measurement start tick status since for this measurement it is over
-                hbmp->measure_start_tick_status = BMP280_START_TICK_NEVER_CAPTURED;
-                hbmp->state = BMP280_STATE_ERROR;
-                return BMP280_ERR_TIMEOUT;
+                // the current transaction is done, but the measurement is still ongoing, so check for timeout
+                if (SysTick_GetTick() - hbmp->measure_start_tick >= 15U)
+                {
+                    // reset the measurement start tick status since for this measurement it is over
+                    hbmp->measure_start_tick_status = BMP280_START_TICK_NEVER_CAPTURED;
+                    hbmp->state = BMP280_STATE_ERROR;
+                    return BMP280_ERR_TIMEOUT;
+                }
             }
             // if the transaction is over but the measurement is still ongoing (bit 3 is still 1)
             // not advance to the next state, re-entry the function next cycle and start the transaction again

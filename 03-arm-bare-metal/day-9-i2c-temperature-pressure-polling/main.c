@@ -34,6 +34,8 @@ int main(void)
 
     uint8_t isUsartInitialized = 0;
 
+    hbmp.state = BMP280_STATE_INIT;
+
     // test loop
     while (1)
     {
@@ -41,15 +43,7 @@ int main(void)
 
         BMP280_Poll(&hbmp, meas);
 
-        if (!hbmp.isInitialized)
-        {
-            if (BMP280_Init(&hbmp, meas) != BMP280_OK)
-            {
-                return 1; // the escalation to the higher layer of code
-                // when i say this "return 1" a weel after i have written the main.c, i was like "wtf is this return 1 xD"
-            }
-        }
-        else
+        if (hbmp.isInitialized)
         {
             if (!isUsartInitialized)
             {

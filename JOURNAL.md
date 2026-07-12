@@ -32,6 +32,26 @@
 **Lesson learned:**
 -
 
+# 2026-07-12
+
+**Morning and afternoon:**
+- Finished implementing BMP280 state-machine.
+- Refactored busy-wait BMP280 functions to non-blocking.
+- Adjusted the main loop to new BMP280 reality.
+- Debugged the BMP280 driver.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- Thought that even if the status-read transaction completes, the register `Status` of BMP280, bit 3 of it, is 0 (sensor genuinely finished converting - a legitimate success), but by coincidence this is also the poll cycle where SysTick_GetTick() - hbmp->measure_start_tick has just crossed the 15ms mark, the timeout is fired. But then realized that the timeout should only apply when the measurement is still ongoing, since the bit 3 is already telling decisively whether the sensor finished and there is no scenario where a completed measurement should also be judged late.
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-11
 
 **Morning:**
