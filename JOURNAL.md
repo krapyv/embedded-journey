@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 2026-07-13
+
+**Morning:**
+- Started debugging.
+
+**Evening:**
+- Continued debugging.
+
+**Problems encountered:**
+- Debugging sucks. I love it though, because it sucks and it is hard.
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-12
 
 **Morning and afternoon:**
