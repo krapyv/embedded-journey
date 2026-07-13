@@ -17,6 +17,7 @@ int main(void)
     hi2c.scl_pin = 6;
     hi2c.sda_port = GPIOB;
     hi2c.sda_pin = 7;
+    hi2c.state = I2C_STATE_IDLE;
 
     BMP280_HandleTypeDef hbmp = {
         .hi2c = &hi2c,
