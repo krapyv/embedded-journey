@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 2026-07-14
+
+**Morning:**
+- Continued debugging. Now there is a bus hung during Measuring phase: SB is fired, ADD phase never happens.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-13
 
 **Morning:**
