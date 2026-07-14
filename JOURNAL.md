@@ -38,7 +38,7 @@
 - Continued debugging. Now there is a bus hung during Measuring phase: SB is fired, ADD phase never happens.
 
 **Evening:**
--
+- Continued debugging. Fount out the bug when during RX both BTF and RXNE are set mid-read since the firmware is not keeping up with the hardware.
 
 **Problems encountered:**
 - (None today) etc
