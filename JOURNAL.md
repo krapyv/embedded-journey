@@ -32,6 +32,24 @@
 **Lesson learned:**
 -
 
+# 2026-07-15
+
+**Morning:**
+- Debug continuation: found out the NVIC Priority bug. Fixed it.
+
+**Evening:**
+- Tested the program after the NVIC Prioriry fix - did not work.
+- Continued debugging.
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-14
 
 **Morning:**
