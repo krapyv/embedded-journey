@@ -111,28 +111,32 @@ int main(void)
 
     hbmp.state = BMP280_STATE_INIT;
 
+    hbmp.register_addr = (uint8_t)BMP280_REG_PRESS_MSB;
+
     uint32_t counter = 0;
     // test loop
+    hbmp.ctrl_meas = meas;
+    uint8_t reconstructed_meas = ((uint8_t)hbmp.ctrl_meas.osrs_t << 5) | ((uint8_t)hbmp.ctrl_meas.osrs_p << 2) | (hbmp.ctrl_meas.mode);
+
+    // two-byte transmit buffer
+    hbmp.ctrl_meas_tx[0] = (uint8_t)BMP280_REG_CTRL_MEAS;
+    hbmp.ctrl_meas_tx[1] = reconstructed_meas;
     while (1)
     {
         I2C_Process();
         // poll the bit 3 of the register "status"
 
-        BMP280_Poll(&hbmp, meas);
+        // I2C write to 0xF4
+        I2C_Master_Transmit(hbmp.slave_addr, hbmp.ctrl_meas_tx, 2U);
 
         while (hi2c.state != I2C_STATE_DONE)
         {
             I2C_Process();
         }
+        hbmp.request_status = BMP280_REQUEST_NONE;
 
-        if (hbmp.state == BMP280_STATE_READY)
-        {
-            printf("Temp and press \r\n");
-            fflush(stdout);
-
-            // BMP start measurements
-            hbmp.state = BMP280_STATE_CTRL_MEAS;
-        }
+        printf("Temp and press read calibration \r\n");
+        fflush(stdout);
     }
 
     return 0;

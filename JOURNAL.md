@@ -35,10 +35,10 @@
 # 202x-xx-xx
 
 **Morning:**
-- Continued debugging. Started using bisection method by testing separate parts of the program. The BMP280_Poll is the problem. I2C driver is healthy
+- Continued debugging. Started using bisection method by testing separate parts of the program. The BMP280_Poll is the problem. I2C driver is healthy.
 
 **Evening:**
--
+- Found several bugs, fixed them. Narrowed everything to just one function that breaks and one I2C part: pure transmit.
 
 **Problems encountered:**
 - (None today) etc
