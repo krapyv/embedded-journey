@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 202x-xx-xx
+
+**Morning:**
+- Continued debugging. Started using bisection method by testing separate parts of the program. The BMP280_Poll is the problem. I2C driver is healthy
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-15
 
 **Morning:**
