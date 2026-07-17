@@ -92,6 +92,8 @@ int main(void)
     hi2c.sda_port = GPIOB;
     hi2c.sda_pin = 7;
     hi2c.state = I2C_STATE_IDLE;
+    hi2c.sb_hits = 0;
+    hi2c.stop_hits = 0;
 
     BMP280_HandleTypeDef hbmp = {
         .hi2c = &hi2c,
@@ -134,9 +136,14 @@ int main(void)
             I2C_Process();
         }
         hbmp.request_status = BMP280_REQUEST_NONE;
+        hi2c.index = 0;
+        hi2c.state = I2C_STATE_IDLE;
 
-        printf("Temp and press read calibration \r\n");
-        fflush(stdout);
+        if ((counter++ % 1000) == 0)
+        {
+            printf("Temp and press read calibration \r\n");
+            fflush(stdout);
+        }
     }
 
     return 0;
