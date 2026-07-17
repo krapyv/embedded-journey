@@ -32,7 +32,26 @@
 **Lesson learned:**
 -
 
-# 202x-xx-xx
+# 2026-07-17
+
+**Morning:**
+- Continued debugging.
+
+**Evening:**
+- Continued debugging and chasing bugs: fixed Master_Transmit bug, found couples more. The full BMP + I2C program still does not work yet.
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
+
+
+# 2026-07-16
 
 **Morning:**
 - Continued debugging. Started using bisection method by testing separate parts of the program. The BMP280_Poll is the problem. I2C driver is healthy.

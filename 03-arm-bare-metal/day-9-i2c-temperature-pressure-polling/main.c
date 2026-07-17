@@ -123,13 +123,16 @@ int main(void)
     // two-byte transmit buffer
     hbmp.ctrl_meas_tx[0] = (uint8_t)BMP280_REG_CTRL_MEAS;
     hbmp.ctrl_meas_tx[1] = reconstructed_meas;
+
+    hbmp.register_addr = (uint8_t)BMP280_REG_ID;
     while (1)
     {
         I2C_Process();
         // poll the bit 3 of the register "status"
 
         // I2C write to 0xF4
-        I2C_Master_Transmit(hbmp.slave_addr, hbmp.ctrl_meas_tx, 2U);
+
+        I2C_Master_Transmit_Receive(hbmp.slave_addr, &(hbmp.register_addr), &(hbmp.requested_chip_id), 1U, 1U);
 
         while (hi2c.state != I2C_STATE_DONE)
         {
@@ -141,7 +144,7 @@ int main(void)
 
         if ((counter++ % 1000) == 0)
         {
-            printf("Temp and press read calibration \r\n");
+            printf("Temp and press read reg 1 \r\n");
             fflush(stdout);
         }
     }
