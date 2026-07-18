@@ -96,13 +96,26 @@
 - Continued debugging.
 
 **Problems encountered:**
-- (None today) etc
+1. Bug: EV and ER interrupts both sitting at priority 0 - preemption model never existed in hardware.
+
+**Symptom:** Entire documented architectural premise - "EV priority 38, ER priority 39, EV can preempt ER" - was never true in hardware. Those numbers were vector table positions, not execution priorities. At identical priority 0, neither handler can preempt the other. Once either starts running, it runs to completion regardless of what else becomes pending.
 
 **Root cause at the register level:**
--
+- Priorities were never explicitly set via `NVIC->IPR[]`. Both EV and ER defaulted to priority 0 after power-on reset.
+- Vector table position determines dispatch order when both interrupts are simultaneously pending and neither is running - it has nothing to do with preemption. Preemption is controlled exclusively by `NVIC->IPR[]` values.
+- At identical priority, if ER runs and holds a `CPSID I` critical section, everything is masked for the entire handler body - no priority-based partial masking to fall back on.
+
+**Fix:**
+- Set priorities explicitly via `NVIC->IPR[]`:
+    - EV = priority 5 (higher, can preempt ER)
+    - ER = priority 6 (lower)
+- Shift value: `5U << 4` and `6 << 4` - STM32F4 implements 4 priority bits in the top nibble of each IPR byte, bottom nibble unused.
+- Verified `NVIC->IPR` is declared as a byte array in the header (`IP[240]`), so `IPR[31]` and `IPR[32` correctly address IRQ 31 and IRQ 32 directly. Word-packed headers (`uint32_t[60])` would require `IPR[n/4]` indexing - wrong register entirely if confused.
 
 **Lesson learned:**
--
+- Vector table position != execution priority. Never confuse IRQ number with pereemption level.
+- Default priority after reset is 0 for all interrupts - highest possible. If your architecture requires one interrupt to preempt another, you must set priorities explicitly. Assuming the hardware matches your design document is not verification.
+- Always confirm NVIC->IPR array type in your header before writing priority values - byte array vs word-packed array produce completely different register targets for the same index.
 
 # 2026-07-14
 
@@ -113,13 +126,23 @@
 - Continued debugging. Fount out the bug when during RX both BTF and RXNE are set mid-read since the firmware is not keeping up with the hardware.
 
 **Problems encountered:**
-- (None today) etc
+1. Bug: ISR livelock - BTF firing mid-burst with no handler match
+**Symptom:** EV handler re-entering itself hundreds of times per second. GDB shows CPU stuck at handler entry (`PC: 0x08000480`), never returning to main loop. SR1 = `0x44` - both BTF (bit 2) and RXNE (bit 6) set simultaneously. `hi2c.state == I2C_STATE_RX_ADDR`, `hi2c.index == 0`, `hi2c.RxLength == 24` (calibration burst read).
 
 **Root cause at the register level:**
--
+- ISR dispatcher is a strict `if / else if` chain - one branch per entry. BTF branch runs first, RXNE is never examined in the same entry.
+- BTF handler for `RxLength >= 3` only has two cases: `index == RxLength - 3` and `index == RxLength - 2`. Neither matched at `index == 0`.
+- No match -> switch falls through -> no DR read -> BTF and RXNE never cleared -> ISR returns with flags still asserted -> hardware immediately re-triggers the handler -> infinite livelock.
+- Root assumption that was wrong: "BTF only ever asserts at the two tail-end bytes". That's a firmware assumption, not a hardware guarantee. BTF asserts wheneveer DR and the shift register both hold valid data - at any index - if firmware falls behind for any reason (debugger halt, priority contention, anything).
+
+**Fix:**
+- Added a third `else` arm inside the `RxLength >= 3` BTF case for mid-burst BTF: read DR into `pRxBuffPtr[hi2c.index]`, increment `index`, touch nothing else. No STOP, no ACK manipulation - just drain one byte and exit. Hardware moves shift register contents into DR, RXNE re-asserts, existing RXNE handler picks up the byte normally on the next entry.
+- N = 2 (POS path) is immune - ACK already cleared and NACK committed before ADDR is released, so the second byte is NACKed by construction. No analogous fallback needed there.
 
 **Lesson learned:**
--
+- Hardware does not respect firmware's assumptions about when flags assert. BTF is a physical condition - DR and shift register both full - not a protocol-layer concept tied to "end of burst". Any mid-burst delay can trigger it.
+- A dispatcher that takes exactly one branch per entry and does nothing when no branch matches is not safe - it silently converts an unrecognized flag combination into an infinite livelock with no visible symptom except "program stopped making progress".
+- Always ask: if this branch matches but does nothing useful, does it at least clear the condition that triggered it? If not, the ISR will immediately re-enter.
 
 # 2026-07-13
 
@@ -132,11 +155,32 @@
 **Problems encountered:**
 - Debugging sucks. I love it though, because it sucks and it is hard.
 
-**Root cause at the register level:**
--
+1. GDB showing `OVR` flag set in SR1 and `hi2c.state == I2C_STATE_TX_ADDR` immediately at the first EV handler breakpoint after `load`. Spent time chasing OVR as a real bug.
+
+**Root cause:**
+- `load` in GDB/OpenOCD only rewrites flash contents. SRAM, CPU registers, and I2C peripheral registers are completely untouched. The previous debug session left the I2C peripheral in a broken half-transacted state and `hi2c` struct in SRAM with state values. `load` has no knowledge of any of that.
+
+**Fix:**
+- `monitor reset halt` before any debug session, not just `load`. That triggers a genuine core reset - re-runs startup code, zeroes `.bss`, reinitializes the peripheral registers from a known-clean state.
 
 **Lesson learned:**
--
+- `load` != reset. Never trust register values or global struct state after a bare `load` following a previously crashed or buggy session. Always reset before diagnosing. Chasing ghost state is the fastest way to waste debugging hours.
+
+2. `I2C_PollHardwareBusy` had no timeout - a bare `while(1)` that spins forever if BUSY never clears. Entire interrupt-driven architecture collapses into a blocking spin at this one point.
+
+**Root cause at the register level:**
+- BUSY bit in SR2 stays asserted if the previous transaction's STOP condition didn't fully complete electricaly before the next transaction fired. PollHardwareBusy had no escape path - no timeout, no error reporting, no yield.
+
+**Fix:**
+- Added 4 ms timeout (not 3 ms - start tick can land one cycle before SysTick underflow, so one extra tick margin is required to guarantee minimum real wall-clock time).
+- On timeout: write `error_code = I2C_ERROR_BERR` first, then assert SWRST (`CR1 bit 15`), then write `state = I2C_STATE_ERROR` last. Ordering matches the real BERR producer in `I2C_ER_IRQHandler` - the main loop's `I2C_Process` BERR branch assumes SWRST is already 1 when it sees that error code.
+- Critical section (`CPSID I / CPSIE I`) wraps only the three writes - not the polling loop. Masking interrupts for the whole loop would mask SysTick, freezing the tick counter and making the timeout condition never true - an unconditional infinite loop with extra steps.
+- NVIC ICPR clear not needed here - that clears a pendin EV interrupt latched mid-ISR. This path runs in main-loop context, no ISR was in flight.
+
+**Lesson learned:**
+- A single blocking helper can silently invalidate an entire non-blocking architecture. Every polling loop needs an exit condition that doesn't depend on hardware behaving correctly.
+- Timeout budget must account for SysTick phase alignment, not just the nominal interval.
+- Reusing an existing error code (`I2C_ERROR_BERR`) means inheriting all assumptions that code carries elsewhere. Match the full invariant - including SWRST state - or give it its own code.
 
 # 2026-07-12
 
@@ -147,16 +191,17 @@
 - Debugged the BMP280 driver.
 
 **Evening:**
--
+- Started debugging the I2C driver.
 
 **Problems encountered:**
 - Thought that even if the status-read transaction completes, the register `Status` of BMP280, bit 3 of it, is 0 (sensor genuinely finished converting - a legitimate success), but by coincidence this is also the poll cycle where SysTick_GetTick() - hbmp->measure_start_tick has just crossed the 15ms mark, the timeout is fired. But then realized that the timeout should only apply when the measurement is still ongoing, since the bit 3 is already telling decisively whether the sensor finished and there is no scenario where a completed measurement should also be judged late.
+- BMP280_Init firing the same transaction repeatedly on every poll cycle instead of waiting for the result.
 
 **Root cause at the register level:**
--
+- Missing `hbmp->request_status = BMP280_REQUEST_FIRED` after the transaction was dispatched. The fired-flag guard at the top of the function never triggered, so every call to BMP280_Poll() fired a fresh I2C transaction directly into a busy bus.
 
 **Lesson learned:**
--
+- In a non-blocking state machine, firing a transaction and marking it as fired are not optional partners. If you dispatch without setting the flag, the next poll cycle has no memory that anything is in flight.
 
 # 2026-07-11
 
