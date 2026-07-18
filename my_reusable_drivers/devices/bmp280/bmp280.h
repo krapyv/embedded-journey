@@ -152,6 +152,5 @@ int32_t BMP280_Temp_Compensate(BMP280_HandleTypeDef *hbmp, int32_t temp_adc, int
 uint32_t BMP280_Pressure_Compensate(BMP280_HandleTypeDef *hbmp, int32_t press_adc, int32_t t_fine);
 void BMP280_CalculateData(BMP280_HandleTypeDef *hbmp);
 BMP280_Status_t BMP280_Init(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas);
-void BMP280_Poll(BMP280_HandleTypeDef *hbmp, BMP280_Ctrl_Meas_t meas);
 
 #endif

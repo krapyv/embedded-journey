@@ -32,6 +32,24 @@
 **Lesson learned:**
 -
 
+# 2026-07-18
+
+**Morning:**
+- Final UART and race ISR_EV bugs found and fixed.
+- Tested the interrupt-driven I2C + BMP280 program. It works.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-17
 
 **Morning:**
