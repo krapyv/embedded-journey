@@ -38,17 +38,43 @@
 - Final UART and race ISR_EV bugs found and fixed.
 - Tested the interrupt-driven I2C + BMP280 program. It works.
 
-**Evening:**
--
+**Afternoon:**
+- Started completing the JOURNAL entries with the debug info.
 
 **Problems encountered:**
-- (None today) etc
+1. Bug: Stale DR read captured as fake data[0] - repeated-start BTF reentry corrupting RX buffer.
+
+**Symptom:** `raw_calib[0] == 0x88` (== `BMP280_REG_CALIB_START`), `raw_adc[0] == 0xF7` (= `BMP280_REG_PRESS_MSB`). Both independent burst reads: byte index 0 of received buffer exactly equals the register address byte transmitted in the write phase, not real sensor data. Systemic to all N>=3 `I2C_TX_RX` reads.
 
 **Root cause at the register level:**
--
+- In the TX_RX write-phase BTF branch, ITBUFEN is enabled and `hi2c.phase` is flipped to I2C_TX_RX_READ - but `hi2c.state` is never written. State remains at whatever it was holding entering the branch.
+- BTF is a level flag. The repeated START condition doesn't clear BTF intantaneously - START takes real bus time to generate. ITBUFEN is already open.
+- ISR re-enters immediately. Guard checks `state` - state was never transitioned to anything the guard rejects. Guard passes.
+- Now inside the ISR with `phase == I2C_TX_RX_READ`, `RxLength >= 3`, `index == 0` - no tail-end index matches. Falls through to the mid-burst fallback `else` branch.
+- Fallback reads DR into `pRxBuffPtr[0]`. But no real SB/ADDR/RXNE event has occurred yet - DR still physically holds the register address byte from the write phase. Fake byte captured as data[0].
+- All subsequent bytes shift by one position. 24-byte calibratiion burst produces 24 bytes but starting from the wrong point - first real sensor byte lands at index 1, last real byte never captured.
+
+**Secondary bug identified:**
+- `I2C_Master_Transmit_Receive` still contains `hi2c.state = I2C_STATE_TX_ADDR` written before `CR1 |= START` - the same premature-state-write bug already fixed in `I2C_Master_Transmit` with `I2C_STATE_START_PENDING`. Fix was never propagated to this function. Classic example of fixing bug in one function without auditing structurally identical functions elsewhere.
+
+**Fix - repeated-start reentry:**
+- Transition `hi2c.state = I2C_STATE_START_PENDING` inside the write-phase->read-phase BTF branch, immediately after enabling ITBUFEN and writing the repeated START. This gives the ISR guard a state it rejects on reentry - same mechanism that protected the initial START from phantom SB handling.
+- The repeated-START is electrically identical to the initial START: a request sent to hardware, waiting for genuine SB confirmation. `I2C_STATE_START_PENDING` is semantically correct for both.
+
+**Fix - premature state write in `I2C_Master_Transmit_Receive`:**
+- Replace `hi2c.state = I2C_STATE_TX_ADDR` with `hi2c.state = I2C_STATE_START_PENDING`, written before `CR1 |= START`, matching the corrected pattern in `I2C_Master_Transmit`.
+
+**Deferred - structural note for future:**
+- The repeated-start implementation in this driver has an inherit window between write-phase BTF handling and genuine SB confirmation where the ISR guard must correctly reject reentry via state rather than phase. This is an expected, structural characteristic of this driver's repeated-start architecture - not a hidden latent bug after the fix, but a design tension that a future DMA-driven or fully event-driven architecture would resolve differetly.
+- Marked in code comments for the future examination and resolving.
 
 **Lesson learned:**
--
+- Fixing a bug in one function does not fix it in structurally identical functions. Always audit siblings after any structural fix.
+- A phase transition without a corresponding state transition leaves the ISR guard blind. State and phase must move together at every architectural boundary - not just at transaction start and end, but at every mid-transaction pivot point that changes what the ISR is allowed to do next.
+- DR holds its last written value until something reads or overwrites it. Any premature DR read - before a genuine hardware even confirms real data has arrived - captures stale contents, not sensor data. Hardware does not clear DR between write phase and read phase of a repeated-start transaction.
+
+**Status: v3 interrupt-driven I2C driver - DONE by project bar.**
+Happy path works. No bus hangs. No race conditions in current architecture. Defined error conditions handled.
 
 # 2026-07-17
 
@@ -59,15 +85,31 @@
 - Continued debugging and chasing bugs: fixed Master_Transmit bug, found couples more. The full BMP + I2C program still does not work yet.
 
 **Problems encountered:**
-- (None today) etc
+1. Bug: BTF->STOP branch firing twice per transaction - double STOP write corrupting next transaction's START.
+
+**Symptom:** Program hangs after the first successful execution. UART prints calibration line once, then stalls. Second transaction's ADDR never arrives despite START being written.
 
 **Root cause at the register level:**
--
+- BTF is a level flag. It stays asserted until the physical STOP condition completes on the bus - not until CR1 STOP bit is written by firmware. Writing `CR1 |= (1 << 9)` takes zero CPU cycles; generating the actual STOP condition on SCL/SDA takes real bus time.
+- `I2C_STATE_FINISHING` was not in the ISR guard's exlude list. ITEVFEN still enabled. ISR returned after writing STOP, BTF still physically asserted, NVIC immediately re-triggered the same handler.
+- Second entry: `state == FINISHING`, `mode/index/TxLength` unchanged - same branch ran again, OR-ing `CR1 |= (1 << 9)` onto a STOP bit still mid-generation on the wire.
+- Re-asserting STOP while the first STOP is still electrically resolving corrupyed the bus state. Next transaction's START landed on the top of an unresolved STOP condition - SB/ADDR sequence never produced a valid result.
+- Fourth distinct race found during this session, all the same structural shape: guard exclude-list missing a state that the ISR can legitimately re-enter with state but matching conditions.
+
+**Fix:**
+- Added `I2C_STATE_FINISHING` to the ISR guard exclude list. Handler now returns immediately if state is `ERROR`, `IDLE`, `DONE`, or `FINISHING` - before taking any SR1 snapshot or entering any dispatch branch.
+
+**Architectural note - exclude-list vs include-list:**
+- Exclude-list requires a new entry every timea state is added or touched. Demostrated three times over in one session.
+- Include-list (reject unless state is one of the few states where ISR has legitimate work: `TX_ADDR`, `RX_ADDR`, `START_PENDING`) is structurally safer - doesn't depend on remembering to update it after every state addition. Conversion deferred but noted.
+
+**Validation:**
+- Sustained clean UART output across multiple Init->ReadCalibration->Measuring cycles. No stall. No hang.
 
 **Lesson learned:**
--
-
-
+- Register writes that generate bus events are not instantaneous - this was already in the journal from the polling driver. The interrupt-driven driver re-learned the same lesson: STOP written to CR1 != STOP completed on wire. Any flag gated on STOP completion stays asserted until the wire confirms it.
+- An ISR guard exclude-list has a known failure mode: every new state is a potential gap. If the project ever grows beyond the current state count, convert to include-list.
+- Four bugs found this session, all the same shape - unguarded ISR re-entry under a flag that outlives the write that should have resolved it. The pattern is now fully internalized.
 
 # 2026-07-16
 
@@ -78,13 +120,51 @@
 - Found several bugs, fixed them. Narrowed everything to just one function that breaks and one I2C part: pure transmit.
 
 **Problems encountered:**
-- (None today) etc
+1. Bug: Intermittent TX_ADDR/index = 0 hang - root cause still open, systematic bisection in progress
 
-**Root cause at the register level:**
--
+**Symptom:** Intermittent hang with `hi2c.state == I2C_STATE_TX_ADDR`, `index == 0`, clean SR1, idle bus, no ER activity. Surfaces after variable time - sometimes seconds, sometimes minutes. Nine hypotheses tested and ruled out in one session.
+
+**Bisection methodology:** Stripped the BMP280 layer entirely. Wrote a minimal test harness: tight loop calling `I2C_Master_Transmit_Receive` directly with the exact parameters as `BMP280_Measuring` - `send_length = 1`, `receive_length = 1`, status register `0xF3`, address `0x76`. `I2C_Process()` called inside the wait spin to advance state machine to DONE. UART counter printed each completed transaction.
+
+**Result:** 24,000+ back-to-back N=1 transactions with zero gap, no gating logic, no `request_status` dance - zero hangs.
+
+**Conclusion:**
+- Bug does not live in i2c.c or the ISR chain independently.
+- A more hostile timing pattern that `BMP280_Measuring` ever produces failed to reproduce the hang - the bug depends on something specific to the BMP280 state machine's interaction with the I2C driver.
+- Scope narrowed: `bmp280.c` state machine logic - `request_status` gating, tick capture, measurement self-loop timeout, or the gaps between state transitions - is now the only remaining suspect.
+
+**Next step:** Bisect the BMP280 layer itself. Remove pieces of `BMP280_Poll` incrementally to isolate which state transition or timing pattern is the actual trigger.
 
 **Lesson learned:**
--
+- When stuck after many failed hypotheses, bisection beats instrumentation. Simplify the system, not the observation.
+- "It ran fine for a bit" is not a result. Cycle count is a result. 24,201 is a result.
+- Clearing a suspect is as valuable as finding the bug. Nine ruled-out hypotheses plus one clean bisection result now bound the problem to a specific layer - that's not failure, that's the debugging process working.
+
+2. Bug: TX BTF firing early - identical livelock shape as RX N>=3 bug, TX mode variant.
+
+**Symptom:** Program hangs mid-transmission. Breakpoint on printf stops hitting. CPU captured is ISR re-entry storm. Secondary symptom observed earlier: mostly correct UART output with one scrambled fragment - same root cause, different timing: CPU spending almost all time trapped in re-entering ISR, occasionally letting main limp forward long enough to corrupt one printf mid-flight.
+
+**Root cause at the register level:**
+- In TX mode, BTF fires when the shift register has drained the last byte out onto the wire AND DR has not been refilled with the next byte yet - both registers empty simultaneously.
+- For a 2-byte transfer at 16 MHz Sm-mode, the peripheral drains DR-then-shift-register faster than firmware refills DR via TXE. BTF fires at index == 1 (one byte early) before TXE gets a change to supply the second byte. This is apparently the normal timing outcome for this bus speed, not a rare race.
+- BTF handler's `I2C_TX` case only had one condition: `index == TxLength`. At `index == 1` with `TxLength == 2`, no branch matched. No `else`. BTF flag never cleared. ISR re-entered immediately. Livelock.
+- Identical bug shape to RX N>=3 mid-burst BTF - mutually exclusive dispatcher, one flag serviced per entry, no fallback for "flag asserted but firmware bookkeeping hasn't caught up".
+
+**Fix:**
+- Added `else` branch to `I2C_TX` BTF case: write next byte to DR (hi2c.Instance->DR = hi2c.pTxBuffPtr[hi2c.index++]), which both clears BTF and continues the the transmission.
+- Before writing, check `index == TxLength - 1` - if this is the last byte, disable ITBUFEN first. Without this, a subsequent spurious TXE entry would fire after the last byte is written, since ITBUFEN would still be open.
+- Sequence for 2-byte transfer confirmed correct: entry 1 - TXE writes byte 0 (`index 0->1`); entry 2 - BTF fires again (`index == TxLength`), original branch issues STOP, sets `I2C_STATE_FINISHING`; `I2C_Process()` calls `I2C_PollStopConfirmation`, reaches DONE.
+- Fix generalizes correctly to any TxLength - fallback handles any mid-burst BTF, tail logic remains in the original branch.
+
+**Validation:**
+- Confirmed via GDB single-step: entry 1 TXE, entry 2 BTF fallback, entry 3 BTF STOP - exactly as designed.
+- Stress test: repeated `I2C_Master_Transmit` alone, thousands of cycles, no hangs.
+- Folded back into full `WriteCtrlMeas->Measuring` alternating test, then full `BMP280_Poll` cycle - confirmed stable.
+
+**Lesson learned:**
+- BTF in TX mode is not a "last byte" signal - it's a "both registers empty" signal. It can fire at any point where firmware falls one byte behind the peripheral. Never assume it only asserts at the end.
+- The same dispatcher design flaw (mutually exclusive `if/else if`, no fallback when no branch matches) produces the identical livelock in both RX and TX paths. One architectural assumption - "this flag only asserts when I expect it to" - caused two separate bugs. Hardware does not respect firmware's timing assumptions.
+- Scrambled UART output is not always a buffer or printf bug. If the CPU is spending 99% of its time trapped in an ISR storm, any printf that straddles the livelock onset will produce corrupted output. Blame the ISR before blaming the print.
 
 # 2026-07-15
 
