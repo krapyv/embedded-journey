@@ -3,8 +3,6 @@
 An I2C driver that supports three types of transaction: transmit, receive and transmit-receive, using EV and ER interrupt handlers driven by SB, ADDR, TXE, RXNE, BTF, BERR, ARLO and AF flags in non-blocking way. Error recovery isolates each fault - BERR, ARLO, AF - and triggers a Software Reset (SWRST) to return the peripheral to a clean register state.
 This documents the reusable driver layer only. Application-layer usage with BMP280 is covered in a separate project README.
 
-## Technical Specifications
-
 ## Project Structure
 
 ```text

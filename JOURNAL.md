@@ -43,7 +43,7 @@
 - Wrote a README for I2C driver.
 
 **Evening:**
--
+- Wrote a README for BMP280 driver.
 
 **Problems encountered:**
 - (None today) etc
@@ -87,7 +87,15 @@
 - Replace `hi2c.state = I2C_STATE_TX_ADDR` with `hi2c.state = I2C_STATE_START_PENDING`, written before `CR1 |= START`, matching the corrected pattern in `I2C_Master_Transmit`.
 
 **Deferred - structural note for future:**
-- The repeated-start implementation in this driver has an inherit window between write-phase BTF handling and genuine SB confirmation where the ISR guard must correctly reject reentry via state rather than phase. This is an expected, structural characteristic of this driver's repeated-start architecture - not a hidden latent bug after the fix, but a design tension that a future DMA-driven or fully event-driven architecture would resolve differetly.
+- The repeated-start implementation in this driver has an inherent window between write-phase BTF handling and genuine SB confirmation where the ISR guard must correctly reject reentry via state rather than phase.
+Since the BTF flag is cleared by hardware once START or STOP condition is detected on the bus and in I2C_TX_RX case we are not explicitly clearing the BTF, but just issuing the REPEATED START after the ISR exit, the BTF flag is still set.
+Since the BTF is still set when the ISR exits, the pending interrupt flag in NVIC has not been cleared, causing immediate re-entry.
+The ISR immediately re-enters itself and hits the BTF once again for the same stale BTF flag.
+The EV ISR guard checks hi2c.state == I2C_STATE_START_PENDING at entry and discards all re-entries while the repeated START is pending on the bus (observed in GDB: races on approximately 9 of every 19 repeated-start cycles).
+The I2C_Master_* functions that issue START have I2C_PollHardwareBusy that takes up to 4 ms of time, so there are almost no races at all.
+The ISR issuing START has no time-buffer at all.
+The issue is just frequent, but cosmetic - no side effects if the guard is present.
+
 - Marked in code comments for the future examination and resolving.
 
 **Lesson learned:**
