@@ -39,6 +39,9 @@
 - Wrote a Linkedin post about I2C + BMP280 Interrupt-Driven project.
 - Cleaned a bit my Linkedin profile.
 
+**Afternoon:**
+- Wrote a README for I2C driver.
+
 **Evening:**
 -
 
