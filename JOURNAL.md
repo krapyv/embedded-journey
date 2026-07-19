@@ -32,6 +32,25 @@
 **Lesson learned:**
 -
 
+# 2026-07-19
+
+**Morning:**
+- Added the bug descriptions to the Journal logs.
+- Wrote a Linkedin post about I2C + BMP280 Interrupt-Driven project.
+- Cleaned a bit my Linkedin profile.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-18
 
 **Morning:**
