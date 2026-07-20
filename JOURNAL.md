@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 2026-07-20
+
+**Morning:**
+- Started learning SPI: Serial Peripheral Interface.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-19
 
 **Morning:**
