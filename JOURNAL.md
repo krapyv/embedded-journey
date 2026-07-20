@@ -38,7 +38,7 @@
 - Started learning SPI: Serial Peripheral Interface.
 
 **Evening:**
--
+- Continued learning about SPI: its modes, the lines, the status register flags, its pros and cons.
 
 **Problems encountered:**
 - (None today) etc
