@@ -32,13 +32,13 @@
 **Lesson learned:**
 -
 
-# 202x-xx-xx
+# 2026-07-21
 
 **Morning:**
 - Finished learning theory about SPI: CMOS with NMOS and PMOS, full-duplex vs half-duplex, SPI's transmit functionality, push-pull (SPI) vs open-drain (I2C).
 
 **Evening:**
--
+- Started developing the SPI + EEPROM M95320-W project: added SPI struct and addresses to the stm32f411.h, started developing the program logic.
 
 **Problems encountered:**
 - (None today) etc

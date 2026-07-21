@@ -189,6 +189,19 @@ typedef struct
     volatile uint32_t FLTR;  // 0x24, FLTR register
 } I2C_RegDef_t;
 
+typedef struct
+{
+    volatile uint32_t CR1;     // 0x00, Control register 1
+    volatile uint32_t CR2;     // 0x04, Control register 2
+    volatile uint32_t SR;      // 0x08, Status register
+    volatile uint32_t DR;      // 0x0C, Data register
+    volatile uint32_t CRCPR;   // 0x10, CRC polynomial register
+    volatile uint32_t RXCRCR;  // 0x14, RX CRC register
+    volatile uint32_t TXCRCR;  // 0x18, TX CRC register
+    volatile uint32_t I2SCFGR; // 0x1C, I2S configuration register
+    volatile uint32_t I2SPR;   // 0x20, I2S prescaler register
+} SPI_RegDef_t;
+
 // Alternate Function Modes
 typedef enum
 {
@@ -238,6 +251,12 @@ typedef enum
 #define I2C2_BASE 0x40005800UL
 #define I2C3_BASE 0x40005C00UL
 
+#define SPI1_BASE 0x40013000
+#define SPI2_BASE 0x40003800
+#define SPI3_BASE 0x40003C00
+#define SPI4_BASE 0x40013400
+#define SPI5_BASE 0x40015000
+
 // ================== Registers ==================
 
 #define RCC ((RCC_RegDef_t *)RCC_BASE)
@@ -265,4 +284,10 @@ typedef enum
 #define I2C1 ((I2C_RegDef_t *)I2C1_BASE)
 #define I2C2 ((I2C_RegDef_t *)I2C2_BASE)
 #define I2C3 ((I2C_RegDef_t *)I2C3_BASE)
+
+#define SPI1 ((SPI_RegDef_t *)SPI1_BASE)
+#define SPI2 ((SPI_RegDef_t *)SPI2_BASE)
+#define SPI3 ((SPI_RegDef_t *)SPI3_BASE)
+#define SPI4 ((SPI_RegDef_t *)SPI4_BASE)
+#define SPI5 ((SPI_RegDef_t *)SPI5_BASE)
 #endif
