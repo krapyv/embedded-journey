@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 202x-xx-xx
+
+**Morning:**
+- Finished learning theory about SPI: CMOS with NMOS and PMOS, full-duplex vs half-duplex, SPI's transmit functionality, push-pull (SPI) vs open-drain (I2C).
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+- SPI is fast, but is ineffective for long-distance communications.
+
 # 2026-07-20
 
 **Morning:**
