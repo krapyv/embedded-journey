@@ -21,6 +21,9 @@ void spi_init()
     // PA5, PA6, PA7 - MODER: Alternate function mode (10) - AF5 (0101)
     // PA4 - MODER: General purpose output mode (01) - OTYPER: 0 - output push-pull
 
+    /* --- ODR --- */
+    GPIOA->ODR |= (1 << 4);
+
     /* --- MODER --- */
     // clear the bits
     // MODER gives 2 bits per pin
@@ -36,8 +39,6 @@ void spi_init()
     // clear the bit 4
     GPIOA->OTYPER &= ~(1 << 4);
 
-    /* --- ODR --- */
-    GPIOA->ODR |= (1 << 4);
     // since PA7, PA6, PA5 are in the range 0-7, we use GPIO_AFRL
 
     /* --- AFRL --- */
@@ -51,6 +52,31 @@ void spi_init()
     // 0101 = 2^2 + 2^0 = 4 + 1 = 5 = 0x5
     GPIOA->AFRL |= ((0x5 << 28) | (0x5 << 24) | (0x5 << 20));
 
+    /* --- OSPEEDR --- */
+    // since only SCK (PA5) and MOSI (PA7) are driven by the STM32F411 board
+    // they should keep up with the SPI frequency of 8 MHz
+
+    // by default OSPEEDR has the value of 00, with the max frequency (CL = 50 pF, VDD >= 2.70 V) of 4 MHz
+
+    // the parasitic capacitance of the breadboard circuit:
+    // SCK PA5: this row sits next to another active line, it is approximately 3 pF
+    // Jumper wire i am using is 20 cm. 2.5 cm is approximately 1 pF, so it is 8 pF
+    // MCU pin (STM32 GPIO Input/output capacitance = approximately 5 pF (according to the datasheet)
+    // EEPROM Pin: accordin to the datasheet it is 6 pF
+
+    // so we can sum them up: 3 + 8 + 5 + 6 = 11 + 11 = 22 pF
+
+    // so we choose the 01 option that gives under CL = 50 pF, VDD >= 2.70 V, the frequency of 25 MHz >> 8 MHz
+
+    // OSPEEDR gives 2 bits per pin: pin PA5 takes bits 11:10, PA7 takes bits 15:14
+    // clear the bits
+    // 11 = 0x3
+
+    GPIOA->OSPEEDR &= ~((0x3 << 14) | (0x3 << 10));
+
+    // set the bits
+    // 01 = 0x1
+    GPIOA->OSPEEDR |= ((0x1 << 14) | (0x1 << 10));
     /* ----- GPIO Configuration ----- */
 
     /* ----- SPI Configuration ----- */

@@ -39,10 +39,11 @@
 - Started to learn about GPIO OSPEEDR and breadboard's parasitic capacitance calculations.
 
 **Evening:**
--
+- Finished the spi_init function.
+- Continued developing the SPI + EEPROM project: designed spi1_transfer function. 
 
 **Problems encountered:**
-- (None today) etc
+- Definitely I need to read the Instructions section of the M95320 EEPROM to grasp it :)
 
 **Root cause at the register level:**
 -
