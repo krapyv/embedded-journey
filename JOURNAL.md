@@ -32,6 +32,24 @@
 **Lesson learned:**
 -
 
+# 2026-07-22
+
+**Morning:**
+- Wrote a `spi_init` function.
+- Started to learn about GPIO OSPEEDR and breadboard's parasitic capacitance calculations.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-21
 
 **Morning:**
