@@ -1,4 +1,5 @@
 #include "spi.h"
+#include <stdio.h>
 
 void spi_init()
 {
@@ -98,6 +99,59 @@ void spi_init()
     // single write to CR1
     SPI1->CR1 = cr1_snap;
     /* ----- SPI Configuration ----- */
+
+    return;
+}
+
+void spi_transfer(uint8_t *tx, uint8_t *rx, uint8_t len)
+{
+    // first of all, CS assert (ODR low for PA4)
+    GPIOA->ODR &= ~(1 << 4);
+
+    uint8_t dummy_rx;
+    (void)dummy_rx;
+
+    uint8_t dummy_tx = 0xFF;
+    (void)dummy_tx;
+
+    // check if the TX DR is empty
+    while (!(SPI1->SR & (1 << 1)))
+        ;
+
+    for (uint8_t i = 0; i < len; i++)
+    {
+        // write the byte in DR
+        if (tx == NULL)
+        {
+            SPI1->DR = dummy_tx;
+        }
+        else
+        {
+            SPI1->DR = tx[i];
+        }
+
+        // wait until the incoming byte lands in the RX DR
+        while (!(SPI1->SR & (1 << 0)))
+            ;
+
+        if (rx == NULL)
+        {
+            dummy_rx = SPI1->DR;
+        }
+        else
+        {
+            rx[i] = SPI1->DR;
+        }
+    }
+
+    // after the last incoming byte was read
+    // check BSY bit in SR for 0
+    while (SPI1->SR & (1 << 7))
+        ;
+
+    // deselect the EEPROM
+    // ODR high for PA4
+    GPIOA->ODR |= (1 << 4);
 
     return;
 }

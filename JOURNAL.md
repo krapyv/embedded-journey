@@ -32,6 +32,25 @@
 **Lesson learned:**
 -
 
+# 2026-07-23
+
+**Morning:**
+- Developed and wrote spi_transfer function.
+- Wrote a Linkedin post about NVIC priorities.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
+
 # 2026-07-22
 
 **Morning:**
