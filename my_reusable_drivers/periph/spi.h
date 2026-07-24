@@ -19,9 +19,6 @@ typedef enum
     SPI_Channel_5,
 } SPI_Channel_t;
 
-typedef struct
-{
-
-} SPI_HandleTypeDef;
+void spi_transfer(uint8_t *tx, uint8_t *rx, uint8_t len);
 
 #endif // SPI_H
