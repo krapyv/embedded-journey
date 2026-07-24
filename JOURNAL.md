@@ -32,6 +32,23 @@
 **Lesson learned:**
 -
 
+# 2026-07-24
+
+**Morning:**
+- Read the EEPROM M95320 datasheet Instruction section to grasp what it allows to do before writing the EEPROM driver.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-23
 
 **Morning:**
