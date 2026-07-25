@@ -103,7 +103,7 @@ void spi_init()
     return;
 }
 
-void spi_transfer(uint8_t *tx, uint8_t *rx, uint8_t len)
+void spi_transfer(uint8_t *settings_tx, uint8_t *data_tx, uint8_t *rx, uint16_t total_len, uint8_t settings_tx_len, uint8_t rx_skip)
 {
     // first of all, CS assert (ODR low for PA4)
     GPIOA->ODR &= ~(1 << 4);
@@ -114,20 +114,37 @@ void spi_transfer(uint8_t *tx, uint8_t *rx, uint8_t len)
     uint8_t dummy_tx = 0xFF;
     (void)dummy_tx;
 
+    uint8_t rx_skipped = 0;
+    (void)rx_skipped;
+
+    uint8_t settings_tx_sent = 0;
+
     // check if the TX DR is empty
     while (!(SPI1->SR & (1 << 1)))
         ;
 
-    for (uint8_t i = 0; i < len; i++)
+    for (uint16_t i = 0; i < total_len; i++)
     {
-        // write the byte in DR
-        if (tx == NULL)
+        // handling of instruction byte (every transaction has it) + address bytes for WRITE/READ
+        if (settings_tx_sent < settings_tx_len)
         {
-            SPI1->DR = dummy_tx;
+            settings_tx_sent++;
+            SPI1->DR = settings_tx[i];
         }
         else
         {
-            SPI1->DR = tx[i];
+            // write the byte in DR
+
+            // data_tx can be NULL for Read, Write enable and WIP polling transactions
+            if (data_tx == NULL)
+            {
+                SPI1->DR = dummy_tx;
+            }
+            // in case of Write transaction, data_tx is passed
+            else
+            {
+                SPI1->DR = data_tx[i - settings_tx_len];
+            }
         }
 
         // wait until the incoming byte lands in the RX DR
@@ -140,7 +157,15 @@ void spi_transfer(uint8_t *tx, uint8_t *rx, uint8_t len)
         }
         else
         {
-            rx[i] = SPI1->DR;
+            if (rx_skipped >= rx_skip)
+            {
+                rx[i - rx_skip] = SPI1->DR;
+            }
+            else
+            {
+                rx_skipped++;
+                dummy_rx = SPI1->DR;
+            }
         }
     }
 

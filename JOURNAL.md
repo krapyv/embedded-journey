@@ -32,13 +32,32 @@
 **Lesson learned:**
 -
 
+# 2026-07-25
+
+**Morning:**
+- Enhanced EEPROM functions, implemented eeprom_write_byte function.
+- Rewrote spi_transfer function.
+- The M9520 EEPROM driver v.1.0 is done. main() is next.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+**Lesson learned:**
+-
+
 # 2026-07-24
 
 **Morning:**
 - Read the EEPROM M95320 datasheet Instruction section to grasp what it allows to do before writing the EEPROM driver.
 
 **Evening:**
--
+- Started implementing M9520 EEPROM driver: eeprom_read, eeprom_write_enable and eeprom_wip_poll functions first versions.
 
 **Problems encountered:**
 - (None today) etc
