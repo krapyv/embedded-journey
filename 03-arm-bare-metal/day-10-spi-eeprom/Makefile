@@ -6,14 +6,14 @@ OBJCOPY = $(PREFIX)objcopy
 # --- Centralized Driver Path ---
 SHARED_CORE_DIR = /mnt/hdd/embedded-journey/my_reusable_drivers
 
-INCLUDES = -I. -I${SHARED_CORE_DIR}/core -I${SHARED_CORE_DIR}/periph -I${SHARED_CORE_DIR}/devices/bmp280 -I${SHARED_CORE_DIR}/utils 
+INCLUDES = -I. -I${SHARED_CORE_DIR}/core -I${SHARED_CORE_DIR}/periph -I${SHARED_CORE_DIR}/devices/m9520-eeprom -I${SHARED_CORE_DIR}/devices/led
 
 # Compiler flags (same for all STM32F411 projects)
 CFLAGS = -mcpu=cortex-m4 -mthumb -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
-SRC = startup_stm32f411ceux.s ${SHARED_CORE_DIR}/periph/uart.c ${SHARED_CORE_DIR}/periph/i2c.c ${SHARED_CORE_DIR}/periph/systick.c ${SHARED_CORE_DIR}/devices/bmp280/bmp280.c main.c
+SRC = startup_stm32f411ceux.s ${SHARED_CORE_DIR}/periph/spi.c ${SHARED_CORE_DIR}/periph/systick.c ${SHARED_CORE_DIR}/devices/m9520-eeprom/m9520.c ${SHARED_CORE_DIR}/devices/led/led.c main.c
 ELF = program.elf
 BIN = program.bin
 

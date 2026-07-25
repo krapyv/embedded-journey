@@ -1,6 +1,8 @@
 #ifndef M9520_H
 #define M9520_H
 
+#include <stdint.h>
+
 // Write Enable
 #define WREN_INSTRUCTION 0x6 // 0000 0110 = 2^2 + 2^1 = 4 + 2 = 6
 // Write Disable
@@ -16,8 +18,8 @@
 
 // function headers
 void eeprom_write_enable();
-void eeprom_read(uint8_t *address, uint8_t *rx, uint8_t len);
+void eeprom_read(uint8_t *address, uint8_t *rx, uint16_t len);
 void eeprom_write_byte(uint8_t *address, uint8_t *data_payload, uint8_t len);
 void eeprom_wip_poll();
 
-#endif; // M9520_H
+#endif // M9520_H

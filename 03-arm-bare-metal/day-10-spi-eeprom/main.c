@@ -1,128 +1,101 @@
 #include <stdio.h>
-#include <inttypes.h>
+#include "spi.h"
+#include "led.h"
+#include "m9520.h"
 #include "systick.h"
-#include "bmp280.h"
-#include "i2c.h"
-#include "uart.h"
 
-// globally declared vaiable with physically allocated memory in RAM
-I2C_HandleTypeDef hi2c;
-
-// TODO: reusable SWRST-precondition function, the refusal contract, and HARD_FAULT
-int main(void)
+int main()
 {
-    // define and initialize structs
-    hi2c.channel = I2C_CHANNEL_1;
-    hi2c.scl_port = GPIOB;
-    hi2c.scl_pin = 6;
-    hi2c.sda_port = GPIOB;
-    hi2c.sda_pin = 7;
-    hi2c.state = I2C_STATE_IDLE;
-    hi2c.sb_hits = 0;
-    hi2c.stop_hits = 0;
-    hi2c.start_pending_hits = 0;
+    spi_init();
 
-    BMP280_HandleTypeDef hbmp = {
-        .hi2c = &hi2c,
-        .slave_addr = BMP280_I2C_ADDR,
-        .isInitialized = 0};
+    // PA0
+    LED_HandleTypeDef correct_led = {
+        .pin = 0,
+        .rcc_bit = 0,
+        .odr_reg = &(GPIOA->ODR),
+        .moder_reg = &(GPIOA->MODER),
+        .rcc_clk_reg = &(RCC->AHB1ENR)};
 
-    BMP280_Ctrl_Meas_t meas = {
-        .osrs_p = BMP280_OSRS_P_OVRSMP_1,
-        .osrs_t = BMP280_OSRS_T_OVRSMP_1,
-        .mode = BMP280_FORCED_MODE};
+    // PB1
+    LED_HandleTypeDef fault_led = {
+        .pin = 1,
+        .rcc_bit = 1,
+        .odr_reg = &(GPIOB->ODR),
+        .moder_reg = &(GPIOB->MODER),
+        .rcc_clk_reg = &(RCC->AHB1ENR)};
 
-    // peripherals init
-    I2C_Init();
-    SysTick_Init((uint32_t)SYSTICK_FREQUENCY_16MHZ);
-    usart2_init();
+    led_init(&correct_led);
+    led_init(&fault_led);
 
-    hbmp.state = BMP280_STATE_INIT;
+    // MSB: 0000 => 0x0
+    // LSB: 01010000 => 0x50
+    uint8_t address_arr[2] = {0x00, 0x50};
 
-    // test loop
-    while (1)
+    uint8_t data_arr[1] = {0x6F};
+    uint8_t read_arr[1] = {0};
+
+    SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
+
+    // the datasheet gives endurance in write cycles per group of 4 bytes at 4 000 000 cycles.
+    // an infinite loop with 5 ms cycle takes 5.56 hours approximately to exhaust this value
+    // 200 cycles per second
+
+    // so we are changing while (1) to for ()
+    for (uint8_t i = 0; i < 30; i++)
     {
-        I2C_Process();
+        eeprom_write_byte(address_arr, data_arr, 1U);
 
-        switch (hbmp.state)
+        eeprom_read(address_arr, read_arr, 1U);
+
+        if (data_arr[0] == read_arr[0])
         {
-        case BMP280_STATE_IDLE:
-            break;
-        case BMP280_STATE_INIT:
-            if (BMP280_Init(&hbmp, meas) != BMP280_OK)
-            {
-                hbmp.state = BMP280_STATE_ERROR;
-            }
-            break;
-        case BMP280_STATE_READ_CALIBRATION:
-            if (BMP280_ReadCalibration(&hbmp) != BMP280_OK)
-            {
-                hbmp.state = BMP280_STATE_ERROR;
-            }
-            break;
-        case BMP280_STATE_RECONSTRUCT_CALIBRATION:
-            BMP280_ReconstructCalibration(&hbmp);
-            break;
-        case BMP280_STATE_CTRL_MEAS:
-            if (BMP280_WriteCtrlMeas(&hbmp) != BMP280_OK)
-            {
-                hbmp.state = BMP280_STATE_ERROR;
-            }
-            break;
-        case BMP280_STATE_MEASURING:
-            if (BMP280_Measuring(&hbmp) != BMP280_OK)
-            {
-                hbmp.state = BMP280_STATE_ERROR;
-            }
-            break;
-        case BMP280_STATE_READ_MEASURAMENTS:
-            if (BMP280_ReadMeasurements(&hbmp) != BMP280_OK)
-            {
-                hbmp.state = BMP280_STATE_ERROR;
-            }
-            break;
-        case BMP280_STATE_RECONSTRUCT_MEASURAMENTS:
-            BMP280_ReconstructMeasurements(&hbmp);
-            break;
-        case BMP280_STATE_COMPENSATE:
-            BMP280_CalculateData(&hbmp);
-            break;
-        case BMP280_STATE_READY:
-            printf("Temp: %" PRId32 " degC | Press: %" PRIu32 " hPa\r\n", hbmp.temp_value / 100, hbmp.press_value / 256 / 100);
-            fflush(stdout);
+            led_on(&correct_led);
 
-            // printf("start_pending_hits: %d | sb_hits: %d\r\n", hi2c.start_pending_hits, hi2c.sb_hits);
+            SysTick_Delay_ms(300);
 
-            hbmp.request_status = BMP280_REQUEST_NONE;
-            hbmp.retries = 0;
-            hbmp.measure_start_tick = 0;
-            hbmp.measure_start_tick_status = BMP280_START_TICK_NEVER_CAPTURED;
-            // BMP start measurements
-            hbmp.state = BMP280_STATE_CTRL_MEAS;
-
-            break;
-        case BMP280_STATE_ERROR:
-            if (hbmp.retries >= 3)
+            led_off(&correct_led);
+        }
+        else
+        {
+            // if there is a fault during test,  halt the execution, signal the fault
+            while (1)
             {
-                // the counter is exhausted
-                hbmp.state = BMP280_STATE_FAULT;
-                break;
+                led_on(&fault_led);
+
+                SysTick_Delay_ms(900);
+
+                led_off(&fault_led);
             }
+        }
 
-            if (hbmp.hi2c->state == I2C_STATE_IDLE)
-            {
-                hbmp.retries++;
+        read_arr[0] = 0;
 
-                // begin a transaction from the beginning (Calibration is read once at the very beginning, so omit the state)
-                hbmp.state = BMP280_STATE_CTRL_MEAS;
-            }
-
-            break;
-        case BMP280_STATE_FAULT:
-            printf("The BMP280 sensor experienced hard fault!");
-            fflush(stdout);
-            break;
+        if (data_arr[0] == 0x6F)
+        {
+            data_arr[0] = 0x30;
+        }
+        else if (data_arr[0] == 0x30)
+        {
+            data_arr[0] = 0xF1;
+        }
+        else
+        {
+            data_arr[0] = 0x6F;
         }
     }
+
+    // after the loop finishes
+    // simultaneous blinking to signal that now the communication with eeprom is done
+    while (1)
+    {
+        led_on(&correct_led);
+        led_on(&fault_led);
+
+        SysTick_Delay_ms(900);
+
+        led_off(&correct_led);
+        led_off(&fault_led);
+    }
+
     return 0;
 }

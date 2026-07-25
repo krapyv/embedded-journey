@@ -40,7 +40,7 @@
 - The M9520 EEPROM driver v.1.0 is done. main() is next.
 
 **Evening:**
--
+- Implemented the main(). Will solder the M9520 EEPROM tomorrow. Will test it, debug and complete in the Journal all bugs, fixes and interesting parts of the project.
 
 **Problems encountered:**
 - (None today) etc
