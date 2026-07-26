@@ -107,12 +107,166 @@ Week	Topic	Morning Practice	Evening Theory	Mini-Project
 12	Timers (PWM ✅, input capture ✅, Independent watchdog ✅)	Servo control, pulse measurement	Electronics: RC servos	LED dimmer + knob reader
 13	ADC, DMA ✅	Continuous sampling at 10kHz ✅	Data structures: double buffer	Audio sampler (basic)
 14	I2C ✅	Read temperature sensor (BMP280)	Protocol analysis (logic analyzer)	Sensor logger
-15	SPI	Communicate with EEPROM	Compare I2C vs SPI	Config storage
-16	DMA + UART	DMA-based TX/RX	Performance measurement	High-speed logger
-17	Low power (sleep, stop)	Measure current draw	Electronics: Power measurement	Battery-powered sensor
-18	Bootloader basics	Flash programming, vector relocation	Linker script deep dive	Custom UART bootloader
-19	Integration week	Combine everything	Documentation	Complete data logger project
-By end of Phase 3: You can write any peripheral driver in C, debug with logic analyzer, implement a bootloader.
+15	SPI ✅	Communicate with EEPROM	Compare I2C vs SPI	Config storage
+Week 16: bxCAN — Polling, Frame TX/RX, Filter Configuration
+
+The STM32F411 has a bxCAN peripheral. Before touching a single register, read RM0383 Chapter 22 in full. CAN is architecturally different from everything you have built so far — there is no master/slave, no clock line, and the peripheral has its own error state machine that can take the bus offline permanently if mishandled.
+
+Theory to understand before coding:
+
+CAN frame anatomy — SOF, arbitration field, control field, data field, CRC, ACK, EOF
+Bit timing — how CAN_BTR register divides the nominal bit time into segments (SYNC_SEG, BS1, BS2, SJW). You will derive your own BTR value for 500 kbit/s against 16 MHz APB1 clock
+Mailbox system — 3 TX mailboxes, 2 RX FIFOs, how the hardware arbitrates between pending TX frames
+Filter banks — identifier list mode vs mask mode, what FIFO each filter routes to
+
+Register sequence to implement:
+
+RCC clock gate for CAN1 on APB1
+GPIO alternate function for PA11 (CAN_RX) and PA12 (CAN_TX) — AF9
+Enter initialization mode — CAN_MCR INRQ bit, wait for CAN_MSR INAK confirmation
+Configure CAN_BTR — calculate prescaler, BS1, BS2, SJW for 500 kbit/s
+Configure at least one filter bank in CAN_FM1R, CAN_FS1R, CAN_FFA1R, CAN_FA1R
+Exit initialization mode — clear INRQ, wait for INAK to clear
+
+Loopback test first. Set CAN_BTR LBKM bit before exiting init mode. This routes TX back to RX internally — no transceiver hardware needed to verify your frame TX/RX logic.
+
+TX sequence:
+
+Find empty mailbox — CAN_TSR TME0/TME1/TME2 bits
+Write CAN_TIxR — frame ID, IDE bit (standard vs extended), RTR bit
+Write CAN_TDTxR — DLC (data length code)
+Write CAN_TDLxR and CAN_TDHxR — up to 8 bytes of data
+Set CAN_TIxR TXRQ bit to request transmission
+
+RX sequence:
+
+Poll CAN_RF0R FMP0 field — number of messages pending in FIFO 0
+Read CAN_RI0R — frame ID
+Read CAN_RDT0R — DLC and timestamp
+Read CAN_RDL0R and CAN_RDH0R — data bytes
+Set CAN_RF0R RFOM0 to release the FIFO slot
+
+Done bar: transmit a frame in loopback mode, receive it back, print ID and data over UART.
+
+Week 17: bxCAN — Interrupt-Driven, Error Handling, Two-Node Test
+
+Now remove loopback. You need two nodes on the same bus — either two STM32 boards, or use your logic analyzer to verify bus traffic while one node transmits. If you only have one board, stay in loopback but add interrupt-driven operation.
+
+Interrupts to implement:
+
+USB_HP_CAN1_TX_IRQHandler — TX mailbox empty, transmission result
+USB_LP_CAN1_RX0_IRQHandler — FIFO 0 message pending
+CAN1_SCE_IRQHandler — status change and error interrupt
+
+Error handling — this is where CAN gets serious. The bxCAN peripheral has a full error state machine:
+
+Error Warning state — TEC or REC counter exceeds 96
+Error Passive state — TEC or REC counter exceeds 127
+Bus-Off state — TEC exceeds 255, peripheral disconnects from bus automatically
+
+Read CAN_ESR register in the SCE handler:
+
+LEC field — last error code (bit error, stuff error, CRC error, form error, ACK error)
+TEC and REC — transmit and receive error counters
+BOFF bit — bus-off state
+
+Implement bus-off recovery: set CAN_MCR ABOM bit for automatic recovery, or implement manual recovery by monitoring BOFF and re-entering/exiting init mode after 128 × 11 recessive bits.
+
+Done bar: interrupt-driven TX and RX working, SCE handler correctly reads and clears error conditions, bus-off recovery sequence implemented.
+
+should compute BS1/BS2/SJW/prescaler by hand from RM0383's bit-timing formulas before touching CAN_BTR — same discipline you used for I2C's CCR/TRISE.
+
+Week 18: DMA + UART
+
+You already have an interrupt-driven UART driver. This week adds DMA to the TX path — removing the CPU from serial transmission entirely.
+
+DMA1 Stream 6 Channel 4 for USART2 TX
+Configure DMA_SxCR — memory-to-peripheral direction, byte size, memory increment, transfer complete interrupt
+Configure DMA_SxNDTR — transfer length
+Configure DMA_SxM0AR — source buffer address
+Configure DMA_SxPAR — USART2 DR address
+Enable USART2 CR3 DMAT bit to trigger DMA on TXE
+Handle TC interrupt in DMA1_Stream6_IRQHandler
+
+Done bar: transmit a 64-byte buffer over USART2 via DMA, CPU not involved in the transfer, TC interrupt signals completion.
+
+Week 19: Low Power Modes
+
+Read RM0383 Chapter 5 (power modes) in full before coding.
+
+Three modes to implement and measure:
+
+Sleep mode:
+
+__WFI() instruction — CPU halts, peripherals continue
+SysTick interrupt wakes the CPU every 1ms
+Measure: current draw with multimeter or bench supply in sleep vs active
+
+Stop mode:
+
+PWR_CR PDDS=0, LPDS=0/1 for main/low-power regulator
+SCB_SCR SLEEPDEEP bit set
+All clocks stopped except LSI/LSE
+Wakeup via EXTI line (wire a button to PA0, configure EXTI0)
+After wakeup: HSI restarts, you must reconfigure PLL if used
+Measure: current drop vs sleep mode
+
+Standby mode:
+
+PWR_CR PDDS=1
+SRAM contents lost — only backup registers survive
+Wakeup via WKUP pin (PA0) or RTC alarm
+Measure: lowest current draw
+
+Done bar: demonstrate all three modes via UART menu — press 1 for sleep, 2 for stop, 3 for standby. Each mode wakes on button press and prints confirmation over UART.
+
+Week 20: Bootloader
+
+This is the most architecturally complex week in Phase 3. Read the linker script and startup file before writing a single line.
+
+Concepts to understand first:
+
+Vector table relocation — SCB_VTOR register, why the application's vector table must be at a known offset
+Flash sector layout on STM32F411 — Sector 0 is bootloader (0x08000000), Sector 1 is application (0x08004000 or 0x08008000)
+Stack pointer validation — first word of application vector table must be a valid SRAM address before jumping
+Bare-bones HardFault handler (register dump on fault, halt).
+Bootloader sequence:
+
+On reset, bootloader runs from Sector 0
+Check a flag in backup SRAM or a GPIO pin — should we stay in bootloader or jump to application?
+If jumping: read application stack pointer from *(uint32_t*)APP_START_ADDR, write to MSP, read reset handler address from *(uint32_t*)(APP_START_ADDR + 4), jump
+If staying: receive new firmware over UART (XMODEM or simple raw binary protocol), write to Flash using FLASH_CR unlock sequence, sector erase, programming
+
+Flash write sequence:
+
+Unlock FLASH_CR with KEY1 (0x45670123) and KEY2 (0xCDEF89AB)
+Erase target sector — set SER bit, SNB field, STRT bit, wait for BSY to clear
+Program word by word — set PG bit, write to Flash address, wait for BSY
+
+Done bar: bootloader receives a binary over UART, writes it to Sector 1, validates the vector table, and jumps to the application. Application blinks an LED and prints "App running" over UART.
+
+Week 21: Integration Project — CAN Sensor Node
+
+This is not a tutorial week. You build a complete system from everything in Phase 3.
+
+Project: BMP280 reads temperature and pressure over I2C. The STM32 packages the readings into a CAN frame and broadcasts on the bus every 500ms. A second node (or loopback) receives the frame and prints the decoded values over UART.
+
+This is a real automotive pattern. A sensor ECU reads a physical quantity and broadcasts it on the bus. Any other ECU on the bus can consume it.
+
+CAN frame design:
+
+ID: 0x100 for temperature, 0x101 for pressure (or pack both into one 8-byte frame)
+DLC: 4 bytes per value
+Data: raw int32_t / uint32_t from BMP280 compensation functions
+
+Integration requirements:
+
+BMP280 state machine running on I2C interrupt driver (your existing code)
+CAN TX interrupt-driven
+UART output for debugging
+SysTick for 500ms broadcast timer
+
+Done bar: stable temperature and pressure values broadcast on CAN bus every 500ms, decoded and printed on receiving end. No bus-off events after 60 seconds of continuous operation.
 
 Portfolio project extracted: stm32-bootloader-c repo
 
@@ -137,6 +291,7 @@ Week	Topic	Morning Practice	Evening Theory	Project
 32	Software timers	Periodic tasks	Timer accuracy	Watchdog timer
 33	Stack management	Measure stack usage	Stack overflow detection	Task monitor
 34	Low-power RTOS (tickless)	Sleep mode integration	Power optimization	Battery device
+34+ Add a dedicated LIN bus week. LIN is on every door module, seat controller, and body control module in a modern car. It is simpler than CAN and appears constantly in junior automotive job descriptions. One week is enough — polling driver, master task, slave response.
 35	Integration week	Multi-task sensor hub	Documentation	Complete RTOS project
 By end of Phase 5: You can design multi-task systems in C, debug priority inversion, implement power-efficient RTOS.
 
@@ -151,28 +306,33 @@ By end of Phase 6: You can write maintainable, portable embedded code in C.
 
 Phase 7: RISC-V (C) (Weeks 39-46)
 Hardware: ESP32-C3
+!! Cut off, can be reduced to 2-3 weeks if needed.
 
 Week	Topic	Morning Practice	Evening Theory	Project
-39	Toolchain + GPIO	Install riscv32 toolchain, blink LED	RISC-V ISA basics	Port LED driver
-40	Interrupts (CLINT)	Compare with ARM's NVIC	Software context save	Port UART driver
-41	Memory layout	Linker script differences	PMP	Port bootloader
-42	RISC-V extensions (C, M)	Compressed instructions, multiply	Extension detection	Code size comparison
-43	Vector extensions (RVV)	SIMD-style operations	Performance measurement	Audio filter
-44	FreeRTOS on RISC-V	Port ARM RTOS project	Architecture differences	Task monitor
-45	Low-power on RISC-V	Sleep modes, wakeup	Power comparison	Battery sensor
-46	Integration week	Cross-architecture HAL	Documentation	Run same app on ARM + RISC-V
+xx	Toolchain + GPIO	Install riscv32 toolchain, blink LED	RISC-V ISA basics	Port LED driver
+xx	Interrupts (CLINT)	Compare with ARM's NVIC	Software context save	Port UART driver
+xx	Memory layout	Linker script differences	PMP	Port bootloader
+xx	RISC-V extensions (C, M)	Compressed instructions, multiply	Extension detection	Code size comparison
+xx	Vector extensions (RVV)	SIMD-style operations	Performance measurement	Audio filter
+xx	FreeRTOS on RISC-V	Port ARM RTOS project	Architecture differences	Task monitor
+xx	Low-power on RISC-V	Sleep modes, wakeup	Power comparison	Battery sensor
+xx	Integration week	Cross-architecture HAL	Documentation	Run same app on ARM + RISC-V
 By end of Phase 7: You can port C code between architectures.
 
 Phase 8: TinyML (C) (Weeks 47-54)
+!!! Cut off for not being relevant for traditional automotive firmware junior roles.
 Week	Topic	Morning Practice	Evening Theory	Project
-47	TensorFlow Lite Micro	Install, run example	ML basics	Keyword spotting
-48	Model training (Python)	Train simple model on PC	Quantization	Sensor anomaly detection
-49	Model deployment	Convert to C array, run on MCU	Memory optimization	On-device inference
-50	CMSIS-NN (ARM)	Accelerate inference	Neural network ops	2x speedup
-51	RISC-V vector for ML	Port to RVV	Vectorization	Compare performance
-52	Sensor integration	Real accelerometer data	Feature extraction	Gesture recognition
-53	Optimization	Pruning, quantization	Accuracy vs. speed	4x size reduction
-54	Integration week	Complete TinyML system	Documentation	Predictive maintenance demo
+xx	TensorFlow Lite Micro	Install, run example	ML basics	Keyword spotting
+xx	Model training (Python)	Train simple model on PC	Quantization	Sensor anomaly detection
+xx	Model deployment	Convert to C array, run on MCU	Memory optimization	On-device inference
+xx	CMSIS-NN (ARM)	Accelerate inference	Neural network ops	2x speedup
+xx	RISC-V vector for ML	Port to RVV	Vectorization	Compare performance
+xx	Sensor integration	Real accelerometer data	Feature extraction	Gesture recognition
+xx	Optimization	Pruning, quantization	Accuracy vs. speed	4x size reduction
+xx	Integration week	Complete TinyML system	Documentation	Predictive maintenance demo
+
+55-65 UDS and OBD-II belong in your hands before you start applying for jobs, not in week 75. Bring them to roughly weeks 55-65 alongside the ISO 26262 material so your safety and protocol knowledge develop together.
+
 Phase 9: Safety-Critical + ISO 26262 (C) (Weeks 55-62)
 Week	Topic	Morning Practice	Evening Theory	Project
 55	MISRA C	Run static analyzer, fix violations	MISRA rules (mandatory)	Refactor old project

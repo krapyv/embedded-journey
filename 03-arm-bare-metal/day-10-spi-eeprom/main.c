@@ -47,6 +47,9 @@ int main()
 
         eeprom_read(address_arr, read_arr, 1U);
 
+        // tested the fault branch
+        // data_arr[0] = 0xF1;
+
         if (data_arr[0] == read_arr[0])
         {
             led_on(&correct_led);
@@ -54,6 +57,8 @@ int main()
             SysTick_Delay_ms(300);
 
             led_off(&correct_led);
+
+            SysTick_Delay_ms(300);
         }
         else
         {
@@ -62,9 +67,11 @@ int main()
             {
                 led_on(&fault_led);
 
-                SysTick_Delay_ms(900);
+                SysTick_Delay_ms(300);
 
                 led_off(&fault_led);
+
+                SysTick_Delay_ms(300);
             }
         }
 
@@ -91,10 +98,12 @@ int main()
         led_on(&correct_led);
         led_on(&fault_led);
 
-        SysTick_Delay_ms(900);
+        SysTick_Delay_ms(300);
 
         led_off(&correct_led);
         led_off(&fault_led);
+
+        SysTick_Delay_ms(300);
     }
 
     return 0;

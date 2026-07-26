@@ -1,6 +1,7 @@
 #ifndef SPI_H
 #define SPI_H
 #include "stm32f411.h"
+#include <stdint.h>
 
 // for the future generalization
 // SPI1: NSS1 - PA4, SCK1 - PA5, MISO1 - PA6, MOSI1 - PA7
@@ -19,6 +20,7 @@ typedef enum
     SPI_Channel_5,
 } SPI_Channel_t;
 
+void spi_init();
 void spi_transfer(uint8_t *settings_tx, uint8_t *data_tx, uint8_t *rx, uint16_t total_len, uint8_t settings_tx_len, uint8_t rx_skip);
 
 #endif // SPI_H

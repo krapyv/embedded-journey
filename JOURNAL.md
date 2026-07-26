@@ -35,6 +35,12 @@
 - Soldered 4 M95320WT EEPROM with SOP-to-DIP adapters.
 - Built an electrical circuit on the breadboard of the Blackpill, the EEPROM and two LEDs. Tested it.
 
+**Afternoon:**
+- Tested the circuit with a multimeter.
+- Flashed and tested the program on bare-metal. It works.
+- Tested the fault branch as well. Works.
+- Enhanced the learning plan.
+
 **Evening:**
 -
 
