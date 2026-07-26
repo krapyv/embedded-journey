@@ -29,7 +29,7 @@
 **Root cause at the register level:**
 -
 
-# 202x-xx-xx
+# 2026-07-26
 
 **Morning:**
 - Soldered 4 M95320WT EEPROM with SOP-to-DIP adapters.
@@ -42,16 +42,18 @@
 - Enhanced the learning plan.
 
 **Evening:**
--
+- Wrote the descriptions of bugs and interesting moments happened during the SPI + M95320 drivers development.
 
-**Problems encountered:**
-- (None today) etc
+**Test harness:**
+- Not particularly a problem, but found out that the test harness in main loop did not have delays after the led_off, what made the LED immediately go back to the ON state. No visible toggle. After adding some delay after the led_off, there are distinguishable ON and OFF LED states.
+- Tested the fault branch of the test harness by placing data_arr[0] = 0xF1 deliberatly before the first comparison between the read byte and the byte that was "written" to the EEPROM. As expected, the program went to the fault mode, the green LED silent completely, the red LED blinking infinitely.
 
 **Root cause at the register level:**
 - 
 
 **Lesson learned:**
--
+- You need to verify the test harness before and during its execution.
+- Break the function/test harness deliberately to see if the parts of its are reachable and executing correctly.
 
 # 2026-07-25
 
@@ -64,13 +66,53 @@
 - Implemented the main(). Will solder the M9520 EEPROM tomorrow. Will test it, debug and complete in the Journal all bugs, fixes and interesting parts of the project.
 
 **Problems encountered:**
-- (None today) etc
+1. Bug: WRITE_INSTRUCTION opcode collision with WRDI
+**Symptom:** Silent write failure - data never changes, no error raised. WIP bit never goes high after eeprom_write_byte() call.
 
-**Root cause at the register level:**
--
+**Root cause:**
+- WRITE_INSTRUCTION defined as 0x4 - same value as WRDI_INSTRUCTION. Correct WRITE opcode is 0x2.
+- Every eeprom_write_byte() call transmitted Write Disable opcode instead of Write to Memory Array. EEPROM decoded it, reset WEL, entered deselect wait state. No write cycle triggered.
+- WIP never goes high because WIP only asserts during WRITE or WRSR instructions - WRDI does not trigger it.
+
+**Fix:** #define WRITE_INSTRUCTION 0x2
+
+2. Bug: eeprom_read() address bytes pulled from uninitialized output buffer
+
+**Root cause:**
+- address parameter never referenced in function body. tx[1] and tx[2] populated from result - the output buffer - which contains uninitialized stack garbage at that point.
+- EEPROM received two random stack bytes as  memory address. Per Table 4, those bits directly select which of the 4096 byte locations gets read. Random address read, not intended one.
+
+**Fix:** tx[1] = address[0] (MSB - top nibble unused, lower nibble), tx[2] = address[1] (LSB - A7:A0).
 
 **Lesson learned:**
--
+- Always acknowledge compiler unused-parameter warnings.
+
+3. Bug: eeprom_read() - response buffer offset corrupting read data
+
+**Root cause:**
+- spi_transfer(tx, result, len) called with len = total transfer length (instruction + 2 address bytes + N data bytes.
+- result[0], result[1], result[2] overwritten with garbage bytes from MISO captured during instruction and address phase. MISO is high-impedance until address is fully clocked in.
+- Real EEPROM data starts at byte 4 onward - lands at result[3..N+2], not result[0..N-1] as caller expects.
+
+**Fix:** Restructure eeprom_read() as well as spi_transfer() to support partial array handling, introducing the variables like rx_skip to handle how many elements to skip before writing to the RX array etc.
+
+4. Bug: Comma operator instead of && in loop condition.
+
+```c
+for (uint8_t i = 3, i_payload = 0; i < transfer_length, i_payload < len; i++, i_payload++)
+```
+
+**Root cause:**
+- I believed that it is a perfectly compilerable piece of code since all three clauses of the for loop use commas because there are two tracking variables.
+- I found out that the loop continuation is controlled only by the second part of it: i_payload < len. i < transfer_length is silently discarded.
+
+**Fix:**
+- Change the comma to the && operator: i < transfer_length && i_payload < len. In this case, both conditions are evaluated and the loop continues only if both condition parts are true.
+
+**Lesson learned:**
+- Silent failure (no error, no WIP, no crash) is the hardest class of bug.
+- Always check compiler warnings.
+- Never assume that comma and && are interchangable :)
 
 # 2026-07-24
 
