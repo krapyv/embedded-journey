@@ -27,6 +27,21 @@
 - (None today) etc
 
 **Root cause at the register level:**
+-
+
+# 202x-xx-xx
+
+**Morning:**
+- Soldered 4 M95320WT EEPROM with SOP-to-DIP adapters.
+- Built an electrical circuit on the breadboard of the Blackpill, the EEPROM and two LEDs. Tested it.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
 - 
 
 **Lesson learned:**
