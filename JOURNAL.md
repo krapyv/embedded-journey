@@ -29,6 +29,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-07-27
+
+**Morning:**
+- Wrote an SPI driver README.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-07-26
 
 **Morning:**
