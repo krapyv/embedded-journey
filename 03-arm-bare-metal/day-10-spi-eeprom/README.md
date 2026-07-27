@@ -1,3 +1,8 @@
+# Test harness for the project SPI + EEPROM 95320 Blocking Busy-wait
+
+The test main loop that tests `eeprom_write_byte` and `eeprom_read` in the loop of 30 cycles. The written addresses change every loop cycle between 3 bytes: 0x6F, 0x30 and 0xF1. Three alternating values are used to verify the comparison catches genuine reads, not stale data from a previous cycle.
+ Every successful comparison between the written and the read values produces the green LED blink. A wrong comparison halts the program execution and the red LED blinks indefinitely.
+
 ## Breadboard circuit
 
 The M95320WT EEPROM is soldered on the SOP-to-DIP adapter and is sitting on the breadboard straddling the separation channel. Pins 1 to 4 sit on the left side, pins 5 to 8 sit on the right side.
@@ -9,7 +14,7 @@ Pin 4 - Vss - is connected to the Ground power rail (black wire).
 Pin 5 - MOSI - is connected to the PA7 row of the STM32F411 (green wire).
 Pin 6 - Serial Clock (SCK/SCLK) - connected to the PA5 row (white wire).
 Pin 7 - Hold - connected to the Vcc power rail (orange wire). The Hold signal is used to pause any serial communications with the device without deselecting the device. To disable holds, tie to Vcc (3.3V).
-Pin 8 - Vcc - is conntected to the Vcc power rain (red wire).
+Pin 8 - Vcc - is connected to the Vcc power rail (red wire).
 
 LEDs:
 
@@ -26,10 +31,8 @@ The Vss (Ground) black wire is connected to the row of the LED's shorter leg (ca
 The EEPROM as well as both LEDs share the same continuous ground rail on the breadboard coming from the STM32F411 GND.
 
 
-The 220 Ohns resistors:
-the resistor only sees the voltage drops across itself, not the LED's forward voltage.
-
-the voltage on the resistor: Vr = Vcc - Vf
+The 220 Ohms resistors:
+The resistor drops the remaining voltage after the LED's forward voltage: Vr = Vcc - Vf
 
 on high voltage drop:
 Vr = 3.3 - 2.2 = 1.1 V

@@ -36,6 +36,7 @@
 
 **Evening:**
 - Finished a M95320 driver README.
+- Finished the test harness for this project README.
 
 **Problems encountered:**
 - (None today) etc
