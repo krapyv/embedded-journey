@@ -37,6 +37,7 @@
 **Evening:**
 - Finished a M95320 driver README.
 - Finished the test harness for this project README.
+- Wrote a LinkedIn post about verification of the fault paths.
 
 **Problems encountered:**
 - (None today) etc
