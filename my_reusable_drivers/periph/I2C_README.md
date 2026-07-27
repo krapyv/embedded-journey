@@ -11,7 +11,7 @@ reusable_drivers/
     ├── core_cm4.h      # Register layout definitions for NVIC and SysTick architectures
     └── stm32f411.h     # Memory boundaries and register definitions for AHB/APB peripherals
 └── periph/     # Portable peripheral drivers
-    ├── i2c.c      # Registr-lever I2C peripheral driver: EV/ER ISR logic, transaction state machine, and SWRST recovery
+    ├── i2c.c      # Register-level I2C peripheral driver: EV/ER ISR logic, transaction state machine, and SWRST recovery
     └── i2c.h      # I2C control and state enums, handler struct declaration, extern variable declaration, and function headers
 ```
 

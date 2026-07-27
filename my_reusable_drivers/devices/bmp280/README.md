@@ -1,6 +1,6 @@
 # BMP280 I2C Driver
 
-A driver that handles both temperature (in 0.01 DegC resolution) and pressure (in Q24.8 format) measurements  via I2C communication protocol. 
+A driver that handles both temperature (in 0.01 DegC resolution) and pressure (in Q24.8 format) measurements via I2C communication protocol. 
 Implements its own 12-state machine that coordinates I2C transactions by polling hi2c->state against I2C_STATE_DONE before advancing.
 Build on top of the interrupt-driven I2C driver, abstracting raw byte transfers into sensor initialization, calibration reconstruction, and compensated measurement cycles.
 

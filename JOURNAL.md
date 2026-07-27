@@ -35,7 +35,7 @@
 - Wrote an SPI driver README.
 
 **Evening:**
--
+- Finished a M95320 driver README.
 
 **Problems encountered:**
 - (None today) etc
