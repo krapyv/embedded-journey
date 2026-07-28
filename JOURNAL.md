@@ -29,6 +29,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-07-28
+
+**Morning:**
+- Learned and wrote 250-300 English words that have been collected from reading manuals and other sources.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-07-27
 
 **Morning:**
