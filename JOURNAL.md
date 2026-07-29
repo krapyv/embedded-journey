@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-07-29
+
+**Morning:**
+- Started learning CAN bus.
+- Realized the STM32F411 does not support CAN, so try to figure out how to get around it.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+
 # 2026-07-28
 
 **Morning:**
