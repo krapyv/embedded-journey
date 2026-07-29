@@ -36,7 +36,7 @@
 - Realized the STM32F411 does not support CAN, so try to figure out how to get around it.
 
 **Evening:**
--
+- Derived the electrical/timing side of Level shifter + MCP2515 + STM32 SPI. Need to order the lever shifter and MCP.
 
 **Problems encountered:**
 - (None today) etc
