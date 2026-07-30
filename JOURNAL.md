@@ -29,6 +29,23 @@
 **Root cause at the register level:**
 -
 
+# 2026-07-30
+
+**Morning:**
+- Ordered MCP2515 and the level shifter.
+- Learned about the level shifter and what they do.
+- Remind myself the derivation of connectivity between STM32 3.3V and MCP2515 5V.
+- Continued to learn about CAN bus.
+
+**Evening:**
+- 
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-07-29
 
 **Morning:**
