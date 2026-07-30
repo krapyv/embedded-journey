@@ -38,7 +38,7 @@
 - Continued to learn about CAN bus.
 
 **Evening:**
-- 
+- Started learning about CAN bit timing and calculating it. 
 
 **Problems encountered:**
 - (None today) etc
