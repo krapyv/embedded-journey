@@ -36,7 +36,7 @@
 - Started implmenting MCP2515 driver: instruction codes.
 
 **Evening:**
-- 
+- Learned MCP2515 datasheet topics: Bit timing, Modes of Operation, SPI Interface. Enough of theory. Time to immerse myself into practice :) 
 
 **Problems encountered:**
 - MCP2515 instruction set: base opcodes + selector enums (RX buffer offset-encoded, TX buffer flat-named per table, RTS as bitmask) - caught two bugs: unassigned enum values defaulting to sequential int, and non-self-documening binary-pattern names.
