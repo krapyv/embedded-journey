@@ -108,73 +108,39 @@ Week	Topic	Morning Practice	Evening Theory	Mini-Project
 13	ADC, DMA ✅	Continuous sampling at 10kHz ✅	Data structures: double buffer	Audio sampler (basic)
 14	I2C ✅	Read temperature sensor (BMP280)	Protocol analysis (logic analyzer)	Sensor logger
 15	SPI ✅	Communicate with EEPROM	Compare I2C vs SPI	Config storage
-Week 16: bxCAN — Polling, Frame TX/RX, Filter Configuration
+Week 16: MCP2515 (SPI) — Configuration, Loopback TX/RX, Filter Setup
 
-The STM32F411 has a bxCAN peripheral. Before touching a single register, read RM0383 Chapter 22 in full. CAN is architecturally different from everything you have built so far — there is no master/slave, no clock line, and the peripheral has its own error state machine that can take the bus offline permanently if mishandled.
+Before touching a register: read the MCP2515 datasheet sections 5 (bit timing), 10 (modes of operation), and 12 (SPI interface) in full. The architecture is fundamentally different from what "CAN peripheral" meant in the original plan — you're not configuring an on-chip peripheral, you're driving an external controller over SPI, the same way you just did with the EEPROM. Your spi_transfer() from Week 15 is directly reusable here — same CS/mode-0 mechanics, different device on the bus.
+
+One extra piece in your setup the original plan didn't have: the TXS0108E level shifter. This tells you your MCP2515 module is almost certainly a 5V-logic board (common on the cheap MCP2515+TJA1050 combo boards), and you're bridging it to your 3.3V STM32 SPI lines. That shifter is auto-direction-sensing, not a simple buffer — it infers signal direction from edge timing and relies on pull resistors and bus capacitance. At higher SPI clocks this can distort edges. Put your logic analyzer on both sides of the shifter before you assume a communication failure is a register misconfiguration.
 
 Theory to understand before coding:
 
-CAN frame anatomy — SOF, arbitration field, control field, data field, CRC, ACK, EOF
-Bit timing — how CAN_BTR register divides the nominal bit time into segments (SYNC_SEG, BS1, BS2, SJW). You will derive your own BTR value for 500 kbit/s against 16 MHz APB1 clock
-Mailbox system — 3 TX mailboxes, 2 RX FIFOs, how the hardware arbitrates between pending TX frames
-Filter banks — identifier list mode vs mask mode, what FIFO each filter routes to
+Bit timing is now derived from the MCP2515's own oscillator, not STM32 APB1. Find your module's crystal frequency (commonly 8 MHz or 16 MHz — check the can on the board or measure it) and compute BRP, PRSEG, PHSEG1, PHSEG2, SJW from that, same discipline as before but a different clock source and a different register set (CNF1/CNF2/CNF3, not CAN_BTR).
+Mode switching: CANCTRL REQOP[2:0] bits select Configuration/Normal/Sleep/Listen-Only/Loopback mode. A mode request must be confirmed by reading CANSTAT's OPMOD field back — same "request, then poll for confirmation" pattern as bxCAN's INRQ/INAK, just different register names.
+SPI command set is the real new material this week: RESET, READ, WRITE, READ RX BUFFER, LOAD TX BUFFER, RTS (request-to-send), READ STATUS, BIT MODIFY. This is a richer instruction set than the EEPROM's four opcodes — BIT MODIFY in particular (mask byte + data byte) is worth understanding before you use it, since several status/control registers are only safely modifiable that way per the datasheet.
 
 Register sequence to implement:
 
-RCC clock gate for CAN1 on APB1
-GPIO alternate function for PA11 (CAN_RX) and PA12 (CAN_TX) — AF9
-Enter initialization mode — CAN_MCR INRQ bit, wait for CAN_MSR INAK confirmation
-Configure CAN_BTR — calculate prescaler, BS1, BS2, SJW for 500 kbit/s
-Configure at least one filter bank in CAN_FM1R, CAN_FS1R, CAN_FFA1R, CAN_FA1R
-Exit initialization mode — clear INRQ, wait for INAK to clear
+Hardware reset — either drive the RESET pin low, or send the SPI RESET instruction. Either puts the device in Configuration mode.
+Confirm Configuration mode via CANSTAT.
+Configure CNF1/CNF2/CNF3 for your target bitrate against your module's actual oscillator frequency.
+Configure at least one filter/mask pair (RXF0–RXF5, RXM0/RXM1) — these registers only read/write correctly in Configuration mode, same restriction as CAN_FMR on bxCAN.
+Set CANCTRL REQOP to Loopback mode, confirm via CANSTAT.
 
-Loopback test first. Set CAN_BTR LBKM bit before exiting init mode. This routes TX back to RX internally — no transceiver hardware needed to verify your frame TX/RX logic.
+TX sequence: load TXBnSIDH/SIDL (and EID if extended) for ID, TXBnDLC for length, TXBnDn for data — either via WRITE to the buffer address or the faster LOAD TX BUFFER instruction — then trigger transmission via the RTS instruction or by setting TXREQ directly.
 
-TX sequence:
+RX sequence: poll CANINTF RXnIF (or use READ STATUS for a faster combined check), then read RXBnSIDH/SIDL/DLC/Dn — either via READ or the faster READ RX BUFFER instruction, which auto-clears the RXnIF flag on CS rise.
 
-Find empty mailbox — CAN_TSR TME0/TME1/TME2 bits
-Write CAN_TIxR — frame ID, IDE bit (standard vs extended), RTR bit
-Write CAN_TDTxR — DLC (data length code)
-Write CAN_TDLxR and CAN_TDHxR — up to 8 bytes of data
-Set CAN_TIxR TXRQ bit to request transmission
+Done bar: same as before — transmit a frame in loopback mode, receive it back, print ID and data over UART.
 
-RX sequence:
+Week 17: MCP2515 — Interrupt-Driven, Error Handling, Two-Node Test
 
-Poll CAN_RF0R FMP0 field — number of messages pending in FIFO 0
-Read CAN_RI0R — frame ID
-Read CAN_RDT0R — DLC and timestamp
-Read CAN_RDL0R and CAN_RDH0R — data bytes
-Set CAN_RF0R RFOM0 to release the FIFO slot
+The interrupt model is structurally different from bxCAN's three separate vector table entries. The MCP2515 has a single active-low INT pin — you wire that to one EXTI line on the STM32. Inside that one ISR, you read CANINTF to determine which condition fired (RX0IF, RX1IF, TX0IF/TX1IF/TX2IF, ERRIF, MERRF, WAKIF) — the demultiplexing bxCAN did in hardware across three vectors, you now do in software against one register.
 
-Done bar: transmit a frame in loopback mode, receive it back, print ID and data over UART.
+Error handling — conceptually the same idea as bxCAN (error-active → error-passive → bus-off), but the register is EFLG, not CAN_ESR, with its own bit layout for the error flags, and separate TEC/REC counter registers rather than one combined register. Read the EFLG bit definitions before assuming bxCAN's exact thresholds and field positions carry over.
 
-Week 17: bxCAN — Interrupt-Driven, Error Handling, Two-Node Test
-
-Now remove loopback. You need two nodes on the same bus — either two STM32 boards, or use your logic analyzer to verify bus traffic while one node transmits. If you only have one board, stay in loopback but add interrupt-driven operation.
-
-Interrupts to implement:
-
-USB_HP_CAN1_TX_IRQHandler — TX mailbox empty, transmission result
-USB_LP_CAN1_RX0_IRQHandler — FIFO 0 message pending
-CAN1_SCE_IRQHandler — status change and error interrupt
-
-Error handling — this is where CAN gets serious. The bxCAN peripheral has a full error state machine:
-
-Error Warning state — TEC or REC counter exceeds 96
-Error Passive state — TEC or REC counter exceeds 127
-Bus-Off state — TEC exceeds 255, peripheral disconnects from bus automatically
-
-Read CAN_ESR register in the SCE handler:
-
-LEC field — last error code (bit error, stuff error, CRC error, form error, ACK error)
-TEC and REC — transmit and receive error counters
-BOFF bit — bus-off state
-
-Implement bus-off recovery: set CAN_MCR ABOM bit for automatic recovery, or implement manual recovery by monitoring BOFF and re-entering/exiting init mode after 128 × 11 recessive bits.
-
-Done bar: interrupt-driven TX and RX working, SCE handler correctly reads and clears error conditions, bus-off recovery sequence implemented.
-
-should compute BS1/BS2/SJW/prescaler by hand from RM0383's bit-timing formulas before touching CAN_BTR — same discipline you used for I2C's CCR/TRISE.
+Done bar: same as before — interrupt-driven TX and RX working, error/status handler correctly reads and clears conditions via the SPI interface, and (if you have two boards, or the level shifter and MCP2515 support it) a genuine two-node bus test rather than loopback.
 
 Week 18: DMA + UART
 
@@ -262,7 +228,7 @@ Data: raw int32_t / uint32_t from BMP280 compensation functions
 Integration requirements:
 
 BMP280 state machine running on I2C interrupt driver (your existing code)
-CAN TX interrupt-driven
+SPI transaction to the MCP2515 triggered from an interrupt
 UART output for debugging
 SysTick for 500ms broadcast timer
 

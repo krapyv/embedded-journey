@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-07-31
+
+**Morning:**
+- Calculated the CAN bit timing, the CNF1/CNF2/CNF3 derivation and their final hex values.
+- Started implmenting MCP2515 driver: instruction codes.
+
+**Evening:**
+- 
+
+**Problems encountered:**
+- MCP2515 instruction set: base opcodes + selector enums (RX buffer offset-encoded, TX buffer flat-named per table, RTS as bitmask) - caught two bugs: unassigned enum values defaulting to sequential int, and non-self-documening binary-pattern names.
+- I definitely need to reread and fix my mental model of the intructions today evening :)
+
+**Root cause at the register level:**
+-
+
 # 2026-07-30
 
 **Morning:**
