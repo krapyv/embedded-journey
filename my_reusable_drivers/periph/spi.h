@@ -20,7 +20,25 @@ typedef enum
     SPI_Channel_5,
 } SPI_Channel_t;
 
-void spi_init();
+typedef enum
+{
+    SPI_BR_2 = 0, // 000, fPCLK/2
+    SPI_BR_4,     // 001, fPCLK/4
+    SPI_BR_8,     // 010, fPCLK/8
+    SPI_BR_16,    // 011, fPCLK/16
+    SPI_BR_32,    // 100, fPCLK/32
+    SPI_BR_64,    // 101, fPCLK/64
+    SPI_BR_128,   // 110, fPCLK/128
+    SPI_BR_256,   // 111, fPCLK/256
+
+} SPI_BR_t;
+
+// typedef struct
+// {
+
+// } SPI_HandleTypeDef;
+
+void spi_init(SPI_BR_t br_bits);
 void spi_transfer(uint8_t *settings_tx, uint8_t *data_tx, uint8_t *rx, uint16_t total_len, uint8_t settings_tx_len, uint8_t rx_skip);
 
 #endif // SPI_H

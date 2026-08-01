@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-01
+
+**Morning:**
+- Revisited SPI CAN instruction codes.
+- Implemented SPI instruction layer - thin wrappers around spi_transfer().
+- Parameterized SPI init with customized BR value + enum with 7 available bit sequences for the BR.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-07-31
 
 **Morning:**

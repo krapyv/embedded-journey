@@ -1,7 +1,9 @@
 #include "spi.h"
 #include <stdio.h>
 
-void spi_init()
+// one peripheral = one device, multi-device = multi-peripheral
+// as long as "one peripheral instance = one device = one fixed pin set" holds as the architecture, then within a single peripheral instance, CS/SCK/MISO/MOSI are all fixed together as a unit
+void spi_init(SPI_BR_t br_bits)
 {
     // NSS1 - PA4, SCK1 - PA5, MISO1 - PA6, MOSI1 - PA7
 
@@ -54,20 +56,25 @@ void spi_init()
     GPIOA->AFRL |= ((0x5 << 28) | (0x5 << 24) | (0x5 << 20));
 
     /* --- OSPEEDR --- */
-    // since only SCK (PA5) and MOSI (PA7) are driven by the STM32F411 board
-    // they should keep up with the SPI frequency of 8 MHz
+    /* EEPROM M95320 Note:
 
-    // by default OSPEEDR has the value of 00, with the max frequency (CL = 50 pF, VDD >= 2.70 V) of 4 MHz
+    since only SCK (PA5) and MOSI (PA7) are driven by the STM32F411 board
+    they should keep up with the SPI frequency of 8 MHz
 
-    // the parasitic capacitance of the breadboard circuit:
-    // SCK PA5: this row sits next to another active line, it is approximately 3 pF
-    // Jumper wire i am using is 20 cm. 2.5 cm is approximately 1 pF, so it is 8 pF
-    // MCU pin (STM32 GPIO Input/output capacitance = approximately 5 pF (according to the datasheet)
-    // EEPROM Pin: accordin to the datasheet it is 6 pF
+    by default OSPEEDR has the value of 00, with the max frequency (CL = 50 pF, VDD >= 2.70 V) of 4 MHz
 
-    // so we can sum them up: 3 + 8 + 5 + 6 = 11 + 11 = 22 pF
+    the parasitic capacitance of the breadboard circuit:
+    SCK PA5: this row sits next to another active line, it is approximately 3 pF
+    Jumper wire i am using is 20 cm. 2.5 cm is approximately 1 pF, so it is 8 pF
+    MCU pin (STM32 GPIO Input/output capacitance = approximately 5 pF (according to the datasheet)
+    EEPROM Pin: accordin to the datasheet it is 6 pF
 
-    // so we choose the 01 option that gives under CL = 50 pF, VDD >= 2.70 V, the frequency of 25 MHz >> 8 MHz
+    so we can sum them up: 3 + 8 + 5 + 6 = 11 + 11 = 22 pF
+
+    so we choose the 01 option that gives under CL = 50 pF, VDD >= 2.70 V, the frequency of 25 MHz >> 8 MHz
+*/
+
+    // NOTE: This GPIO speed setting is derived for the current MCP2515+shifter topology at <= 25 MHz; revisit if a different device/topology needs faster switching or has a different capacitance budget
 
     // OSPEEDR gives 2 bits per pin: pin PA5 takes bits 11:10, PA7 takes bits 15:14
     // clear the bits
@@ -92,6 +99,9 @@ void spi_init()
     // clear BR (bits 5:3) and DF (bit 11)
     // 111 = 2^2 + 2^1 + 2^0 = 7 = 0x7;
     cr1_snap &= ~((1 << 11) | (0x7 << 3));
+
+    // set the BR to the passed parameter value
+    cr1_snap |= ((uint8_t)br_bits << 3);
 
     // set SPE (bit 6) to 1
     cr1_snap |= (1 << 6);

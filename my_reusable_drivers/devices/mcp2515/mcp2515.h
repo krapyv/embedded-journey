@@ -2,14 +2,15 @@
 #define MCP2515_H
 
 #include <stdint.h>
+#include "spi.h"
 
 // 1001 0nm0 <= bits 2 and 1
 typedef enum
 {
-    MCP_Read_RX_00 = (0 << 1),
-    MCP_Read_RX_01 = (0x1 << 1),
-    MCP_Read_RX_10 = (0x2 << 1),
-    MCP_Read_RX_11 = (0x3 << 1),
+    MCP_Read_RXB0SIDH = (0 << 1),   // 0x61
+    MCP_Read_RXB0D0 = (0x1 << 1),   // 0x66
+    MCP_Read_RXB1SIDH = (0x2 << 1), // 0x71
+    MCP_Read_RXB1D0 = (0x3 << 1),   // 0x76
 } MCP_Read_RX_locations_t;
 
 // 0100 0abc <= bits 2, 1 and 0
@@ -49,5 +50,16 @@ static const uint8_t BIT_MODIFY_INSTRUCTION = 0x5U; // 0000 0101 = 2^2 + 2^0 = 5
 static const uint8_t READ_RX_BUFFER_BASE = 0x90U; // 1001 0000 = 2^7 + 2^4 = 128 + 16 = 144 = 0x90
 static const uint8_t LOAD_TX_BUFFER_BASE = 0x40U; // 0100 0000 = 2^6 = 64 = 0x40
 static const uint8_t RTS_BASE = 0x80U;            // 1000 0000 = 2^7 = 128 = 0x80
+
+// function headers
+void mcp2515_reset();
+void mcp2515_read(uint8_t addr, uint8_t *rx_buffer, uint16_t read_len);
+void mcp2515_read_rx_buffer(MCP_Read_RX_locations_t location_mask, uint8_t *rx_buffer, uint16_t read_len);
+void mcp2515_write(uint8_t addr, uint8_t *data_payload, uint16_t write_len);
+void mcp2515_load_tx_buffer(MCP_Load_TX_locations_t location_mask, uint8_t *data_payload, uint16_t write_len);
+void mcp2515_rts(MCP_RTS_locations_t *locations, uint8_t locations_len);
+void mcp2515_read_status(uint8_t *rx, uint16_t read_len);
+void mcp2515_rx_status(uint8_t *rx, uint16_t read_len);
+void mcp2515_bit_modify(uint8_t addr, uint8_t mask, uint8_t data_byte);
 
 #endif // MCP2515_H
