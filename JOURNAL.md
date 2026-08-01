@@ -36,8 +36,11 @@
 - Implemented SPI instruction layer - thin wrappers around spi_transfer().
 - Parameterized SPI init with customized BR value + enum with 7 available bit sequences for the BR.
 
+**Afternoon:**
+- Soldered 3 ordered TXS0108E with their header pins.
+
 **Evening:**
--
+- Started building breadboard circuit from Blackpill, TXS0108E level shifter and MCP2515.
 
 **Problems encountered:**
 - (None today) etc
