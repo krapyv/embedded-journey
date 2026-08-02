@@ -29,6 +29,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-02
+
+**Morning:**
+- Built and tested with multimeter the breadboard circuit of the STM32F411, TXS0108E and MCP2515.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-01
 
 **Morning:**
