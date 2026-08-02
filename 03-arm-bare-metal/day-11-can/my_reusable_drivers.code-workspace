@@ -1,0 +1,13 @@
+{
+  "folders": [
+	{
+		"path": "../../my_reusable_drivers"
+	},
+	{
+		"path": "."
+	}
+],
+  "settings": {
+    "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
+  }
+}

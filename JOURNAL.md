@@ -38,7 +38,7 @@
 - Implemented main.c test bench: reset -> configure bit timing -> switch operating mode. Each step independently verified by readback.
 
 **Evening:**
-- 
+- Derived loopback test plan: build a frame, load_tx_buffer, rts, then poll and retrieve: read_status loop with mask bit 0 (RX0IF), retrieving of the frame and clearing RX0IF, received byte comparison against what has been sent.
 
 **Problems encountered:**
 - (None today) etc
@@ -52,6 +52,12 @@
 - Revisited SPI CAN instruction codes.
 - Implemented SPI instruction layer - thin wrappers around spi_transfer().
 - Parameterized SPI init with customized BR value + enum with 7 available bit sequences for the BR.
+
+**What was done:**
+* Derived CAN bit-timing configuration for 500 kbit/s at F_OSC=8MHz.
+* Final register values: CNF1=0x00, CNF2=0x91, CNF3=0X01. Sample point at 75%.
+* Verified all constraints: PropSeg+PS1 >= PS2, PS2 > SJW, valid field ranges, correct encoding conventions checked individually.
+* Identified CNF3 bit 7 (SOF) as tied to CLKEN/CANCTRL - don't-care/0 by default, not something to set manually.
 
 **Afternoon:**
 - Soldered 3 ordered TXS0108E with their header pins.
