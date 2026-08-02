@@ -39,6 +39,8 @@
 
 **Evening:**
 - Derived loopback test plan: build a frame, load_tx_buffer, rts, then poll and retrieve: read_status loop with mask bit 0 (RX0IF), retrieving of the frame and clearing RX0IF, received byte comparison against what has been sent.
+- Wrote a Linkedin post about the SPI + EEPROM project.
+- Completed the 1st August Journal entry.
 
 **Problems encountered:**
 - (None today) etc
@@ -59,6 +61,26 @@
 * Verified all constraints: PropSeg+PS1 >= PS2, PS2 > SJW, valid field ranges, correct encoding conventions checked individually.
 * Identified CNF3 bit 7 (SOF) as tied to CLKEN/CANCTRL - don't-care/0 by default, not something to set manually.
 
+**Electrical/physical layer - derived and documented:**
+* TXS0108E level shifting on SCK/MOSI/CS. MISO direct via FT pin. OE tied to VA. Decoupling caps identified.
+* Capacitance budget re-derived for actual shifter topology: 23pF, comfortably under 50pF ceiling.
+* SPI clock budget: 2MHz, justified against real t_PD. BR divider correctly computed from APB2 clock (16MHz/8).
+
+**SPI instruction layer (mcp2515.c/.h) - written, unverified on hardware:**
+* All nine MCP2515 instructions framed correctly with proper tx_len/rx_skip patterns.
+* const-correctness fixed.
+* Self-documenting enums matching real datasheet semantics: RTS as bitmask, LOAD_TX as named buffer+offset pairs.
+* Prototypes properly declared.
+
+**Driver skeleton build order established:**
+* SPI instruction layer - RESET, READ, WRITE, BIT MODIFY, READ STATUS, RTS opcodes. Thin wrappers around spi_transfer().
+* Mode control - request Configuration mode via CANCTRL REQOP bits, poll CANSTAT until confirmed. Same request/poll pattern as bxCAN.
+* Bit timing init - write CNF1/CNF2/CNF3 only while in Configuration mode.
+* Return to Normal/Listen-only/Loopback mode - same request/poll pattern out of Configuration mode.
+
+**Status: unverified**
+Will validate against real silicon. CANable analyzer as independent verification instrument. "Done" not claimed until happy path confirmed on hardware.
+
 **Afternoon:**
 - Soldered 3 ordered TXS0108E with their header pins.
 
@@ -70,6 +92,11 @@
 
 **Root cause at the register level:**
 -
+
+**Lesson learned:**
+- Deriving register values from first principles before building a breadboard circuit is legimate prep work. Claiming "done" before hardware confirms it is not.
+- SPI clock rate should not be a guess - it is a budget derived from level shifter propagation delay, bus capacitance, and MCU APB2 clock. Every number needs a traceable reason.
+- Parameterize SPI init function for clock rate so future devices on the same peripheral can pick their own rate without duplicating the init function.
 
 # 2026-07-31
 

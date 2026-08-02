@@ -6,7 +6,7 @@
 
 int main()
 {
-    spi_init();
+    spi_init(SPI_BR_2);
 
     // PA0
     LED_HandleTypeDef correct_led = {
