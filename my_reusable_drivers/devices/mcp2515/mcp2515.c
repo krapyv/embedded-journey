@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "mcp2515.h"
+#include "systick.h"
 
 void mcp2515_reset()
 {
@@ -11,6 +12,9 @@ void mcp2515_reset()
     uint8_t settings_tx = RESET_INSTRUCTION;
 
     spi_transfer(&settings_tx, NULL, NULL, 1, 1, 1);
+
+    // the Oscillator Start-up Timer keeps the device in Reset for 128 OSC1 clock cycles after an SPI Reset, and no SPI protocol operations should be attempted until the OST has expired
+    SysTick_Delay_ms(2);
 }
 
 void mcp2515_read(uint8_t addr, uint8_t *rx_buffer, uint16_t read_len)

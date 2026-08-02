@@ -152,3 +152,9 @@ When closing down your desk workstation setup, follow this order to prevent lock
 
 1. Inside **Terminal 2** (GDB client): Press `Ctrl + C` to pause the core, type `q`, and hit Enter.
 2. Inside **Terminal 1** (GDB server): Press `Ctrl + C` to terminate the active `st-gdb` session cleanly.
+
+
+
+
+openocd -f interface/stlink.cfg -f target/stm32f4x.cfg
+

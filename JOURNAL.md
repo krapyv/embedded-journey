@@ -34,8 +34,11 @@
 **Morning:**
 - Built and tested with multimeter the breadboard circuit of the STM32F411, TXS0108E and MCP2515.
 
+**Afternoon:**
+- Implemented main.c test bench: reset -> configure bit timing -> switch operating mode. Each step independently verified by readback.
+
 **Evening:**
--
+- 
 
 **Problems encountered:**
 - (None today) etc

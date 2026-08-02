@@ -4,6 +4,15 @@
 #include <stdint.h>
 #include "spi.h"
 
+typedef enum
+{
+    MCP_Normal_Operation_Mode = (0 << 5),
+    MCP_Sleep_Mode = (0x1 << 5),
+    MCP_Loopback_Mode = (0x2 << 5),
+    MCP_Listen_Only_Mode = (0x3 << 5),
+    MCP_Configuration_Mode = (0x4 << 5),
+} MCP_Operation_Modes_t;
+
 // 1001 0nm0 <= bits 2 and 1
 typedef enum
 {
@@ -50,6 +59,11 @@ static const uint8_t BIT_MODIFY_INSTRUCTION = 0x5U; // 0000 0101 = 2^2 + 2^0 = 5
 static const uint8_t READ_RX_BUFFER_BASE = 0x90U; // 1001 0000 = 2^7 + 2^4 = 128 + 16 = 144 = 0x90
 static const uint8_t LOAD_TX_BUFFER_BASE = 0x40U; // 0100 0000 = 2^6 = 64 = 0x40
 static const uint8_t RTS_BASE = 0x80U;            // 1000 0000 = 2^7 = 128 = 0x80
+
+// CAN register addresses
+static const uint8_t CANSTAT1 = 0x0E;
+static const uint8_t CANCTRL1 = 0x0F; // 0000 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0x0F
+static const uint8_t CNF3 = 0x28;
 
 // function headers
 void mcp2515_reset();
