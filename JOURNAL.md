@@ -36,7 +36,8 @@
 - Tested on the breadboard circuit, verified the results, fixed bugs.
 
 **Evening:**
--
+- Added the CANable analyzer adapter to the breadboard circuit: connected and tested.
+- Designed and developed the Normal Operation mode test harness to test two-node CAN communication.
 
 **Problems encountered:**
 - (None today) etc
