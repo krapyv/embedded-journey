@@ -29,6 +29,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-03
+
+**Morning:**
+- Implemented the Loopback test harness: data frame construction, TX buffer loading, status polling, RX buffer reading, bytes comparison.
+- Tested on the breadboard circuit, verified the results, fixed bugs.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-02
 
 **Morning:**

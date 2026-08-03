@@ -64,6 +64,10 @@ static const uint8_t RTS_BASE = 0x80U;            // 1000 0000 = 2^7 = 128 = 0x8
 static const uint8_t CANSTAT1 = 0x0E;
 static const uint8_t CANCTRL1 = 0x0F; // 0000 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0x0F
 static const uint8_t CNF3 = 0x28;
+static const uint8_t TXB0SIDH = 0x31;
+static const uint8_t TXB0SIDL = 0x32;
+static const uint8_t RXB0SIDH = 0x61;
+static const uint8_t RXB0SIDL = 0x62;
 
 // function headers
 void mcp2515_reset();
