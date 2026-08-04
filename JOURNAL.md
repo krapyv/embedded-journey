@@ -37,7 +37,9 @@
 - Implemented the test harness including the error handling if the mode has not been set during 10 ms window before the timeout.
 
 **Evening:**
--
+- Tested the network of the STM + MCP2515 and the CANable node. Works perfectly. `can0  1F2   [5]  3F F1 B4 11 AA`
+
+- Started implementing receiving path from the CANable to the STM32 + MCP2515: filters and masks.
 
 **Problems encountered:**
 - (None today) etc
