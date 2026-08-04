@@ -1,13 +1,16 @@
 {
   "folders": [
-	{
-		"path": "../../my_reusable_drivers"
-	},
-	{
-		"path": "."
-	}
-],
+    {
+      "path": "../../my_reusable_drivers",
+    },
+    {
+      "path": ".",
+    },
+    {
+      "path": "../day-10-spi-eeprom",
+    },
+  ],
   "settings": {
-    "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
-  }
+    "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/",
+  },
 }

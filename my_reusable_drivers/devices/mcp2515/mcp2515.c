@@ -3,6 +3,25 @@
 #include "mcp2515.h"
 #include "systick.h"
 
+void mcp2515_poll_bit_timeout(uint8_t addr, uint8_t mask, uint8_t expected_value, uint32_t timeout_ms, uint8_t *isSuccess)
+{
+    uint8_t reg_val;
+    uint32_t start = SysTick_GetTick();
+    *isSuccess = 0;
+
+    do
+    {
+        mcp2515_read(addr, &reg_val, 1U);
+
+        if ((reg_val & mask) == expected_value)
+        {
+            *isSuccess = 1;
+        }
+    } while (SysTick_GetTick() - start <= timeout_ms && *isSuccess != 1);
+
+    return;
+}
+
 void mcp2515_reset()
 {
     // RESET is used to reinitialize the internal registers and set the Configuration mode

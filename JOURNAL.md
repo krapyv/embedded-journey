@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-04
+
+**Morning:**
+- Developed the Normal Operation mode change from the Loopback in the test harness.
+- Derived the real CAN bus transaction between the STM32 + MCP2515 and the CANable node connected to my PC.
+- Implemented the test harness including the error handling if the mode has not been set during 10 ms window before the timeout.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-03
 
 **Morning:**

@@ -1,11 +1,26 @@
 #include "spi.h"
 #include "mcp2515.h"
 #include "systick.h"
+#include "led.h"
 
 int main(void)
 {
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     spi_init(SPI_BR_8);
+
+    // error led initialization
+    LED_HandleTypeDef ledHandle = {
+        .pin = 0,
+        .rcc_bit = 0,
+        .moder_reg = &(GPIOA->MODER),
+        .odr_reg = &(GPIOA->ODR),
+        .rcc_clk_reg = &(RCC->AHB1ENR)};
+
+    led_init(&ledHandle);
+    // error led initialization
+
+    uint8_t isSuccess;
+
     mcp2515_reset();
 
     uint8_t rx_byte = 0;
@@ -27,10 +42,11 @@ int main(void)
 
     mcp2515_read(CANCTRL1, &CANCTRL_val, 1);
 
-    // (1 << 7) | MCP_Loopback_Mode = (1 << 7) | (0x2 << 5)
-    // mask: 1100 0000
+    // (0x7 << 5) = 111 << 5 - bits 7-5 are about to change
+    // mask: 1110 0000
     // current value: 1000 xxxx
-    uint8_t mask = (1 << 7) | MCP_Loopback_Mode;
+    // data byte: MCP_Loopback_Mode (0x2 << 5) or (010 << 5)
+    uint8_t mask = (0x7 << 5);
     uint8_t data_byte = MCP_Loopback_Mode;
 
     mcp2515_bit_modify(CANCTRL1, mask, data_byte);
@@ -139,5 +155,65 @@ int main(void)
             comparison_results[i] = 1;
         }
     }
+
+    /*----- Loopback -> Normal Operation mode -----*/
+
+    // request Normal mode (bits 7-5: 000)
+
+    // 0b1110 0000 = 0xE0 <- mask, bits 7-5 are requested to change
+    // 0b0000 0000 = 0x00 <- data byte, bits 7-5 are requested to changed to 000
+    mcp2515_bit_modify(CANCTRL1, 0xE0, 0x00);
+
+    // waiting loop for mode to change
+    // mask: 0b1110 0000 = 0xE0 - bits 7-5 are relevant only
+
+    mcp2515_poll_bit_timeout(CANSTAT1, 0xE0, 0x00, 10U, &isSuccess);
+
+    // mode has not been set when the timeout hit
+    // indefinite red led error blink
+    if (isSuccess != 1)
+    {
+        while (1)
+        {
+            led_on(&ledHandle);
+
+            SysTick_Delay_ms(300);
+
+            led_off(&ledHandle);
+
+            SysTick_Delay_ms(300);
+        }
+    }
+
+    // if the mode has been set to Normal Operation mode
+
+    // the variables below has already been declared and populated previously in the code while Loopback test harness
+    /* // test id
+     // since it is 11-bit long, uint16_t is the type that can hold the value without truncation
+     // bits 15-12 are zeroed out
+     id = 0x1F2;
+
+     SIDH = id >> 3;
+
+     // EXIDE and EID bits left at 0 for standard frames
+     SIDL = (id & 0x7) << 5;
+
+     bytes_number = 5;
+
+     // bit 7: unimplemented, 0
+     // bit 6: RTR, in this case for a data frame, 0
+     // bits 5-4: unimplemented, 0
+     // bits 3-0: number of data bytes to be transmitted (0-8 bytes)
+     // 5 bytes = 0b0101 => in 8 bit representation: 0000 0101 (RTR explicitly cleared with 0)
+     DLC = bytes_number;
+
+     // SIDH, SIDL, EID8 (zeroed out, don't care), EID0 (zeroed out, don't care), DLC, 5 data bytes
+     uint8_t data_payload[10] = {SIDH, SIDL, 0x00, 0x00, DLC, 0x3F, 0xF1, 0xB4, 0x11, 0xAA};
+     uint8_t load_tx_buffer_length = 10;*/
+
+    mcp2515_load_tx_buffer(MCP_Load_TXB0SIDH, data_payload, load_tx_buffer_length);
+
+    mcp2515_rts(&location, 1U);
+
     return 0;
 }

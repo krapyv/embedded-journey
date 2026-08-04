@@ -8,7 +8,7 @@ typedef enum
 {
     MCP_Normal_Operation_Mode = (0 << 5),
     MCP_Sleep_Mode = (0x1 << 5),
-    MCP_Loopback_Mode = (0x2 << 5),
+    MCP_Loopback_Mode = (0x2 << 5), // 010
     MCP_Listen_Only_Mode = (0x3 << 5),
     MCP_Configuration_Mode = (0x4 << 5),
 } MCP_Operation_Modes_t;
@@ -70,6 +70,7 @@ static const uint8_t RXB0SIDH = 0x61;
 static const uint8_t RXB0SIDL = 0x62;
 
 // function headers
+void mcp2515_poll_bit_timeout(uint8_t addr, uint8_t mask, uint8_t expected_value, uint32_t timeout_ms, uint8_t *isSuccess);
 void mcp2515_reset();
 void mcp2515_read(uint8_t addr, uint8_t *rx_buffer, uint16_t read_len);
 void mcp2515_read_rx_buffer(MCP_Read_RX_locations_t location_mask, uint8_t *rx_buffer, uint16_t read_len);
