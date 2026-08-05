@@ -37,7 +37,8 @@
 - Designed and derived the EFLG error handling (RX0OVR) - deliberately forcing an error condition to prove the driver detects it.
 
 **Evening:**
--
+- Tested the EFLG error handling test harness.
+- Derived the mechanism of OVR: the unread data frame is not overwritten with the newest one. If the RXB0 is full, the BUKT is not set, so the roll over is not allowed, the OVR bit sets and the newest data frame in the MAB (Message Assembly Buffer) is discarded. If the roll over is allowed to the RXB1, but it is also full, the data frame is discarded as well.
 
 **Problems encountered:**
 - (None today) etc
