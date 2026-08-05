@@ -3,7 +3,8 @@
 #include "systick.h"
 #include "led.h"
 
-int main(void)
+// the Loopback test harness + transmission TX real CAN bus test
+/*int main(void)
 {
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     spi_init(SPI_BR_8);
@@ -51,7 +52,7 @@ int main(void)
 
     mcp2515_bit_modify(CANCTRL1, mask, data_byte);
 
-    /* LOOPBACK TEST BENCH */
+    // LOOPBACK TEST BENCH
 
     // test id
     // since it is 11-bit long, uint16_t is the type that can hold the value without truncation
@@ -156,7 +157,107 @@ int main(void)
         }
     }
 
-    /*----- Loopback -> Normal Operation mode -----*/
+     // ----- Loopback -> Normal Operation mode -----
+
+// request Normal mode (bits 7-5: 000)
+
+// 0b1110 0000 = 0xE0 <- mask, bits 7-5 are requested to change
+// 0b0000 0000 = 0x00 <- data byte, bits 7-5 are requested to changed to 000
+mcp2515_bit_modify(CANCTRL1, 0xE0, 0x00);
+
+// waiting loop for mode to change
+// mask: 0b1110 0000 = 0xE0 - bits 7-5 are relevant only
+
+mcp2515_poll_bit_timeout(CANSTAT1, 0xE0, 0x00, 10U, &isSuccess);
+
+// mode has not been set when the timeout hit
+// indefinite red led error blink
+if (isSuccess != 1)
+{
+    while (1)
+    {
+        led_on(&ledHandle);
+
+        SysTick_Delay_ms(300);
+
+        led_off(&ledHandle);
+
+        SysTick_Delay_ms(300);
+    }
+}
+
+// if the mode has been set to Normal Operation mode
+
+// the variables below has already been declared and populated previously in the code while Loopback test harness
+/* // test id
+ // since it is 11-bit long, uint16_t is the type that can hold the value without truncation
+ // bits 15-12 are zeroed out
+ id = 0x1F2;
+
+ SIDH = id >> 3;
+
+ // EXIDE and EID bits left at 0 for standard frames
+ SIDL = (id & 0x7) << 5;
+
+ bytes_number = 5;
+
+ // bit 7: unimplemented, 0
+ // bit 6: RTR, in this case for a data frame, 0
+ // bits 5-4: unimplemented, 0
+ // bits 3-0: number of data bytes to be transmitted (0-8 bytes)
+ // 5 bytes = 0b0101 => in 8 bit representation: 0000 0101 (RTR explicitly cleared with 0)
+ DLC = bytes_number;
+
+ // SIDH, SIDL, EID8 (zeroed out, don't care), EID0 (zeroed out, don't care), DLC, 5 data bytes
+ uint8_t data_payload[10] = {SIDH, SIDL, 0x00, 0x00, DLC, 0x3F, 0xF1, 0xB4, 0x11, 0xAA};
+ uint8_t load_tx_buffer_length = 10;
+
+mcp2515_load_tx_buffer(MCP_Load_TXB0SIDH, data_payload, load_tx_buffer_length);
+
+mcp2515_rts(&location, 1U);
+
+return 0;
+}
+*/
+
+int main(void)
+{
+    SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
+    spi_init(SPI_BR_8);
+
+    // error led initialization
+    LED_HandleTypeDef ledHandle = {
+        .pin = 0,
+        .rcc_bit = 0,
+        .moder_reg = &(GPIOA->MODER),
+        .odr_reg = &(GPIOA->ODR),
+        .rcc_clk_reg = &(RCC->AHB1ENR)};
+
+    led_init(&ledHandle);
+    // error led initialization
+
+    uint8_t isSuccess;
+
+    mcp2515_reset();
+
+    uint8_t rx_byte = 0;
+
+    mcp2515_read(CANSTAT1, &rx_byte, 1U);
+
+    // CNF3, CNF2, CNF1
+    uint8_t CNF_vals[3] = {0x01, 0x91, 0x00};
+
+    // CNF3 = 0x28, CNF2 = 0x29, CNF1 = 0x2A
+    // since all three registers are consecutive, we can write them in one write operation
+    mcp2515_write(CNF3, CNF_vals, 3U);
+
+    uint8_t read_CNF_vals[3];
+
+    mcp2515_read(CNF3, read_CNF_vals, 3U);
+
+    uint8_t CANCTRL_val;
+
+    mcp2515_read(CANCTRL1, &CANCTRL_val, 1);
 
     // request Normal mode (bits 7-5: 000)
 
@@ -185,35 +286,34 @@ int main(void)
         }
     }
 
-    // if the mode has been set to Normal Operation mode
+    // poll the RX0IF in READ_STATUS
+    // RX0IF - receive buffer 0 Full Interrupt Flag bit
+    // when RX0IF is 1 - interrupt is pending (must be cleared by MCU to reset the interrupt condition)
+    uint8_t status_val = 0;
 
-    // the variables below has already been declared and populated previously in the code while Loopback test harness
-    /* // test id
-     // since it is 11-bit long, uint16_t is the type that can hold the value without truncation
-     // bits 15-12 are zeroed out
-     id = 0x1F2;
+    // // TODO
+    // // an unbounded poll - a deliberate, correct, test-harness wait for a human-triggered external event, with a clear exit condition (cansend)
+    // // should be refactored into the timeout-and-defined-behavior version for a real deployment (or the Week 21 integration project)
+    // do
+    // {
+    //     mcp2515_read_status(&status_val, 1U);
+    // } while (!(status_val & (1 << 0)));
 
-     SIDH = id >> 3;
+    // now this EFLG polling loop is unbounded
+    // a real deployment would want this non-blocking (checked periodically rather than blocking main())
+    do
+    {
+        // read the EFLG register (0x2D) awaiting for the RX0VR
+        mcp2515_read(EFLG, &status_val, 1U);
+    } while (!(status_val & (1 << 6)));
+    // after the second frame arrived, causing OVR, the bit 6 RXOVR is set, so the loop exits
 
-     // EXIDE and EID bits left at 0 for standard frames
-     SIDL = (id & 0x7) << 5;
+    // once RX buffer has the data frame, retrieve it
+    uint8_t rx_frame_bytes[9];
 
-     bytes_number = 5;
-
-     // bit 7: unimplemented, 0
-     // bit 6: RTR, in this case for a data frame, 0
-     // bits 5-4: unimplemented, 0
-     // bits 3-0: number of data bytes to be transmitted (0-8 bytes)
-     // 5 bytes = 0b0101 => in 8 bit representation: 0000 0101 (RTR explicitly cleared with 0)
-     DLC = bytes_number;
-
-     // SIDH, SIDL, EID8 (zeroed out, don't care), EID0 (zeroed out, don't care), DLC, 5 data bytes
-     uint8_t data_payload[10] = {SIDH, SIDL, 0x00, 0x00, DLC, 0x3F, 0xF1, 0xB4, 0x11, 0xAA};
-     uint8_t load_tx_buffer_length = 10;*/
-
-    mcp2515_load_tx_buffer(MCP_Load_TXB0SIDH, data_payload, load_tx_buffer_length);
-
-    mcp2515_rts(&location, 1U);
+    mcp2515_read_rx_buffer(MCP_Read_RXB0SIDH, rx_frame_bytes, 9U);
+    // the READ RX BUFFER instruction automatically clears the associated receive flag, RXnIF (CANINTF), when CS is raised at the end of the command
+    // so the RX0IF flag will be cleared automatically, so the hardware condition to reset the interrupt condition is satisfied
 
     return 0;
 }

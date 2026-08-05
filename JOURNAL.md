@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-05
+
+**Morning:**
+- Implemented the RX path test harness for the CAN bus of STM32 + MCP2515 and the CANable. 
+- Tested the RX path test harness. Works as intended.
+- Designed and derived the EFLG error handling (RX0OVR) - deliberately forcing an error condition to prove the driver detects it.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-04
 
 **Morning:**
