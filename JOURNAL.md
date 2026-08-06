@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-06
+
+**Morning:**
+- Learned about Acceptance Filters and Acceptance Masks in CAN RX.
+- Learned about MAB (Message Assembly Buffer) in CAN RX.
+- Started learning CAN Interrupts: the theory is done, the design/development and implementation are next.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-05
 
 **Morning:**
