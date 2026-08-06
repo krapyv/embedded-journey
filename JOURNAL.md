@@ -37,7 +37,9 @@
 - Started learning CAN Interrupts: the theory is done, the design/development and implementation are next.
 
 **Evening:**
--
+- Learned about EXTI.
+- Learned about SYSCFG.
+- Started designing the CAN Interrupt ISR.
 
 **Problems encountered:**
 - (None today) etc
