@@ -29,6 +29,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-07
+
+**Morning:**
+- Continued developing the CAN interrupts ISR.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-06
 
 **Morning:**
