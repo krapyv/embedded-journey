@@ -3,6 +3,58 @@
 #include "mcp2515.h"
 #include "systick.h"
 
+// INT ISR
+void EXTI15_10(void)
+{
+}
+
+// the function that handles INT pin configuration
+// on the STM32F411, pin PB15 is the GPIO pin connected with the INT line of the MCP2515
+void mcp2515_init()
+{
+    // GPIOB RCC pin enablement
+    RCC->AHB1ENR |= (1 << 1);
+
+    // setting the pin PB15 to GPIO input mode
+    // MODER value for Input is 00, since the MODER gives 2 bits per pin
+
+    // to set the bits to 00, we need to clear them
+    // pin 15 takes MODER[31:30]
+    // 11 = 0x3
+    GPIOB->MODER &= ~(0x3 << 30);
+
+    // SYSCFG RCC pin enablement
+    RCC->APB2ENR |= (1 << 14);
+
+    // mux EXTI Line 15 in SYSCFG_EXTICRn to GPIOB
+    // EXTI Line 15 is set in SYSCFG_EXTICR4
+    // EXTI15 takes bits 15:12 (4 bits)
+
+    // clear the range
+    // 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0xF
+    SYSCFG->EXTICR4 &= ~(0xF << 12);
+
+    // set the value of 0001 to the range
+    // PB[x] pin is the value of 0001
+    SYSCFG->EXTICR4 |= (1 << 12);
+
+    // trigger selection
+    // since INT is active-low/open-drain, the transition from HIGH to LOW signals
+    // so setting the bit 15 in the EXTI_FTSR register
+    EXTI->FTSR |= (1 << 15);
+
+    // unmask the interrupt request in EXTI_IMR
+    EXTI->IMR |= (1 << 15);
+
+    // NVIC Interrupt enablement
+    // EXTI15_10 sits at position 40 in the Vector table
+
+    // position 40 = 40 / 32 = ISER1
+    // 40 % 32 = 8 - bit 8
+    NVIC->ISER[1] = (1 << 8);
+    // with NVIC that is a part of Cortex-M4, not the STM32 own core, we are using single write
+}
+
 void mcp2515_poll_bit_timeout(uint8_t addr, uint8_t mask, uint8_t expected_value, uint32_t timeout_ms, uint8_t *isSuccess)
 {
     uint8_t reg_val;

@@ -35,7 +35,9 @@
 - Continued developing the CAN interrupts ISR.
 
 **Evening:**
--
+- Finished developing the CAN interrupts RX and ER. 
+- Started implementing the CAN interrupts RX and ER: added SYSCFG and EXTI register maps, implemented mcp2515_init() for INT line configuration.
+- Wrote a Linkedin post about RX0OVR and "oldest-frame-wins. newest-frame-drops".
 
 **Problems encountered:**
 - (None today) etc

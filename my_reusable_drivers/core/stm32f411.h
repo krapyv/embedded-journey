@@ -202,6 +202,29 @@ typedef struct
     volatile uint32_t I2SPR;   // 0x20, I2S prescaler register
 } SPI_RegDef_t;
 
+typedef struct
+{
+    volatile uint32_t MEMRMP;  // 0x00, SYSCFG memory remap register
+    volatile uint32_t PMC;     // 0x04, SYSCFG peripheral mode configuration register
+    volatile uint32_t EXTICR1; // 0x08, SYSCFG external interrupt configuration register 1
+    volatile uint32_t EXTICR2; // 0x0C, SYSCFG external interrupt configuration register 2
+    volatile uint32_t EXTICR3; // 0x10, SYSCFG external interrupt configuration register 3
+    volatile uint32_t EXTICR4; // 0x14, SYSCFG external interrupt configuration register 4
+    uint32_t RESERVED1;        // 0x18
+    uint32_t RESERVED2;        // 0x1C
+    volatile uint32_t CMPCR;   // 0x20, Compensation cell control register
+} SYSCFG_RegDef_t;
+
+typedef struct
+{
+    volatile uint32_t IMR;   // 0x00, Interrupt mask register
+    volatile uint32_t EMR;   // 0x04, Event mask register
+    volatile uint32_t RTSR;  // 0x08, Rising trigger selection register
+    volatile uint32_t FTSR;  // 0x0C, Falling trigger selection register
+    volatile uint32_t SWIER; // 0x10, Software interrupt event register
+    volatile uint32_t PR;    // 0x14, Pending register
+} EXTI_RegDef_t;
+
 // Alternate Function Modes
 typedef enum
 {
@@ -251,11 +274,14 @@ typedef enum
 #define I2C2_BASE 0x40005800UL
 #define I2C3_BASE 0x40005C00UL
 
-#define SPI1_BASE 0x40013000
-#define SPI2_BASE 0x40003800
-#define SPI3_BASE 0x40003C00
-#define SPI4_BASE 0x40013400
-#define SPI5_BASE 0x40015000
+#define SPI1_BASE 0x40013000UL
+#define SPI2_BASE 0x40003800UL
+#define SPI3_BASE 0x40003C00UL
+#define SPI4_BASE 0x40013400UL
+#define SPI5_BASE 0x40015000UL
+
+#define EXTI_BASE 0x40013C00UL
+#define SYSCFG_BASE 0x40013800UL
 
 // ================== Registers ==================
 
@@ -290,4 +316,7 @@ typedef enum
 #define SPI3 ((SPI_RegDef_t *)SPI3_BASE)
 #define SPI4 ((SPI_RegDef_t *)SPI4_BASE)
 #define SPI5 ((SPI_RegDef_t *)SPI5_BASE)
+
+#define SYSCFG ((SYSCFG_RegDef_t *)SYSCFG_BASE)
+#define EXTI ((EXTI_RegDef_t *)EXTI_BASE)
 #endif

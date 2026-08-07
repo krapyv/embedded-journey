@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "spi.h"
+#include "core_cm4.h"
 
 typedef enum
 {
