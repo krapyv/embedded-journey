@@ -3,6 +3,8 @@
 #include "systick.h"
 #include "led.h"
 
+volatile uint8_t can_int_flag = 0;
+
 // the Loopback test harness + transmission TX real CAN bus test
 /*int main(void)
 {
@@ -259,6 +261,16 @@ int main(void)
 
     mcp2515_read(CANCTRL1, &CANCTRL_val, 1);
 
+    mcp2515_init();
+
+    // enable interrupts via MCP2515 CANINTE register
+    // bit 5 ERRIE, bit 1 RX1IE, bit 0 RX0IE
+
+    // mask: 0010 0011 = 2^5 + 2^1 + 2^0 = 32 + 2 + 1 = 35 = 0x23
+    // data byte: 0010 0011 = 0x23
+
+    mcp2515_bit_modify(CANINTE, 0x23, 0x23);
+
     // request Normal mode (bits 7-5: 000)
 
     // 0b1110 0000 = 0xE0 <- mask, bits 7-5 are requested to change
@@ -286,10 +298,10 @@ int main(void)
         }
     }
 
-    // poll the RX0IF in READ_STATUS
-    // RX0IF - receive buffer 0 Full Interrupt Flag bit
-    // when RX0IF is 1 - interrupt is pending (must be cleared by MCU to reset the interrupt condition)
-    uint8_t status_val = 0;
+       // // poll the RX0IF in READ_STATUS
+    // // RX0IF - receive buffer 0 Full Interrupt Flag bit
+    // // when RX0IF is 1 - interrupt is pending (must be cleared by MCU to reset the interrupt condition)
+    // uint8_t status_val = 0;
 
     // // TODO
     // // an unbounded poll - a deliberate, correct, test-harness wait for a human-triggered external event, with a clear exit condition (cansend)
@@ -299,6 +311,7 @@ int main(void)
     //     mcp2515_read_status(&status_val, 1U);
     // } while (!(status_val & (1 << 0)));
 
+    /*
     // now this EFLG polling loop is unbounded
     // a real deployment would want this non-blocking (checked periodically rather than blocking main())
     do
@@ -314,6 +327,54 @@ int main(void)
     mcp2515_read_rx_buffer(MCP_Read_RXB0SIDH, rx_frame_bytes, 9U);
     // the READ RX BUFFER instruction automatically clears the associated receive flag, RXnIF (CANINTF), when CS is raised at the end of the command
     // so the RX0IF flag will be cleared automatically, so the hardware condition to reset the interrupt condition is satisfied
+    */
+
+    uint8_t can_intf_val;
+
+    // a data frame:
+    // SIDH, SIDL, EID8 (zeroed out, don't care), EID0 (zeroed out, don't care), DLC, up to 8 data bytes
+    // 1 + 1 + 1 + 1 + 1 + 8 = 5 + 8 = 13
+    uint8_t can_int_rx0[13];
+    uint8_t can_int_rx0_flag = 0;
+
+    uint8_t can_int_rx1[13];
+    uint8_t can_int_rx1_flag = 0;
+
+    while (1)
+    {
+
+        if (can_int_flag)
+        {
+            do
+            {
+                mcp2515_read(CANINTF, &can_intf_val, 1U);
+
+                if (can_intf_val)
+                {
+                    mcp2515_canintf_handler(can_intf_val, can_int_rx0, &can_int_rx0_flag, can_int_rx1, &can_int_rx1_flag);
+                }
+            } while (can_intf_val != 0);
+
+            can_int_flag = 0;
+        }
+
+        // if rx0_flag is set, the rx0_buffer has a new frame
+        if (can_int_rx0_flag)
+        {
+            // for now, inspect the frame in the CGB
+            // UART incorporation is the Integration Project scope
+
+            can_int_rx0_flag = 0;
+        }
+        // if rx1_flag is set, the rx1_buffer has a new frame
+        if (can_int_rx1_flag)
+        {
+            // for now, inspect the frame in the CGB
+            // UART incorporation is the Integration Project scope
+
+            can_int_rx1_flag = 0;
+        }
+    }
 
     return 0;
 }

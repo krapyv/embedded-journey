@@ -34,6 +34,8 @@
 **Morning:**
 - Learned about why oldest frame survives during RX buffer overrun in CAN and the newest one discards.
 - Learned about Active-Low/Active-High and Rising Edge/Falling Edge triggers.
+- Implemented CAN ISR (EXTI15_15_IRQHandler) and mcp2515_canintf_handler that handles the dispatch mechanism.
+- Adjusted main() for ISR.
 
 **Evening:**
 -

@@ -4,8 +4,65 @@
 #include "systick.h"
 
 // INT ISR
-void EXTI15_10(void)
+void EXTI15_10_IRQHandler(void)
 {
+    // first of all, we need to know which exactly EXTI line caused the ISR to enter
+    // EXTI Line 15 corresponds with EXIT_PR bit 15 set to 1
+
+    if (EXTI->PR & (1 << 15))
+    {
+        // clear the bit 15 in EXTI_PR
+        EXTI->PR = (1 << 15); // write-1-to-clear
+        // set the flag to 1
+        // INT line dropped to 0 and caused the interrupt
+        can_int_flag = 1;
+    }
+
+    return;
+}
+
+void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0, uint8_t *rx_buffer0_set, uint8_t *rx_buffer1, uint8_t *rx_buffer1_set)
+{
+    // ERRIF handling: RX0OVR and RX1OVR in EFLG
+
+    if (can_intf_val & MCP_CANINTF_ERRIF)
+    {
+        uint8_t eflg_val = 0;
+        mcp2515_read(EFLG, &eflg_val, 1U);
+
+        // firstly, reset RX0OVR/RX10VR in EFLG
+        if (eflg_val & MCP_EFLG_RX1OVR)
+        {
+            // mask: 1000 0000 = 2^7 = 128 = 0x80 - the bit 7th is allowed to change
+            // data byte: 0000 0000 = 0x00 - the bit 7th set to 0 (RX10VR and RX0OVR are write-0-to-clear)
+            mcp2515_bit_modify(EFLG, 0x80, 0x00);
+        }
+        if (eflg_val & MCP_EFLG_RX0OVR)
+        {
+            // mask: 0100 0000 = 2^6 = 64 = 0x40 - the bit 6th is allowed to change
+            // data byte: 0000 0000 = 0x00 - the bit 6th set to 0 (RX10VR and RX0OVR are write-0-to-clear)
+            mcp2515_bit_modify(EFLG, 0x40, 0x00);
+        }
+
+        // secondly, clear ERRIF in CANINTF
+
+        // mask: 0010 0000 = 2^5 = 32 = 0x20 - the bit 5th is allowed to change
+        // data byte: 0000 0000 = 0x00
+        mcp2515_bit_modify(CANINTF, 0x20, 0x00);
+    }
+
+    // read the RXn buffer via READ RX BUFFER command
+    // READ RX BUFFER automatically clears RXnIF in CANINTF
+    if (can_intf_val & MCP_CANINTF_RX0IF)
+    {
+        mcp2515_read_rx_buffer(MCP_Read_RXB0SIDH, rx_buffer0, 13);
+        *rx_buffer0_set = 1;
+    }
+    if (can_intf_val & MCP_CANINTF_RX1IF)
+    {
+        mcp2515_read_rx_buffer(MCP_Read_RXB1SIDH, rx_buffer1, 13);
+        *rx_buffer1_set = 1;
+    }
 }
 
 // the function that handles INT pin configuration

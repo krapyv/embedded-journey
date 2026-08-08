@@ -5,6 +5,26 @@
 #include "spi.h"
 #include "core_cm4.h"
 
+extern volatile uint8_t can_int_flag;
+
+typedef enum
+{
+    MCP_CANINTF_RX0IF = (1 << 0),
+    MCP_CANINTF_RX1IF = (1 << 1),
+    MCP_CANINTF_TX0IF = (1 << 2),
+    MCP_CANINTF_TX1IF = (1 << 3),
+    MCP_CANINTF_TX2IF = (1 << 4),
+    MCP_CANINTF_ERRIF = (1 << 5),
+    MCP_CANINTF_WAKIF = (1 << 6),
+    MCP_CANINTF_MERRF = (1 << 7)
+} MCP_CANINTF_Masks_t;
+
+typedef enum
+{
+    MCP_EFLG_RX1OVR = (1 << 7),
+    MCP_EFLG_RX0OVR = (1 << 6)
+} MCP_EFLG_Masks_t;
+
 typedef enum
 {
     MCP_Normal_Operation_Mode = (0 << 5),
@@ -65,6 +85,8 @@ static const uint8_t RTS_BASE = 0x80U;            // 1000 0000 = 2^7 = 128 = 0x8
 static const uint8_t CANSTAT1 = 0x0E;
 static const uint8_t CANCTRL1 = 0x0F; // 0000 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0x0F
 static const uint8_t CNF3 = 0x28;
+static const uint8_t CANINTE = 0x2B;
+static const uint8_t CANINTF = 0x2C;
 static const uint8_t EFLG = 0x2D;
 static const uint8_t TXB0SIDH = 0x31;
 static const uint8_t TXB0SIDL = 0x32;
@@ -72,6 +94,8 @@ static const uint8_t RXB0SIDH = 0x61;
 static const uint8_t RXB0SIDL = 0x62;
 
 // function headers
+void mcp2515_init();
+void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0, uint8_t *rx_buffer0_set, uint8_t *rx_buffer1, uint8_t *rx_buffer1_set);
 void mcp2515_poll_bit_timeout(uint8_t addr, uint8_t mask, uint8_t expected_value, uint32_t timeout_ms, uint8_t *isSuccess);
 void mcp2515_reset();
 void mcp2515_read(uint8_t addr, uint8_t *rx_buffer, uint16_t read_len);
