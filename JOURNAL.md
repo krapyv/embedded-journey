@@ -37,8 +37,9 @@
 - Implemented CAN ISR (EXTI15_15_IRQHandler) and mcp2515_canintf_handler that handles the dispatch mechanism.
 - Adjusted main() for ISR.
 
-**Evening:**
--
+**Afternoon and evening:**
+- Added the INT line to the breadboard circuit.
+- Noticed that INT line has 4.7V, instead of expected 3.3V pull-up idle state. Debugged it.
 
 **Problems encountered:**
 - (None today) etc
