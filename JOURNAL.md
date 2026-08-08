@@ -29,6 +29,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-08
+
+**Morning:**
+- Learned about why oldest frame survives during RX buffer overrun in CAN and the newest one discards.
+- Learned about Active-Low/Active-High and Rising Edge/Falling Edge triggers.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-07
 
 **Morning:**
