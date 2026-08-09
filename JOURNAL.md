@@ -38,6 +38,9 @@
 - Tested the Interrupt program with new buffer read mechanism. Works as expected.
 - Completed the Journal logs from 01.08 to 09.08.
 
+**Afternoon:**
+- Wrote the MCP2515 README.md.
+
 **Evening:**
 -
 
