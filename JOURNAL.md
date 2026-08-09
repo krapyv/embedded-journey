@@ -36,9 +36,34 @@
 - Tested the Interrupt program. Works wonderfully.
 - Implemented two-stage length-aware buffer read, with header and payload properly separated and returned to the caller, because constant 13-byte read is not always optimal solution (especially when data payload is 1-2 out of 8 possible bytes). 
 - Tested the Interrupt program with new buffer read mechanism. Works as expected.
+- Completed the Journal logs from 01.08 to 09.08.
 
 **Evening:**
 -
+
+**What was done - INT pin wiring resolution:**
+- TXS0108E internal pull-ups confirmed from datasheet: "pull-up resistors have been conveniently integrated so that an external resistor is not needed". Both A-port and B-port have internal Rpua/Rpub to VCCA/VCCB respectively.
+- Routed INT through unused TXS0108E HV channel. PB15 into matching LV channel. OE already tied high from original setup - internal pull-ups active.
+- External 2.2 kOhms resistor taken out from the breadboard circuit since it is redundant.
+- Static idle voltage on PB15 side: clean 3.3V confirmed.
+- Note on TXS0108E pull-up mechanism: dynamic, not fixed. 4 kOhms when driving high (fast rising edge - one-shot accelerator), 40 kOhms when settled high (power saving).
+
+**Length-aware RX buffer read:**
+- Refactored mcp2515_read_rx_buffer() to two-stage read: header buffer [5] (SIDH, SIDL, EID8, EID0, DLC) and payload buffer [8] (data bytes, DLC-length only).
+- Caller receives IDE and DLC information explicitly rather than it being discarded inside a fixed 13-byte read.
+
+**Volatile analysis - can_int_rx0_header / can_int_rx0_payload / can_int_rx0_flag:**
+- ISR sets can_int_flag -> main() drain-loop calls mcp2515_canintf_handler() -> mcp2515_read_rx_buffer() -> spi_transfer().
+- can_int_rx0_header / can_int_rx0_payload written and read exclusively within main()'s sequential execution. ISR never touches them directly.
+- volatile is not required on these variables. No producer/consumer relationship across interrupt boundaries. Compiler has no incentive to cache or reorder them incorrectly.
+- can_int_flag correctly stays volatile - that is the actual cross-context handoff between ISR and main().
+
+**Hardware verification - DLC = 2 test frame:**
+- Sent: cansend can0 1F2#AABB
+- can_int_rx0_header: {0x3E, 0x40, 0xDE, 0xA4, 0x02} - SIDH/SIDL correct for iD 0x1F2, EID bytes garbage (expected, standard frame), DLC = 2 correct.
+- can_int_rx0_payload: {0xAA, 0xBB, 0x9C, 0x9D, ...} - first two bytes exact match. Bytes 2-7 stale from previous 8-byte test, unwritten this frame. Correctly scoped by DLC - any caller reading DLC & 0x0F bytes gets correct data, anything beyond is uninitialized-for-this-frame.
+
+**Status: MCP2515 Interrupt-driven CAN driver - DONE.**
 
 **Problems encountered:**
 - (None today) etc
@@ -59,7 +84,29 @@
 - Noticed that INT line has 4.7V, instead of expected 3.3V pull-up idle state. Debugged it.
 
 **Problems encountered:**
-- (None today) etc
+**Bug:** INT line reading 4.7V instead of expected 3.3V pull-up idle state
+**Symptom:** Resistor leg A (connected to 3.3V rail) reads 3.3V correctly. Resistor leg B (shared row with PB15/INT wiring) reads 4.7V. STM32 PB15 pin isolated, nothing connected - reads 120mV floating (normal). No code flashed touching PB15. Pure electrical issue.
+
+**Diagnosis process:**
+- A passive resistor cannot generate voltage higher than what's on either leg. 4.7V on Leg B with 3.3V on Leg A -> something else actively feeding that row from a different wire.
+- Ruled out STM32 pin - floats to 120mV when isolated, not the source.
+- Rules out level shifter - INT was never wired to it.
+- Remaining suspect: MCP2515 module INT pin itself.
+- Test: physically unplugged wire from MCP2515 INT pin to breadboard row. Multimeter immediately dropped to 3.3V -> confirmed MCP2515 INT wire was the source.
+
+**Further investigation - onboard pull-up hunt:**
+- Suspected onboard pull-up resistor on INT to module's 5V VDD rail (common on Arduino-target breakout boards).
+- Measured INT-to-VCC and INT-to-GND resistance directly at module header: both returned ~3.5 MOhms - identical readings to both rails.
+- Conclusion: not a real discrete resistor. Multimeter test current finding nonlinear leakage path through chip's internal ESD clamp diodes/protection circuitry. A genuine 10 kOhms pull-up would read ~10 kOhms to VCC and opend to GND - identical high readings rule it out entirely.
+- R3 resistor visible between VCC and INT is serving a different net entirely. Proximity on PCB was misleading.
+- INT is a true open-drain, no onboard pull-up, high-impedance floading node when idle - consistent with datasheet description.
+
+**Root cause of original 4.7V reading:**
+- Floating high-Z node picking up capacitive/inductive coupling from adjacent 5V VCC trace on densely packed module PCB. Multimeter's own input loading made it appear artificially stable. Measurement artifact, not a driven voltage. Same class of artifact as the 120mV floating PB15 reading, different magnitude.
+
+**Resolution:**
+- After extensive investigation confirming no genuine electrical fault exists on the module, routing INT through the TXS0108E level shifter. Already proven infrastructure for CS/SCK/MOSI. Reuses validated path rather than debugging a new direct-wire path from scratch.
+- Note: original plan was INT direct to PB15 (5V-tolerant FT pin, no shifter needed, same reasoning as MISO). Pragmatic decision to use shifter given time spent chasing floating-node artifact. Electrically either path is valid.
 
 **Root cause at the register level:**
 -
