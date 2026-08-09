@@ -42,7 +42,7 @@
 - Wrote the MCP2515 README.md.
 
 **Evening:**
--
+- Wrote the test harness STM32 + TXS0108E + MCP2515 + CANable README.md.
 
 **What was done - INT pin wiring resolution:**
 - TXS0108E internal pull-ups confirmed from datasheet: "pull-up resistors have been conveniently integrated so that an external resistor is not needed". Both A-port and B-port have internal Rpua/Rpub to VCCA/VCCB respectively.
