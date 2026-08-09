@@ -108,7 +108,7 @@ Week	Topic	Morning Practice	Evening Theory	Mini-Project
 13	ADC, DMA ✅	Continuous sampling at 10kHz ✅	Data structures: double buffer	Audio sampler (basic)
 14	I2C ✅	Read temperature sensor (BMP280)	Protocol analysis (logic analyzer)	Sensor logger
 15	SPI ✅	Communicate with EEPROM	Compare I2C vs SPI	Config storage
-Week 16: MCP2515 (SPI) — Configuration, Loopback TX/RX, Filter Setup
+Week 16: MCP2515 (SPI) — Configuration, Loopback TX/RX, Filter Setup ✅
 
 Before touching a register: read the MCP2515 datasheet sections 5 (bit timing), 10 (modes of operation), and 12 (SPI interface) in full. The architecture is fundamentally different from what "CAN peripheral" meant in the original plan — you're not configuring an on-chip peripheral, you're driving an external controller over SPI, the same way you just did with the EEPROM. Your spi_transfer() from Week 15 is directly reusable here — same CS/mode-0 mechanics, different device on the bus.
 
@@ -134,7 +134,7 @@ RX sequence: poll CANINTF RXnIF (or use READ STATUS for a faster combined check)
 
 Done bar: same as before — transmit a frame in loopback mode, receive it back, print ID and data over UART.
 
-Week 17: MCP2515 — Interrupt-Driven, Error Handling, Two-Node Test
+Week 17: MCP2515 — Interrupt-Driven, Error Handling, Two-Node Test ✅
 
 The interrupt model is structurally different from bxCAN's three separate vector table entries. The MCP2515 has a single active-low INT pin — you wire that to one EXTI line on the STM32. Inside that one ISR, you read CANINTF to determine which condition fired (RX0IF, RX1IF, TX0IF/TX1IF/TX2IF, ERRIF, MERRF, WAKIF) — the demultiplexing bxCAN did in hardware across three vectors, you now do in software against one register.
 

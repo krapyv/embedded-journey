@@ -144,7 +144,45 @@
 - Designed and developed the Normal Operation mode test harness to test two-node CAN communication.
 
 **Problems encountered:**
-- (None today) etc
+1. Bug 1: Polling loop executing exactly once regardless of RX status
+**Root cause:**
+- while (status_val & 0) - status_val & 0 evaluates to 0 for any value of status_val. Loop condition always false. Loop body executed exactly once then exited, regardless of whether RX0IF was actually set.
+
+**Fix:** while (!(status_val & (1 << 0))) - isolates bit 0 (RX0IF), inverts it. Loop cycles while bit 0 is 0 (no interrupt pending), exits when RX0IF goes high.
+
+2. Bug 2: RTS call passing enum value by value instead of by pointer
+**Root cause:**
+- mcp2515_rts(location, 1U) - function signature expects MCP_RTS_locations_t \*locations. Passed the enum value directly instead of its address.
+
+**Fix:** mcp2515_rts(&location, 1U)
+
+3. Bug 3: Byte-for-byte comparison across RX/TX buffer layouts - reserved bits mismatch
+**Root cause:**
+- RXBnDLC bits 5:4 (RB1/RB0) are "Reserved" - not "Unimplemented: Read as 0". No documented guarantee about their read-back value. TX side had those bits at 0 by construction. Naive byte-for-byte comparison could produce false mismatch on bits that have nothing to do with test success.
+- RXBnSIDL bits 1:0 (EID[17:16]) also carry no guaranteed read-back value for standard-ID frames - verified empirically: consistent 0xDE, 0xA4 across all runs, deterministic but meaningless silicon-level state the CAN engine never touches.
+
+**Fix:** Masked DLC comparison to only meaningful bits - bit 6 (RTR) and bits 3:0 (DLC count). Bits 7/5/4 excluded. DLC byte special-cased inside the comparison loop with explicit mask rather than uniform byte comparison.
+
+**Final loopback result:**
+
+```c 
+rx_frame_bytes = {0x3E, 0x40, 0xDE, 0xA4, 0x05, 0x3F, 0xF1, 0xB4, 0x11, 0xAA}
+```
+
+- SIDH = 0x3E, SIDL = 0x40 - exact match for hand-derived ID 0x1F2 packing.
+- DLC = 0x05, data bytes 0x3F/0xF1/0xB4/0x11/0xAA - exact round-trip match.
+
+**Status: MCP2515 polling driver - DONE by project bar**
+Reset, mode-switching via BIT_MODIFY, multi-byte auto-incrementing writes, frame construction, transmit request, status polling, and buffer retrieval with automatic flag-clear - all proven on real silicon.
+
+**Next steps:**
+- Exit Loopback mode into Normal mode. Test against CANable analyzer on real physical bus.
+- Interrupt-driven path (CANINTE/INT pin) deferred to later phase.
+
+**Empirical verification-  EID reserved bytes:**
+- Ran multiple loopback iterations. rx_frame_bytes[2] and rx_frame_bytes[3] (EID8/EID0 positions) returned 0xDE and 0xA4 consistently acrosss every run.
+- Consistent across runs = not noise, not leftover data, not anything the CAN engine touches for standard-ID frames. Most likely fixed silicon-level SRAM power-on state - the internal RX buffer bytes that correspond to extended ID fields simply never get written during a standard-ID frame reception.
+- Theory confirmed empirically: don't accept "plausible explanation" for undefined behavior. Test it. Same value every run is a result. Random values every run is a different problem entirely.
 
 **Root cause at the register level:**
 -
@@ -162,8 +200,54 @@
 - Wrote a Linkedin post about the SPI + EEPROM project.
 - Completed the 1st August Journal entry.
 
+**What was done:**
+- Built breadboard circuit: STM32F411 Black Pill + TXS0108E level shifter + MCP2515 CAN controller module.
+- Rail split: right rails = 3.3V, left rails = 5V. TXS0108E straddles the separation row - VA (3.3V) side faces right rails, VB (5V) side faces left rails.
+- Level shifter placed directly behind Black Pill to keep A-side hop short per capacitance budget.
+- MCP2515 module sits off-board (male pins, not breadboard-mounted).
+
+**First hardware bring-up test:**
+- Sequence: SysTick_Init -> spi_init(SPI_BR_8) -> mcp2515_reset() [includes 2ms OST delay] -> mcp2515_read(0x0E, &rx_byte, 1U) -> breakpoint.
+- Result: rx_byte = 0x80 = 10000000 binary. Exact predicted value.
+
+**What 0x80 proves end-to-end:**
+- GPIO/AF/MODER configuration for SPI1 correct.
+- BR divider producing working clock.
+- TXS0108E correctly translating SCK/MOSI/CS from 3.3V to 5V - if it weren't, MCP2515 would have never received a coherent RESET instruction.
+- MISO direct FT-pin path correctly carrying 5V-driven data back to STM32.
+- OST delay sufficient - too short would have caught device mid-reset and returned garbage.
+- Instruction framing (opcode + address byte, correct tx_len/rx_skip) byte-accurate.
+- MCP2515 genuinely landed in Configuration mode after reset as datasheet promised.
+
+**Next step:**
+- Write CNF1/CNF2/CNF3 (0x00/0x91/0x01) while in Configuration mode.
+- Read back to confirm writes landed.
+
 **Problems encountered:**
-- (None today) etc
+
+1. Bug 1: OR-ing mode bits without clearing existing REQOP field first
+**Root cause:**
+- CANCTRL_val |= MCP_Loopback_Mode - REQOP bits 7:5 already held 100 (Configuration mode). OR never clears bits, only sets them. 100 | 010 = 110 - neither Configuration nor Loopback. Wrong value written.
+- Using the target value's bit pattern as if it were a bitmask - two different things. A mask says "which bits am I allowed to touch". A value signals "what do I write into them".
+
+**Fix:** Clear bits 7:5 first with CANCTRL_val &= ~(0x7 << 5), then OR in the new mode value. Or use mcp2515_bit_modify() which separates mask and data by design.
+
+2. Bug 2: Passing pre-read register snapshot as data argument to BIT_MODIFY
+**Root cause:**
+- mcp2515_bit_modify(CANCTRL1, mask, CANCTRL_val) - CANCTRL_val still held the old Configuration mode value. BIT_MODIFY writes the data argument's bits wherever mask = 1. Passing the old value told hardware "set these bits to what they already are". Nothing changed.
+
+**Fix:** PASS MCP_Loopback_Mode directly as the data argument - already correctly positioned at bits 7:5 from its << 5 definition.
+
+3. Bug 3: Incomplete mask missing bit 5 of REQOP field
+**Root cause:**
+- mask = (1 << 7) | MCP_Loopback_Mode. MCP_Loopback_Mode = (0x2 << 5) = 0100 0000 - only bit 6 set. Combined mask = 1100 0000 - bits 7 and 6 only. Bit 5 of REQOP never covered. Used the target value's bit pattern as the mask instead of deriving a proper 3-bit-wide field mask.
+
+**Fix:** mask = (0x7 << 5) = 1110 0000 - covers all three REQOP bits regardless of what mode is being written.
+
+**CAN frame construction - verified:**
+- ID packing: SIDH = id >> 3, SIDL = (id & 0x7) << 5.
+- DLC byte: RTR = 0 (data frame) DLC[3:0] = plain 4-bit byte count. 0000 0110 for 6 bytes.
+- LOAD TX BUFFER streams continuously - same open-ended convention as WRITE instruction. ONe single mcp2515_load_tx_buffer() call, streaming full frame: {SIDH, SIDL, EID8, EID0, DLA, D0...Dn}.
 
 **Root cause at the register level:**
 -
