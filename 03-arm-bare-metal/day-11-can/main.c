@@ -298,7 +298,7 @@ int main(void)
         }
     }
 
-       // // poll the RX0IF in READ_STATUS
+    // // poll the RX0IF in READ_STATUS
     // // RX0IF - receive buffer 0 Full Interrupt Flag bit
     // // when RX0IF is 1 - interrupt is pending (must be cleared by MCU to reset the interrupt condition)
     // uint8_t status_val = 0;
@@ -334,10 +334,12 @@ int main(void)
     // a data frame:
     // SIDH, SIDL, EID8 (zeroed out, don't care), EID0 (zeroed out, don't care), DLC, up to 8 data bytes
     // 1 + 1 + 1 + 1 + 1 + 8 = 5 + 8 = 13
-    uint8_t can_int_rx0[13];
+    uint8_t can_int_rx0_header[5];
+    uint8_t can_int_rx0_payload[8];
     uint8_t can_int_rx0_flag = 0;
 
-    uint8_t can_int_rx1[13];
+    uint8_t can_int_rx1_header[5];
+    uint8_t can_int_rx1_payload[8];
     uint8_t can_int_rx1_flag = 0;
 
     while (1)
@@ -351,7 +353,7 @@ int main(void)
 
                 if (can_intf_val)
                 {
-                    mcp2515_canintf_handler(can_intf_val, can_int_rx0, &can_int_rx0_flag, can_int_rx1, &can_int_rx1_flag);
+                    mcp2515_canintf_handler(can_intf_val, can_int_rx0_header, can_int_rx0_payload, &can_int_rx0_flag, can_int_rx1_header, can_int_rx1_payload, &can_int_rx1_flag);
                 }
             } while (can_intf_val != 0);
 

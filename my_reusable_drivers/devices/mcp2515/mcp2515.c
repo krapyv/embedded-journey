@@ -21,7 +21,7 @@ void EXTI15_10_IRQHandler(void)
     return;
 }
 
-void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0, uint8_t *rx_buffer0_set, uint8_t *rx_buffer1, uint8_t *rx_buffer1_set)
+void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0_header, uint8_t *rx_buffer0_payload, uint8_t *rx_buffer0_set, uint8_t *rx_buffer1_header, uint8_t *rx_buffer1_payload, uint8_t *rx_buffer1_set)
 {
     // ERRIF handling: RX0OVR and RX1OVR in EFLG
 
@@ -51,16 +51,32 @@ void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0, uint8_t 
         mcp2515_bit_modify(CANINTF, 0x20, 0x00);
     }
 
+    uint8_t dlc_value;
+
     // read the RXn buffer via READ RX BUFFER command
     // READ RX BUFFER automatically clears RXnIF in CANINTF
     if (can_intf_val & MCP_CANINTF_RX0IF)
     {
-        mcp2515_read_rx_buffer(MCP_Read_RXB0SIDH, rx_buffer0, 13);
+        // request the header bytes (SDIH to DLC)
+        mcp2515_read_rx_buffer(MCP_Read_RXB0SIDH, rx_buffer0_header, 5);
+
+        // 0000 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0x0F
+        dlc_value = rx_buffer0_header[4] & 0x0F;
+
+        // request the data bytes
+        mcp2515_read_rx_buffer(MCP_Read_RXB0D0, rx_buffer0_payload, dlc_value);
         *rx_buffer0_set = 1;
     }
     if (can_intf_val & MCP_CANINTF_RX1IF)
     {
-        mcp2515_read_rx_buffer(MCP_Read_RXB1SIDH, rx_buffer1, 13);
+        // request the header bytes (SDIH to DLC)
+        mcp2515_read_rx_buffer(MCP_Read_RXB1SIDH, rx_buffer1_header, 5);
+
+        // 0000 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0x0F
+        dlc_value = rx_buffer1_header[4] & 0x0F;
+
+        // request the data bytes
+        mcp2515_read_rx_buffer(MCP_Read_RXB1D0, rx_buffer1_payload, dlc_value);
         *rx_buffer1_set = 1;
     }
 }

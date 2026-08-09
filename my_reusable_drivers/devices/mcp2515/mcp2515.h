@@ -95,7 +95,7 @@ static const uint8_t RXB0SIDL = 0x62;
 
 // function headers
 void mcp2515_init();
-void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0, uint8_t *rx_buffer0_set, uint8_t *rx_buffer1, uint8_t *rx_buffer1_set);
+void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0_header, uint8_t *rx_buffer0_payload, uint8_t *rx_buffer0_set, uint8_t *rx_buffer1_header, uint8_t *rx_buffer1_payload, uint8_t *rx_buffer1_set);
 void mcp2515_poll_bit_timeout(uint8_t addr, uint8_t mask, uint8_t expected_value, uint32_t timeout_ms, uint8_t *isSuccess);
 void mcp2515_reset();
 void mcp2515_read(uint8_t addr, uint8_t *rx_buffer, uint16_t read_len);

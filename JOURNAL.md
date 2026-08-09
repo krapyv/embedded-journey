@@ -29,6 +29,23 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-09
+
+**Morning:**
+- Designed how to walk around the 4.7V issue since the circuit and all its components are ok. Connected the INT line from the MCP2515 to the level-shifter and connected it with the PB15 on the STM32.
+- Tested the Interrupt program. Works wonderfully.
+- Implemented two-stage length-aware buffer read, with header and payload properly separated and returned to the caller, because constant 13-byte read is not always optimal solution (especially when data payload is 1-2 out of 8 possible bytes). 
+- Tested the Interrupt program with new buffer read mechanism. Works as expected.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-08
 
 **Morning:**
