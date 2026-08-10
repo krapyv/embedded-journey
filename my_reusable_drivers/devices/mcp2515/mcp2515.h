@@ -22,7 +22,8 @@ typedef enum
 typedef enum
 {
     MCP_EFLG_RX1OVR = (1 << 7),
-    MCP_EFLG_RX0OVR = (1 << 6)
+    MCP_EFLG_RX0OVR = (1 << 6),
+    MCP_EFLG_TXBO = (1 << 5)
 } MCP_EFLG_Masks_t;
 
 typedef enum

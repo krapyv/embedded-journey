@@ -36,7 +36,7 @@
 - Designing the bus-off handling.
 
 **Evening:**
--
+- Continued development of the Integration Project and the bus-off handling.
 
 **Problems encountered:**
 - (None today) etc
