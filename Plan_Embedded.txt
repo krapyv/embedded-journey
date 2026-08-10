@@ -234,6 +234,8 @@ SysTick for 500ms broadcast timer
 
 Done bar: stable temperature and pressure values broadcast on CAN bus every 500ms, decoded and printed on receiving end. No bus-off events after 60 seconds of continuous operation.
 
+(NOTE: in the future project refactoring, move from the CANable as a second node to the second STM32F411)
+
 Portfolio project extracted: stm32-bootloader-c repo
 
 Phase 4: Data Structures + Algorithms (C) (Weeks 20-27)

@@ -6,6 +6,12 @@
     {
       "path": ".",
     },
+    {
+      "path": "../day-12-integration-project-can-sensor-node",
+    },
+    {
+      "path": "../day-9-i2c-temperature-pressure-polling",
+    },
   ],
   "settings": {
     "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/",

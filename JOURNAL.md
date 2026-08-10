@@ -29,6 +29,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-10
+
+**Morning:**
+- Started developing the Integration Project: CAN Sensor Node.
+- Designing the bus-off handling.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-09
 
 **Morning:**
