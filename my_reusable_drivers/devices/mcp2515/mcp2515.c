@@ -44,11 +44,30 @@ void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0_header, u
             mcp2515_bit_modify(EFLG, 0x40, 0x00);
         }
 
-        // secondly, clear ERRIF in CANINTF
+        // a fresh EFLG read
+        mcp2515_read(EFLG, &eflg_val, 1U);
 
-        // mask: 0010 0000 = 2^5 = 32 = 0x20 - the bit 5th is allowed to change
-        // data byte: 0000 0000 = 0x00
-        mcp2515_bit_modify(CANINTF, 0x20, 0x00);
+        // check for TXB0
+        if (eflg_val & MCP_EFLG_TXBO)
+        {
+            // the bus experiences the bus-off error
+            can_bus_off = 1;
+        }
+        // check for anything else set in EFLG outside RX1OVR, RX0OVR and TXBO
+        if (eflg_val & ~(MCP_EFLG_RX1OVR | MCP_EFLG_RX0OVR | MCP_EFLG_TXBO))
+        {
+            // if there are some other unhandled error bits
+            can_intf_stuck = 1;
+        }
+
+        // check if the EFLG is clear
+        if (eflg_val == 0)
+        {
+            // if it is, clear the ERRIF in CANINTF
+            // mask: 0010 0000 = 2^5 = 32 = 0x20 - the bit 5th is allowed to change
+            // data byte: 0000 0000 = 0x00
+            mcp2515_bit_modify(CANINTF, 0x20, 0x00);
+        }
     }
 
     uint8_t dlc_value;

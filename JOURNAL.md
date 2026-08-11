@@ -29,6 +29,21 @@
 **Root cause at the register level:**
 -
 
+# 202x-xx-xx
+
+**Morning:**
+- Finished designing the error handling for the Integration project.
+- Started implementing new TXBO branch in mcp2515_canintf_handler as well as new main() function. 
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-10
 
 **Morning:**
