@@ -29,6 +29,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-12
+
+**Morning:**
+- Tested and debugged the error handling mechanism of the Integration project (TXBO, warnings etc). Fixed the bugs, now it works.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-11
 
 **Morning:**

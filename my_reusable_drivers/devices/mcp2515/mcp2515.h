@@ -5,10 +5,6 @@
 #include "spi.h"
 #include "core_cm4.h"
 
-extern volatile uint8_t can_int_flag;
-extern volatile uint8_t can_bus_off = 0;
-extern volatile uint8_t can_intf_stuck = 0;
-
 typedef enum
 {
     MCP_CANINTF_RX0IF = (1 << 0),

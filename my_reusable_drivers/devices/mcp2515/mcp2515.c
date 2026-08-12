@@ -3,6 +3,10 @@
 #include "mcp2515.h"
 #include "systick.h"
 
+extern volatile uint8_t can_int_flag;
+extern volatile uint8_t can_bus_off;
+extern volatile uint8_t can_intf_stuck;
+
 // INT ISR
 void EXTI15_10_IRQHandler(void)
 {
