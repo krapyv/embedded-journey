@@ -35,7 +35,7 @@
 - Tested and debugged the error handling mechanism of the Integration project (TXBO, warnings etc). Fixed the bugs, now it works.
 
 **Evening:**
--
+- Started integrating the BMP280 and its state machine to the project.
 
 **Problems encountered:**
 - (None today) etc
