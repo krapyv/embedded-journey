@@ -29,6 +29,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-13
+
+**Morning:**
+- Finished integrating BMP280 driver to the CAN Integration Project.
+- Almost finished constructing the breadboard circuit.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-12
 
 **Morning:**
