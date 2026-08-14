@@ -37,7 +37,9 @@
 - Tested the flashed program. Debugged it, fixed several bugs. Now it works.
 
 **Evening:**
--
+- Disintegrated the breadboard circuit.
+- Wrote a Linkedin post about the debug process of the Integrated Project.
+- Completed the JOURNAL log for 10.08.
 
 **Problems encountered:**
 - (None today) etc
@@ -98,6 +100,44 @@
 
 **Evening:**
 - Continued development of the Integration Project and the bus-off handling.
+
+**What was done - ERRIF branch architecture:**
+**Design decisions reasoned through before writing code:**
+1. Stale vs. fresh EFLG read:
+- Between first mcp2515_read(EFLG) and the final "anything unresolved?" check, real SPI transactions have executed (RX1OVR/RX0OVR bit_modify calls). EFLG is a live hardware-mirrored register - error conditions can change during that window independently of code.
+- If a new EFLG big sets after the original read but before ERRIF is cleared, clearing ERRIF would produce a surprise: CANINTF still set, INT still asserted low, handler re-entering forever.
+- Decision: re-read EFLG fresh before the final decision. Call it eflg_val_check. Stale data driving a stuck/not-stuck determination silently drifts from hardware reality.
+
+2. can_bus_off vs. can_intf_stuck - mutual exclusivity:
+- TXBO and warning bits (TXWAR, RXWAR, EWARN) are independent hardware bits reflecting independent counter thresholds. Both can be true simultaneously.
+- if (TXB0) {...} else if (other bits) {...} would silently miss warning bits present alongside bus-off.
+- Decision: check TXBO independently. Check "anything else present" independently on fresh read. Both flags can fire simultaneously - they represent different questions: "is bus-off specifically active" vs. "is there an unresolved condition outside implemented scope".
+- can_intf_stuck mask excludes RX1OVR, RX0OVR, and TXBO - keeping it cleanly partitioned to genuinely untracked bits only.
+
+3. Final ERRIF branch shape:
+- Read eflg_val - handle RX1OVR, handle RX0OVR (bit_modify clear each).
+- Re-read EFLG fresh -> eflg_val_check.
+- If eflg_val_check & MCP_EFLG_TXBO -> can_bus_off = 1. Do not clear ERRIF.
+- If eflg_val_check masked to exclude RX1OVR/RX0OVR/TXBO is nonzero -> can_int_stuck = 1. Do not clear ERRIF.
+- If eflg_val_check masked to exclude RX1OVR/RX0OVR is zero -> clear ERRIF.
+
+4. Drain loop fix:
+- Exit condition changed from while (can_intf_val != 0) TO while (can_intf_val & ~(1 << 5)) - ERRIF (bit 5) excluded from loop continuation condition. Prevents drain loop from spinning forever when ERRIF is unresolvable (TXBO active, can_intf_stuck set).
+
+5. 500ms tick block - CAN fault-handling state machine:
+- Unconditional tick reset on every 500ms entry.
+- can_intf_stuck logged via UART on each tick it remains set - visibility without recovery logic outside current scope.
+- can_bus_off state machine: non-blocking, polled at 500ms tick. Re-reads EFLG to check TXBO recovery (128x11 bit-times passive recovery). Transitions through grace_active window (10ms) before resuming TX.
+- TX send path gated on can_bus_off == 0. No frames dispatched during bus-off or grace window.
+
+6. Volatile audit:
+- can_bus_off, can_intf_stuck - written in mcp2515_canintf_handler called from main loop (not ISR). Read in 500ms tick block, also main loop. No cross-context boundary. volatile not required.
+- can_int_flag - written by ISR, read by main loop. volatile required. Unchanged.
+
+**Test plan defined before touching hardware:**
+- Must force TXBO deliberately - bench topology (MCP2515 + CANable with candump)ACKs frames at protocol level. TEC never climbs naturally on a correctly wired bus. Must break something: disconnect CANable, remove termination, or mismatch CNF bit-timing. 
+- UART debug prints added temporarily in can_bus_off / grace_active transition points to observe state machine in real time.
+- Pass condition defined precisely: TXBO confirmed via EFLG read -> can_bus_off = 1 within one 500 ms tick -> no frames on candump during bus-off window -> fault removed -> can_bus_off clears within one 500ms tick + 10ms grace -> TX resumes on candump.
 
 **Problems encountered:**
 - (None today) etc
