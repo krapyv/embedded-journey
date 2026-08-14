@@ -102,6 +102,14 @@ void mcp2515_canintf_handler(uint8_t can_intf_val, uint8_t *rx_buffer0_header, u
         mcp2515_read_rx_buffer(MCP_Read_RXB1D0, rx_buffer1_payload, dlc_value);
         *rx_buffer1_set = 1;
     }
+
+    // TX0IF and TX1IF branch
+    if ((can_intf_val & MCP_CANINTF_TX0IF) || (can_intf_val & MCP_CANINTF_TX1IF))
+    {
+        // mask: 0000 1100 = 2^3 + 2^2 = 8 + 4 = 12 = 0x0C - bits 2 and 3 are allowed to change
+        // data byte: 0000 0000 = 0x00 = bits 2 and 3 changing to 0s
+        mcp2515_bit_modify(CANINTF, (MCP_CANINTF_TX0IF | MCP_CANINTF_TX1IF), 0x00);
+    }
 }
 
 // the function that handles INT pin configuration

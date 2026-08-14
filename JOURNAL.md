@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-14
+
+**Morning:**
+- Finished constructing the breadboard circuit.
+- Tested the circuit with the multimeter.
+- Tested the flashed program. Debugged it, fixed several bugs. Now it works.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-13
 
 **Morning:**
