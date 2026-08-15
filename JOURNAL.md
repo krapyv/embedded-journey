@@ -37,7 +37,7 @@
 - Wrote the README.md for the Integration Project.
 
 **Evening:**
--
+- Learned (reminded myself) basic informations about DMA. Started designing DMA in the UART driver to remove the CPU from serial transmission entirely.
 
 **Problems encountered:**
 - (None today) etc
