@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-15
+
+**Morning:**
+- Completed the JOURNAL logs for 12.08, 13.08 and 14.08.
+- Wrote the README.md for BMP280 + I2C project.
+- Wrote the README.md for the Integration Project.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-14
 
 **Morning:**
@@ -40,6 +56,13 @@
 - Disintegrated the breadboard circuit.
 - Wrote a Linkedin post about the debug process of the Integrated Project.
 - Completed the JOURNAL log for 10.08.
+
+**Final verification:**
+- Several minutes continuous operation. Both candump and UART agreeing throughout.
+- Values stable and physically plausible: ~26.27-26.29°C, ~1019.9-1020.1 hPa. Realistic sensor noise floor, not drift or corruption.
+- Thermal stimulus test: thumb warmed the BMP280 chip, readings climbed smoothly in real time. Sensor responding to real physical stimulus, not producing static numbers.
+- Zero occurrences of "The bus is off!" events. Zero "The MCP2515 experiences unhandled error condition!" events. Clean throughout.
+- Two independent verification paths confirmed agreement: UART printf and Python/python-can decode.
 
 **Problems encountered:**
 - (None today) etc
@@ -56,6 +79,13 @@
 **Evening:**
 -
 
+**What was done - TXnIF handling:**
+- Added explicit bit_modify clears for TX0IF/TX1IF in drain loop handler.
+- Removed (1 << 2) | (1 << 3) mask from drain loop exit condition - mask-out-of-exit-condition trick now reserved exclusively for ERRIF/TXBO (flags that genuinely cannot be cleared). TX0IF/TX1IF receive real clears now, so no special-casing needed in exit condition.
+- Exit condition: while (can_intf_val & ~((1 << 7) | (1 << 5))) - clean and honest.
+- Added explicit parentheses to TX flag OR condition for MISRA-adjacent readability: (can_intf_val & MCP_CANINTF_TX0IF) || (can_intf_val & MCP_CANINTF_TX1IF).
+- Mask math verified: MCP_CANINTF_TX0IF = (1 << 2) = 0000 0100, MCP_CANINTF_TX1IF = (1 << 3) = 0000 1000, ORed = 0000 1100 = 0x0C.
+
 **Problems encountered:**
 - (None today) etc
 
@@ -69,6 +99,19 @@
 
 **Evening:**
 - Started integrating the BMP280 and its state machine to the project.
+
+**Fault injection test - TXBO/bus-off:**
+**How fault was forced:**
+- Deliberate CNF bit-timing mismatch between MCP2515 and CANable - two nodes disagreeing on bit boundaries causing sustained CAN error frames -> TEC climbing -> TXBO.
+- Temporary UART debug prints added at can_bus_off and grace_active transition points to observe state machine in real time. Retained as permanent one-line logging after test confirmed.
+
+**Observed sequence - verified against defined pass conditions:**
+- TXBO confirmed set via EFLG read.
+- can_bus_off = 1 within one 500ms tick.
+- TX halted - no frames on candump during bus-off window.
+- Fault removed (bit-timing restored).
+- can_bus_off cleared within one 500ms tick + 10ms grace window.
+- TX resumed on candump.
 
 **Problems encountered:**
 - (None today) etc
