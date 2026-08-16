@@ -36,7 +36,7 @@
 - Implemented the DMA TX initialization function and DMA1_Stream6_IRQHandler.
 
 **Evening:**
--
+- Developed the test bench main.c for USART DMA TX testing.
 
 **Problems encountered:**
 - (None today) etc
