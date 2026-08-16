@@ -33,6 +33,7 @@
 
 **Morning:**
 - Fully designed the DMA USART TX path: register inventory, write-order constraint, the TCIE/EN race condition, the TCIF6 vs SR-TC distinction, function boundary.
+- Implemented the DMA TX initialization function and DMA1_Stream6_IRQHandler.
 
 **Evening:**
 -
