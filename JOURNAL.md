@@ -29,6 +29,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-16
+
+**Morning:**
+- Fully designed the DMA USART TX path: register inventory, write-order constraint, the TCIE/EN race condition, the TCIF6 vs SR-TC distinction, function boundary.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-15
 
 **Morning:**
