@@ -29,6 +29,22 @@
 **Root cause at the register level:**
 -
 
+# 202x-xx-xx
+
+**Morning:**
+- Build the breadboard circuit.
+- Tested the USART DMA TX.
+- Almost finished rewriting the USART README.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-16
 
 **Morning:**
