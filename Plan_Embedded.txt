@@ -142,7 +142,7 @@ Error handling — conceptually the same idea as bxCAN (error-active → error-p
 
 Done bar: same as before — interrupt-driven TX and RX working, error/status handler correctly reads and clears conditions via the SPI interface, and (if you have two boards, or the level shifter and MCP2515 support it) a genuine two-node bus test rather than loopback.
 
-Week 18: DMA + UART
+Week 18: DMA + UART ✅
 
 You already have an interrupt-driven UART driver. This week adds DMA to the TX path — removing the CPU from serial transmission entirely.
 

@@ -37,7 +37,7 @@
 - Wrote a Linkedin post about the Integration Project.
 
 **Evening:**
--
+- Extracted all drivers into separate repos and started submodule everything.
 
 **Problems encountered:**
 - (None today) etc
