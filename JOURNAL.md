@@ -29,7 +29,23 @@
 **Root cause at the register level:**
 -
 
-# 202x-xx-xx
+# 2026-08-18
+
+**Morning:**
+- Finished rewriting the USART README.
+- Completed the JOURNAL logs for 15.08, 16.08 and 17.08.
+- Wrote a Linkedin post about the Integration Project.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+# 2026-08-17
 
 **Morning:**
 - Build the breadboard circuit.
@@ -38,6 +54,16 @@
 
 **Evening:**
 -
+
+**Program verification:**
+1. tx_hit_counter == 1 after transfer. ISR fired exactly once, cleanly. Confirmed via GDB.
+2. DMA1->S6NDTR == 0 after transfer. Hardware's own decremented count of remaining items confirms all 64 were moved. This is a stronger signal then terminal output.
+3. minicom ASCII output displayed 0x20-0x3F printable range correctly (space through ?). Content correctness confirmed - byte order and completeness verified visually for the printable tail of the buffer.
+
+**Cleanup after verification:**
+1. raw_tx_buffer 0x30-0x3F population removed from uart.c - test scaffolding, not driver code.
+2. tx_hit_counter retained as permanent instrumentation.
+3. TODO comment left in DMA1_Stream6_IRQHandler marking the SR TC deferred path.
 
 **Problems encountered:**
 - (None today) etc
@@ -54,8 +80,11 @@
 **Evening:**
 - Developed the test bench main.c for USART DMA TX testing.
 
-**Problems encountered:**
-- (None today) etc
+**Bugs encountered:**
+1. DMA1_Stream6_IRQHandler re-entering indefinitely after the first TC fire.
+**Symptom:** tx_hit_counter climbing continuously in GDB, DMA not stopping after 64 bytes.
+**Root cause:** TCIF6 in HIFCR not cleared before ISR returned. HIFCR is a write-1-to-clear register. Because the flag was never cleared, the NVIC's pending bit re-latched from the still-asserted interrupt request line, and the ISR re-entered immediately on ever return. This is not recursive - the ISR returns fully to the NVIC before re-entering, so the stack does not grow. But it re-triggers at interrupt rate, functionally blocking main().
+**Fix:** Direct wire DMA1->HIFCR = (1U << 21U) at the top of the ISR before any other logic. Not RMW - a read-modify-write on a write-1-to-clear register risks clearing flags that fired between the read and the write-back.
 
 **Root cause at the register level:**
 -
@@ -69,6 +98,35 @@
 
 **Evening:**
 - Learned (reminded myself) basic informations about DMA. Started designing DMA in the UART driver to remove the CPU from serial transmission entirely.
+
+**Design decisions:**
+- DMA1 Stream 6 Channel 4 is the only valid hardware path for USART2_TX. The DMA controller's CHSEL arbitration logic only forwards peripheral requests to the stream when the channel number matches when the peripheral is actually driving. Selecting an arbitrary stream/channel combination means the DMA engine never receives a TXE request from USART2 and the transfer never starts - no error, just silence.
+
+- S6PAR and S6M0AR:
+1. S6PAR holds the fixed peripheral destination address - USART2->DR. Without S6PAR set, the stream has no target address and silently misdirects every write.
+2. S6M0AR holds the source buffer address.
+3. S6NDTR holds the transfer count. Set to 64. Hardware decrements this on each completed item and makes it read-only when EN = 1.
+
+- Write order constraint:
+1. CHSEL, DIR, MSIZE, PSIZE, MINC, PINC and related configuration fields are protected and writable only when EN=0. Once EN=1, the stream is a live AHB bus master arbitrating for bus access. Allowing CHSEL or direction to change mid-arbitration would leave the hardware in an undefined state - the DMA engine would not know which peripheral to service or which direction to move data.
+Therefore the mandatory write order is: all S6CR configuration fields -> S6PAR -> S6M0AR -> S6NDTR -> TCIE -> NVIC enable -> EN=1 last.
+PAR and M0AR have no mandatory ordering between themselves - the manual only requires both be set before EN=1.
+
+- TCIE before EN:
+1. TCIE is not hardware-locked by EN. It is technically writable before or after EN.
+However, setting TCIE after EN = 1 creates a real missed-interrupt window. Between the EN=1 write and the subsequent TCIE write, the CPU executes at least one instruction.
+
+- NVIC enable before EN:
+NVIC enable must precede EN = 1 for the same reason as TCIE: the TC condition must not be able to assert before the CPU is listeting for it.
+
+- Dead code:
+1. usart2_init() contained a while (!(USART2->SR & (1<<6))) loop described as waiting for an idle frame. USART_SR reset value is 0x00C0 - TC (bit 6) is set at reset. This loop never blocks under any condition.
+
+- TCIF6 vs SR TC:
+1. DMA TCIF6 fires when the DMA engine finishes pushing the last byte into USART2->DR. This does not mean the last byte has physically left the wire - it may still be sitting in DR waiting to load into the shift register, or in the shift register actively clocking out.
+2. USART SR TC (bit 6) fires when the shift register has fully transmitted the last bit and no new data is pending. This is the true "wire is silent" signal.
+4. Conflating TCIF6 with SR TC would corrupt any downstream operation that requires bus silence - clock gating, low-power entry, half-duplex bus release.
+3. Current week's Done bar has no such downstream consumer. SR TC path requires either a polling loop (defeats non-blocking architecture) or a separate USART TC interrupt path (out of scope for this week). So the decision: TCIF6 alone is sufficient for the done bar. SR TC deferred explicitly.
 
 **Problems encountered:**
 - (None today) etc
