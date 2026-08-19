@@ -37,7 +37,8 @@
 - Completed the JOURNAL logs about the repo architecture migration.
 
 **Evening:**
--
+- Fixed READMEs.md for the extracted drivers
+- Started learning about the low power modes.
 
 **Repo architecture migration:**
 - Extracted Week 21 integration project into its own portfolio repo stm32-can-sensor-node, excluding build artifacts (.elf/.bin/compile_commands.json) from the extraction entirely rather than including-then-deleting.
