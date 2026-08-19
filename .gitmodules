@@ -37,3 +37,6 @@
 [submodule "my_reusable_drivers/periph/pwm_driver"]
 	path = my_reusable_drivers/periph/pwm_driver
 	url = git@github.com:krapyv/stm32-pwm-driver.git
+[submodule "03-arm-bare-metal/day-12-can-sensor-node"]
+	path = 03-arm-bare-metal/day-12-can-sensor-node
+	url = git@github.com:krapyv/stm32-can-sensor-node.git
