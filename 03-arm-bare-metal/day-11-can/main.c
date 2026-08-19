@@ -4,6 +4,8 @@
 #include "led.h"
 
 volatile uint8_t can_int_flag = 0;
+volatile uint8_t can_bus_off = 0;
+volatile uint8_t can_intf_stuck = 0;
 
 // the Loopback test harness + transmission TX real CAN bus test
 /*int main(void)

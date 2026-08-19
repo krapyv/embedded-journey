@@ -29,6 +29,37 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-19
+
+**Morning:**
+- Finished extracting the drivers and projects and submodule them between each other and the main repo. 
+- Fixed several Makefiles and tested them.
+- Completed the JOURNAL logs about the repo architecture migration.
+
+**Evening:**
+-
+
+**Repo architecture migration:**
+- Extracted Week 21 integration project into its own portfolio repo stm32-can-sensor-node, excluding build artifacts (.elf/.bin/compile_commands.json) from the extraction entirely rather than including-then-deleting.
+- Re-linked embedded-journey itself: removed original driver folders, re-added all 13 as submodules at original paths, verified via two independent fresh git clone --recurse-submodules passes that every nested dependency (up to 3 levels deep) resolves correctly.
+
+**Submodule pitfalls hit and resolved:**
+- Stale submodule pointer: fixing an include path in a standalone driver repo and pushing does NOT automatically update parent repos that already submoduled it - parent still points at the old pinned commit. Hit this 3x (i2c -> systick staleness surfaced via uart's ring_buffer missing entirely in embedded-journey). Fix: cd <submodule>; git checkout main; git pull; cd ..; git add <submodule>; git commit to bump the pointer.
+- git submodule update --remote --merge updates which commit a submodule points to but does not reliably auto-populate newly appearing nested submodules within that update - always follow with git submodule update --init --recursive to be safe.
+- Directory-navigation mixup during batch cloning (cloned two repos as subfolders of an unrelated submodule instead of siblings).
+
+**Makefile migration to submodule structure:**
+- Old SHARED_CORE_DIR flat-path model broken by nested submodule folders (e.g. i2c.c now at periph/i2c/i2c.c, not periph/i2c.c).
+- Duplicate-symbol trap identified: same driver's .c file physically exists in multiple nested submodule copies (systick.c appears under mcp2515/systick/, bmp280/systick/, bmp280/i2c/systick/, and top-level systick/ - all byte-identical). Compilling more than one copy into SRC causes multiple-definition linker errors. Fix: compile exactly one .c per unique driver regardless of how many nested copies exist; C's quote-include search (relative to including file's own directory) resolves nested header dependencies automatically with no extra -I flags needed.
+- Rewrote and verified Makefiles for stm32-can-sensor-node, day-9-i2c-temperature-pressure-polling, day-11-can against new submodule paths - all three compile clean.
+- Deferred: remaining historical day-X Makefiles left un-migrated - noted as intentional decision, not oversight.
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-18
 
 **Morning:**
@@ -38,6 +69,12 @@
 
 **Evening:**
 - Extracted all drivers into separate repos and started submodule everything.
+
+**Repo architecture migration - driver extraction into standalone repos:**
+- Extracted 13 drivers/utilities from monolitic embedded-journey into standalone repos using git filter-repo, preserving full commit history per driver (not squashed/flattened).
+- Built dependency-layered submodule graph based on actual #include audit - caught i2c depending on systick, bmp280 depending on i2c + systick, mcp2515 depending on core + spi + systick.
+- stm32f411-core (stm32f411.h, core_cm4.h) submoduled into every driver that needs register/NVIC definitions - single source of truth, no duplication.
+- Discovered and fixed a git filter-repo --path-rename bug: trailing-colon-no-destination (oldpath:) silently drops single-file blobs instead o renaming them - only works correctly for directory-prefix renames (olddir/:). Fixed by specifying explicit destination filename (oldpath:newname).
 
 **Problems encountered:**
 - (None today) etc

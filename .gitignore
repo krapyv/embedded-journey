@@ -1,3 +1,4 @@
 *.elf
 *.bin
+*.swp
 compile_commands.json
