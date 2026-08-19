@@ -1,0 +1,39 @@
+[submodule "my_reusable_drivers/core"]
+	path = my_reusable_drivers/core
+	url = git@github.com:krapyv/stm32f411-core.git
+[submodule "my_reusable_drivers/devices/led"]
+	path = my_reusable_drivers/devices/led
+	url = git@github.com:krapyv/stm32-led-driver.git
+[submodule "my_reusable_drivers/devices/bmp280"]
+	path = my_reusable_drivers/devices/bmp280
+	url = git@github.com:krapyv/stm32-bmp280-driver.git
+[submodule "my_reusable_drivers/devices/m9520-eeprom"]
+	path = my_reusable_drivers/devices/m9520-eeprom
+	url = git@github.com:krapyv/stm32-m95320-driver.git
+[submodule "my_reusable_drivers/devices/mcp2515"]
+	path = my_reusable_drivers/devices/mcp2515
+	url = git@github.com:krapyv/stm32-mcp2515-driver.git
+[submodule "my_reusable_drivers/utils/ring_buffer"]
+	path = my_reusable_drivers/utils/ring_buffer
+	url = git@github.com:krapyv/stm32-ring-buffer.git
+[submodule "my_reusable_drivers/periph/i2c"]
+	path = my_reusable_drivers/periph/i2c
+	url = git@github.com:krapyv/stm32-i2c-driver.git
+[submodule "my_reusable_drivers/periph/uart"]
+	path = my_reusable_drivers/periph/uart
+	url = git@github.com:krapyv/stm32-uart-driver.git
+[submodule "my_reusable_drivers/periph/spi"]
+	path = my_reusable_drivers/periph/spi
+	url = git@github.com:krapyv/stm32-spi-driver.git
+[submodule "my_reusable_drivers/periph/systick"]
+	path = my_reusable_drivers/periph/systick
+	url = git@github.com:krapyv/stm32-systick-driver.git
+[submodule "my_reusable_drivers/periph/iwdg"]
+	path = my_reusable_drivers/periph/iwdg
+	url = git@github.com:krapyv/stm32-iwdg-driver.git
+[submodule "my_reusable_drivers/periph/input_capture"]
+	path = my_reusable_drivers/periph/input_capture
+	url = git@github.com:krapyv/stm32-input-capture-driver.git
+[submodule "my_reusable_drivers/periph/pwm_driver"]
+	path = my_reusable_drivers/periph/pwm_driver
+	url = git@github.com:krapyv/stm32-pwm-driver.git
