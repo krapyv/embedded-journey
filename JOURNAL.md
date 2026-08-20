@@ -29,6 +29,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-20
+
+**Morning:**
+- Finished learning theory about the low-power modes.
+- Designed the three modes via USART menu program.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-19
 
 **Morning:**
