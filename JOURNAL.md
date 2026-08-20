@@ -36,7 +36,7 @@
 - Designed the three modes via USART menu program.
 
 **Evening:**
--
+- Started developing a Sleep mode entry sequencing.
 
 **Problems encountered:**
 - (None today) etc
