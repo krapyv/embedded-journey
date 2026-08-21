@@ -35,7 +35,9 @@
 - Implemented the Sleep mode branch of the project. The debugging is next.
 
 **Evening:**
--
+- Ordered the USB current meter.
+- Finished the Sleep mode branch.
+- Designed the Stop mode branch.
 
 **Problems encountered:**
 - (None today) etc

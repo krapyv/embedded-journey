@@ -8,8 +8,31 @@ extern RingBuffer_t rx_buffer;
 uint8_t processed_button;
 uint8_t exit_button_pressed = 0;
 
+uint8_t inspect_byte(uint8_t character)
+{
+    processed_button = 0;
+    uint8_t data_available = ring_buffer_pop(&rx_buffer, &processed_button);
+
+    if (data_available)
+    {
+        // if read "1", then go to Sleep mode
+        if (processed_button == character)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    return 0;
+}
+
 void process_sleep_mode(void)
 {
+    exit_button_pressed = 0;
+    SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
+
     while (exit_button_pressed != 1)
     {
         /* Mode entry: WFI (Wait for Interrupt) or WFE (Wait for Event) while:
@@ -19,24 +42,19 @@ void process_sleep_mode(void)
 
         // SLEEPDEEP bit 2 in SCR
         // SEVONPEND bit 4 in SCR
-        SCB->SCR = ((0 << 4) | (0 << 2));
-
-        SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
+        // SCR reset value is 0x00000000
+        SCB->SCR &= ~((1 << 4) | (1 << 2));
 
         __WFI();
 
-        processed_button = 0;
-        uint8_t data_available = ring_buffer_pop(&rx_buffer, &processed_button);
-
-        if (data_available)
+        if (inspect_byte('0'))
         {
-            // if read "1", then go to Sleep mode
-            if (processed_button == '0')
-            {
-                exit_button_pressed = 1;
-            }
+
+            exit_button_pressed = 1;
         }
     }
+
+    SYST->CSR &= ~(1UL << 0U); // disable the counter
 }
 
 void main(void)
@@ -45,16 +63,10 @@ void main(void)
 
     while (1)
     {
-        processed_button = 0;
-        uint8_t data_available = ring_buffer_pop(&rx_buffer, &processed_button);
-
-        if (data_available)
+        if (inspect_byte('1'))
         {
-            // if read "1", then go to Sleep mode
-            if (processed_button == '1')
-            {
-                process_sleep_mode();
-            }
+
+            process_sleep_mode();
         }
     }
 }
