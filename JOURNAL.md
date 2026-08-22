@@ -29,6 +29,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-22
+
+**Morning:**
+- Fully implemented the Stop mode branch, fixed the bugs and derived every line of code.
+
+**Evening:**
+-
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-21
 
 **Morning:**
