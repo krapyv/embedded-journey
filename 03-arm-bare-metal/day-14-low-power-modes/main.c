@@ -57,6 +57,30 @@ void process_sleep_mode(void)
     SYST->CSR &= ~(1UL << 0U); // disable the counter
 }
 
+void process_stop_mode(void)
+{
+    // select the source input for the EXTIx external interrupt
+    // PA0
+    // EXTICRx takes 4 bits per pin
+
+    // clear the bits 3:0 - 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0xF
+    SYSCFG->EXTICR1 &= ~(0xFUL << 0U);
+
+    // select the falling edge trigger for EXTI0
+    EXTI->FTSR |= (1UL << 0U);
+
+    // enable the interrupt in NVIC
+    // EXTI0 interrupt has the position 6 in the vector table
+    // so EXTI0 is NVIC->ISER[0] bit 6
+    NVIC->ISER[0] = (1UL << 6U);
+
+    // unmask the line 0 of EXTI
+    EXTI->IMR |= (1UL << 0U);
+
+    // configure PWR->CR register (direct write, first access)
+    PWR->
+}
+
 void main(void)
 {
     usart2_init();
