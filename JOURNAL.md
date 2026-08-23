@@ -15,7 +15,7 @@
 
 ## Daily Log
 
-# 202x-xx-xx
+# 2026-08-23
 
 **Morning:**
 - Developed the Standby mode branch.
@@ -23,7 +23,7 @@
 - Fixed my own bugs in the implementation.
 
 **Evening:**
--
+- Built the breadboard circuit for the project. Tested it.
 
 **Problems encountered:**
 - (None today) etc
