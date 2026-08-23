@@ -56,7 +56,7 @@ void process_sleep_mode(void)
         // SLEEPDEEP bit 2 in SCR
         // SEVONPEND bit 4 in SCR
         // SCR reset value is 0x00000000
-        SCB->SCR &= ~((1 << 4) | (1 << 2));
+        SCB->SCR &= ~(1 << 2);
 
         __WFI();
 
@@ -107,9 +107,6 @@ void process_stop_mode(void)
 
     // configure SCB->SCR register (RMW since the Sleep mode already touched this register)
 
-    // bit 4 SEVONPEND - set to 0 to ensure that only enabled interrupts or events can wakeup the processor, disabled interrupts are excluded
-    SCB->SCR &= ~(1UL << 4U);
-
     // bit 2 SLEEPDEEP - set to 1 since the Stop Mode requires this bit to be set to 1
     SCB->SCR |= (1UL << 2U);
 
@@ -132,9 +129,69 @@ void process_stop_mode(void)
     printf("The CPU has woken up from the Stop mode\n");
 }
 
+/*
+NOTE: The Standby mode shares the button with the Stop mode on PA0
+The difference: Stop mode wakes up on falling edge (press of the button). Standby mode wakes up on rising edge (release of the button).
+
+The internal pull-down on PA0 has min. 30 kOhms, typ. 40 kOhm.
+My external pull-up resistor has 10 kOhms.
+
+According to the Ohm's law, the external pull up resistor will win but there would be a voltage divider between two competing resistances.
+The pin will see Logic 1 while idle. so the standby will wake up not on the button pressed, but button released.
+
+Voltage divider formula: V = Vdd * Rpd / (Rpd + Rpu)
+- Best case:  3.3V * 40 kOhms / 50 kOhms = 3.3 * 4/5 = 2.64V
+- Worst case : 3.3V * 30 kOhms / (30 kOhms + 10 kOhms) = 3.3 * 3/4 = 2.475 V.
+
+According to the I/O static characteristics, Vih minimum = 0.7 Vdd => 0.7 * 3.3V = 2.31 V
+
+*/
+// TODO: Move the Standby button on the different WKUP pin, wiring to the different polarity: between the pin and VDD.
+void process_standby_mode(void)
+{
+    // enable PWR clock
+    RCC->APB1ENR |= (1UL << 28U);
+
+    // WUF clearing and PDDS setting
+    // the Standby mode requires the WUF bit of CSR to be cleared before entering the mode, otherwise the _WFI is no-op
+    // PDDS=1 configures that when the CPU enters deepsleep the Standby more is entered
+    // LPDS bit does not matter for the Standby mode
+
+    // direct write since only CWUF and PDDS bits matter for the Standby mode and LPDS is setting to zero. no other bits have ever been changed in any other place of the program
+
+    // 0110 = 2^2 + 2^1 = 4 + 2 = 6 = 0x6
+    PWR->CR = (0x6UL << 1U);
+
+    // WKUP pin enablement
+    PWR->CSR = (1UL << 8U);
+
+    // configure SCB->SCR (RMW, since this register has already been modified in other places of the program)
+
+    // bit 2 SLEEPDEEP - set to 1 since the Standby Mode requires this bit to be set to 1
+    SCB->SCR |= (1UL << 2U);
+    __WFI();
+}
+
 void main(void)
 {
+    uint8_t is_reset_after_standby = 0;
+
+    // check whether the system reset after the Standby mode
+    // enable PWR clock
+    RCC->APB1ENR |= (1UL << 28U);
+
+    if (PWR->CSR & (1UL << 1U))
+    {
+        is_reset_after_standby = 1;
+        PWR->CR = (1UL << 3U);
+    }
+
     usart2_init();
+
+    if (is_reset_after_standby)
+    {
+        printf("The CPU has woken up from the Standby mode.\n");
+    }
 
     while (1)
     {
@@ -145,6 +202,10 @@ void main(void)
         else if (inspect_byte('2'))
         {
             process_stop_mode();
+        }
+        else if (inspect_byte('3'))
+        {
+            process_standby_mode();
         }
     }
 }

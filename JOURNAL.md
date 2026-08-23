@@ -18,7 +18,9 @@
 # 202x-xx-xx
 
 **Morning:**
--
+- Developed the Standby mode branch.
+- Implemented the Standby mode branch.
+- Fixed my own bugs in the implementation.
 
 **Evening:**
 -
@@ -38,7 +40,7 @@
 -
 
 **Problems encountered:**
-- (None today) etc
+- The Stop entry sequence was so hard to grasp because of the races `__WFI` location :)
 
 **Root cause at the register level:**
 -
