@@ -5,6 +5,8 @@
 #include "systick.h"
 #include "ring_buffer/ring_buffer.h"
 
+#define HSI_READY_TIMEOUT_ITERATIONS 128UL
+
 extern RingBuffer_t rx_buffer;
 
 uint8_t processed_button;
@@ -21,29 +23,32 @@ void EXTI0_IRQHandler(void)
     EXTI->PR = (1UL << 0U);
 }
 
-uint8_t inspect_byte(uint8_t character)
+uint8_t inspect_byte(uint8_t *characters, uint8_t *mode, uint8_t len)
 {
     processed_button = 0;
     uint8_t data_available = ring_buffer_pop(&rx_buffer, &processed_button);
 
     if (data_available)
     {
-        // if read "1", then go to Sleep mode
-        if (processed_button == character)
+        printf("RX happened\n");
+        for (uint8_t i = 0; i < len; i++)
         {
-            return 1;
-        }
-        else
-        {
-            return 0;
+            if (processed_button == characters[i])
+            {
+                *mode = characters[i];
+                return 1;
+            }
         }
     }
+
     return 0;
 }
 
 void process_sleep_mode(void)
 {
     exit_button_pressed = 0;
+    uint8_t character = '0';
+
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
 
     while (exit_button_pressed != 1)
@@ -60,10 +65,11 @@ void process_sleep_mode(void)
 
         __WFI();
 
-        if (inspect_byte('0'))
+        if (inspect_byte(&character, NULL, 1U))
         {
 
             exit_button_pressed = 1;
+            printf("The CPU has woken up from the Sleep mode\n");
         }
     }
 
@@ -123,10 +129,29 @@ void process_stop_mode(void)
     __enable_irq();
     // end of the critical section
 
+    usart2_wait_tx_complete();
+
     // immediate WFI after the critical section
     __WFI();
 
+    uint32_t timeout = HSI_READY_TIMEOUT_ITERATIONS;
+    while (!(RCC->CR & (1UL << 1U)) && (timeout > 0U))
+    {
+        timeout--;
+    }
+
     printf("The CPU has woken up from the Stop mode\n");
+
+    // disable SYSCFG clock
+    RCC->APB2ENR &= ~(1UL << 14U);
+
+    // disable the interrupt in NVIC
+    // EXTI0 interrupt has the position 6 in the vector table
+    // so EXTI0 is NVIC->ISER[0] bit 6
+    NVIC->ICER[0] = (0UL << 6U);
+
+    // mask the line 0 of EXTI
+    EXTI->IMR &= ~(1UL << 0U);
 }
 
 /*
@@ -149,6 +174,7 @@ According to the I/O static characteristics, Vih minimum = 0.7 Vdd => 0.7 * 3.3V
 // TODO: Move the Standby button on the different WKUP pin, wiring to the different polarity: between the pin and VDD.
 void process_standby_mode(void)
 {
+    printf("ENTERING STANDBY\n");
     // enable PWR clock
     RCC->APB1ENR |= (1UL << 28U);
 
@@ -159,8 +185,8 @@ void process_standby_mode(void)
 
     // direct write since only CWUF and PDDS bits matter for the Standby mode and LPDS is setting to zero. no other bits have ever been changed in any other place of the program
 
-    // 0110 = 2^2 + 2^1 = 4 + 2 = 6 = 0x6
-    PWR->CR = (0x6UL << 1U);
+    // 011 = 2^1 + 2^0 = 2 + 1 = 3 = 0x3
+    PWR->CR = (0x3UL << 1U);
 
     // WKUP pin enablement
     PWR->CSR = (1UL << 8U);
@@ -169,12 +195,23 @@ void process_standby_mode(void)
 
     // bit 2 SLEEPDEEP - set to 1 since the Standby Mode requires this bit to be set to 1
     SCB->SCR |= (1UL << 2U);
+
+    usart2_wait_tx_complete();
+
     __WFI();
+
+    uint32_t timeout = HSI_READY_TIMEOUT_ITERATIONS;
+    while (!(RCC->CR & (1UL << 1U)) && (timeout > 0U))
+    {
+        timeout--;
+    }
 }
 
 void main(void)
 {
     uint8_t is_reset_after_standby = 0;
+    uint8_t mode = 0;
+    uint8_t characters[3] = {'1', '2', '3'};
 
     // check whether the system reset after the Standby mode
     // enable PWR clock
@@ -188,6 +225,8 @@ void main(void)
 
     usart2_init();
 
+    printf("BOOT\n");
+
     if (is_reset_after_standby)
     {
         printf("The CPU has woken up from the Standby mode.\n");
@@ -195,17 +234,26 @@ void main(void)
 
     while (1)
     {
-        if (inspect_byte('1'))
+
+        if (inspect_byte(characters, &mode, 3U))
         {
-            process_sleep_mode();
-        }
-        else if (inspect_byte('2'))
-        {
-            process_stop_mode();
-        }
-        else if (inspect_byte('3'))
-        {
-            process_standby_mode();
+            if (mode == '1')
+            {
+
+                process_sleep_mode();
+            }
+            else if (mode == '2')
+            {
+
+                process_stop_mode();
+            }
+            else if (mode == '3')
+            {
+
+                process_standby_mode();
+            }
+
+            mode = 0;
         }
     }
 }

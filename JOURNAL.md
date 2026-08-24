@@ -15,6 +15,33 @@
 
 ## Daily Log
 
+# 202x-xx-xx
+
+**Morning:**
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+# 2026-08-23
+
+**Morning:**
+- Debugged the Sleep and Stop modes.
+
+**Evening:**
+- Debugged the UART timing TC vs TXE bug.
+- Debugged the Standby mode. Fixed all the bugs. Now the program works
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-23
 
 **Morning:**

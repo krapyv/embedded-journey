@@ -6,14 +6,14 @@ OBJCOPY = $(PREFIX)objcopy
 # --- Centralized Driver Path ---
 SHARED_CORE_DIR = /mnt/hdd/embedded-journey/my_reusable_drivers
 
-INCLUDES = -I. -I${SHARED_CORE_DIR}/core -I${SHARED_CORE_DIR}/periph -I${SHARED_CORE_DIR}/periph/uart -I${SHARED_CORE_DIR}/periph/systick
+INCLUDES = -I. -I${SHARED_CORE_DIR}/core -I${SHARED_CORE_DIR}/periph -I${SHARED_CORE_DIR}/periph/uart -I${SHARED_CORE_DIR}/utils/ring_buffer -I${SHARED_CORE_DIR}/periph/systick
 
 # Compiler flags (same for all STM32F411 projects)
 CFLAGS = -mcpu=cortex-m4 -mthumb -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
-LDFLAGS = -T stm32f411.ld
+LDFLAGS = -T stm32f411.ld -Wl,-Map=output.map
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
-SRC = startup_stm32f411ceux.s ${SHARED_CORE_DIR}/periph/uart/uart.c ${SHARED_CORE_DIR}/periph/systick/systick.c main.c
+SRC = startup_stm32f411ceux.s ${SHARED_CORE_DIR}/periph/uart/uart.c ${SHARED_CORE_DIR}/periph/systick/systick.c ${SHARED_CORE_DIR}/utils/ring_buffer/ring_buffer.c main.c
 ELF = program.elf
 BIN = program.bin
 
