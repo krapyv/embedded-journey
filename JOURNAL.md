@@ -35,6 +35,7 @@
 - Wrote a LinkedIn post about the PDDS bug in the Stanby mode branch implementation.
 
 **Evening:**
+- Tried to test measurements of Sleep, Stop and Standby. Realiazed the USB Current measurement is for min 10 mA, while the board in Active run is 5 mA. Do not have wire cutters and electrical tape either. Deferred for a bit.
 
 **Problems encountered:**
 - (None today) etc
