@@ -179,11 +179,19 @@ void process_standby_mode(void)
     RCC->APB1ENR |= (1UL << 28U);
 
     // WUF clearing and PDDS setting
-    // the Standby mode requires the WUF bit of CSR to be cleared before entering the mode, otherwise the _WFI is no-op
-    // PDDS=1 configures that when the CPU enters deepsleep the Standby more is entered
+
+    // the Standby mode requires the WUF bit of CSR to be
+    // cleared before entering the mode, otherwise the _WFI is no-op
+
+    // PDDS=1 configures that when the CPU enters deepsleep
+    // the Standby more is entered
+
     // LPDS bit does not matter for the Standby mode
 
-    // direct write since only CWUF and PDDS bits matter for the Standby mode and LPDS is setting to zero. no other bits have ever been changed in any other place of the program
+    // direct write since only CWUF and PDDS bits matter
+    // for the Standby mode and LPDS is setting to zero.
+    // no other bits have ever been changed in
+    // any other place of the program
 
     // 011 = 2^1 + 2^0 = 2 + 1 = 3 = 0x3
     PWR->CR = (0x3UL << 1U);

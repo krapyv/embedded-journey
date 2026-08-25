@@ -27,7 +27,22 @@
 **Root cause at the register level:**
 -
 
-# 2026-08-23
+# 2026-08-25
+
+**Morning:**
+- Learned about POR/PDR (Power-On reset and Power-Down reset).
+- Learned about the TXE vs TC USART race condition.
+- Wrote a LinkedIn post about the PDDS bug in the Stanby mode branch implementation.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+# 2026-08-24
 
 **Morning:**
 - Debugged the Sleep and Stop modes.
