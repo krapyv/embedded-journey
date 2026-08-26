@@ -27,6 +27,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-26
+
+**Morning:**
+- Ordered electrical tape and alligator clips for the Low Power measurements.
+- Planned tomorrow's Low Power Mode measurement experiment.
+- Completed the JOURNAL logs from 21.08 to 25.08.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-25
 
 **Morning:**
@@ -36,6 +51,16 @@
 
 **Evening:**
 - Tried to test measurements of Sleep, Stop and Standby. Realiazed the USB Current measurement is for min 10 mA, while the board in Active run is 5 mA. Do not have wire cutters and electrical tape either. Deferred for a bit.
+
+**USB cable VBUS splice procedure for µA current measurement:**
+- Cut only the red (VBUS) wire - leave GND, D+, D- untouched.
+- Strip ~5mm from both new ends.
+- Red probe to source/laptop side, black probe to board side, meter in series across the gap.
+- For Active/Sleep: dial to A mA, red probe in left jack (FUSED 10A MAX).
+- For Stop/Standby: dial to µA, red probe in right jack (VΩHz µA, 200mA MAX -fragile path).
+- Switch jack and dial while board is powered down.
+- Power up only after meter is correctly connected and correct range is selected.
+- Let each reading settle 2-3 seconds before recording.
 
 **Problems encountered:**
 - (None today) etc
@@ -50,7 +75,12 @@
 
 **Evening:**
 - Debugged the UART timing TC vs TXE bug.
-- Debugged the Standby mode. Fixed all the bugs. Now the program works
+- Debugged the Standby mode. Fixed all the bugs. Now the program works.
+
+**Measurement equipment plan established:**
+- USB inline meter (10mA resolution): Active vs Sleep comparison. Sufficient to demonstrate visible drop; not capable of resolving µA-range currents.
+- ANENG AN8009 in DC µA mode (99.99µA range, 0.01µA resolution), red probe in VΩHz µA jack (200mA MAX - fragile path), in series on cut VBUS red write: Stop and Standby measurement.
+- Jack/dial pairing discipline: mA/A range -> left jack (FUSED 10A MAX); µA range -> right jack. Never mismatch. Always power down before switching jacks between measurement phases.
 
 **Problems encountered:**
 - (None today) etc
@@ -68,6 +98,15 @@
 **Evening:**
 - Built the breadboard circuit for the project. Tested it.
 
+**Architectural derivation - Standby mode exit behavior:**
+Standby mode powers down the entire voltage regulator, not just clocks. SRAM and register contents - including the stack pointer, global variables, and the entire execution context - are lost. On PA0 rising edge, the MCU does nit resume from the instruction after WFI(). It resets entirely, executing from the reset vector as if it had just powered on.
+
+Consequence for the UART menu: "woke from Standby" is not a returning code path. It is a full re-init. The firmware needs to detect, at the very top of main() before any peripheral initialization, that the wakeup reason was Standby - not a cold power-on - and print the confirmation message accordingly.
+
+The register that persists across Stanbdy is PWR_CSR. Bit 0 is WUF (Wakeup Flag) - set when a wakeup even occurred. It must be explicitly cleared by writing bit 2 (CWUF) in PWR_CR. If not cleared, WUF remains set and is indistinguishable from a fresh wakeup on every subsequent power-on.
+
+SBF (Standby Flag, bit 1 in PWR_CSR) tells you specifically that the wakeup was from Standby rather than a regular reset. Check SBF at the top of main(), print the confirmation, then clear it via CSBF (bit 3 in PWR_CR) before proceeding with normal init.
+
 **Problems encountered:**
 - (None today) etc
 
@@ -81,6 +120,21 @@
 
 **Evening:**
 -
+
+**Bugs encountered and fixed:**
+
+1. SYST->CSR |= ~(1UL << 0U) - inverted mask with OR sets everything except bit 0
+**Root cause:** ~(1UL << 0U) = 0xFFFFFFFE. OR-ing this into CSR sets TICKINT, CLKSOURCE, and every reserved bit to 1. Bit 0 (ENABLE) is completely untouched - counter keeps running. Not a disable at all.
+**Fix:** SYST->CSR &= ~(1UL << 0U) - AND with inverted mask clears only bit 0.
+
+**Architectural derivation - EXTI_PR/IMR/WFI ordering for Stop mode:**
+- EXTI_PR is set by the edge-detect circuit independently of EXTI_IMR. Edge detect -> OR gate -> Pending Register. IMR sits in an AND gate downstream of PR, gating whether PR propagates to the NVIC - not whether PR gets set.
+- Consequence: unmasking IMR while PR=1 (from a stale or bounce edge) causes the AND gate to immediately forward the pending signal to NVIC - even with no new edge occurring. This is a combinational, not edge-triggered, check.
+- Correct register write order: SYSCFG_EXTICR1 -> EXTI_FTSR -> NVIC_ISER -> EXTI_IMR -> EXTI_PR clear -> `__WFI()`.
+- IMR must be stable (unmasked) before the final PR clear, not after - otherwise unmasking IMR onto a still-dirty PR can fire the interrupt mid-configuration.
+- PR clear must be the very last register write before WFI - minimizes the vulnerable window, but cannot close it to exactly zero in software. This is an inherent hardware race that can only be minimized, not eliminated.
+- PRIMASK (cpsid i) is not the solution: it sits downstream of EXTI's edge-detect logic (core-level, not peripheral-level), so it cannot prevent PR from being set by hardware. Futhermore, WFI wakes on "a PRIMASK-masked interrupt becomes pending" - so a stale edge during a PRIMASK-protected window still causes immediate WFI return, making it worse that useless for this hazard.
+- CPSIE I immediately before WFI is the correct pattern: CPSIE takes effect on the next instruction boundary, so CPSIE -> WFI is atomically safe - the wake condition becomes active exactly as WFI begins.
 
 **Problems encountered:**
 - The Stop entry sequence was so hard to grasp because of the races `__WFI` location :)
@@ -97,6 +151,25 @@
 - Ordered the USB current meter.
 - Finished the Sleep mode branch.
 - Designed the Stop mode branch.
+
+**What was done:**
+- Implemented and debugged Sleep mode on STM32F411. Designed the full architecture: SysTick-driven 1ms timebase as wake source, ring buffer for UART RXNE decoupling, inspect_byte() function shared between menu selection and Sleep loop exit check, exit_button pressed flag ownership assigned to ISR only.
+- Designed Stop mode EXTI0 interrupt configuration sequence. Derived correct register write ordering and resolved the race window between EXTI_PR clear and WFI entry. Established measurement equipment plan: USB inline meter (10mA resolution) for Active/Sleep comparison, ANENG AN8009 in µA mode on cut VBUS wire for Stop/Standby.
+
+**Bugs encountered and fixed:**
+
+1. SCB->SCR |= ((0 << 4) | (0 << 2)) - OR-with zero is a silent no-op.
+**Symptom:** SLEEPDEEP and SEVONPEND not actually being cleared.
+**Root cause:** (0 << 4) | (0 << 2) evaluates to 0x00000000. OR-ing any register with 0 leaves all existing bits unchanged. If SLEEPDEEP had been set by a previous Stop mode entry, this line would silently fail to clear it, causing Sleep mode to accidentally behave like Stop.
+**Fix:** SCB->SCR &= ~((1 << 4) | (1 << 2)) - RMW with inverted mask. SCB->SCR in an ordinary control register, not a write-1-to-set/clear register like NVIC ISER/ICER. It has no hardware protection against destructive RMW. Was harmless by coincidence (bits reset to 0 on boot, nothing else touched SCR yet), but latently broken for when Stop mode adds SLEEPDEEP=1.
+
+2. SysTick_Init() inside the Sleep while loop - reinitializing SysTick every iteration
+**Root cause:** CVR write-to-zero causes immediate reload and restart of countdown. With ENABLE already set from a previous init call, the counter restarts fresh every ~1ms, distorting the intended cadence.
+**Fix:** Move SysTick_Init() above the while loop - initialize once, let it free-run.
+
+3. exit_button_pressed never reset between Sleep entries
+**Root cause:** Global flag set to 1 on exit, never cleared. Second call to process_sleep_mode() finds while (exit_button_pressed != 1) already true on entry - loop body never executes, Sleep mode never engages.
+**Fix:** Reset exit_button_pressed = 0 at the top of process_sleep_mode() before the loop. No race: ISR can't fire before UART is active, and process_sleep_mode() is the sole reset writer.
 
 **Problems encountered:**
 - (None today) etc
