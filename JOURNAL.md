@@ -35,6 +35,7 @@
 - Completed the JOURNAL logs from 21.08 to 25.08.
 
 **Evening:**
+- Wrote a README.md for the Low-power modes project.
 
 **Problems encountered:**
 - (None today) etc

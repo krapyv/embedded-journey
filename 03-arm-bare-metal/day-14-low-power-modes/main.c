@@ -207,12 +207,6 @@ void process_standby_mode(void)
     usart2_wait_tx_complete();
 
     __WFI();
-
-    uint32_t timeout = HSI_READY_TIMEOUT_ITERATIONS;
-    while (!(RCC->CR & (1UL << 1U)) && (timeout > 0U))
-    {
-        timeout--;
-    }
 }
 
 void main(void)
@@ -224,6 +218,12 @@ void main(void)
     // check whether the system reset after the Standby mode
     // enable PWR clock
     RCC->APB1ENR |= (1UL << 28U);
+
+    uint32_t timeout = HSI_READY_TIMEOUT_ITERATIONS;
+    while (!(RCC->CR & (1UL << 1U)) && (timeout > 0U))
+    {
+        timeout--;
+    }
 
     if (PWR->CSR & (1UL << 1U))
     {
