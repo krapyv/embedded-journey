@@ -40,6 +40,7 @@
 - Learned about CPSIE back-to-back with WFI is an explicitly supported, architecturally recognized sequence in ARM Cortex-M cores.
 
 **Evening:**
+- Started measuring the low power modes project: made a setup, tested the modes, started debugging.
 
 **Problems encountered:**
 - (None today) etc
