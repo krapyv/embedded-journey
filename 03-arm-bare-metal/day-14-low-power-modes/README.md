@@ -25,17 +25,22 @@ reusable_drivers/
 
 1. Standby reset checking at the beginning of the main function
 
-Since the Standby mode on wake up requires the full board reset, the program does not continues after `__WFI()` exit in the 'process_standby_mode' function. It re-enters the main(). And since the SRAM and all the registers except for the PWR->CSR are reset as well, the only way to recognize the board went through the Standby is to check the CSBF bit at the beginning of the main() and set the flag if it did so.
+Since the Standby mode on wake up requires the full board reset, the program does not continue after `__WFI()` exit in the 'process_standby_mode' function. It re-enters the main(). And since the SRAM and all the registers except for the PWR->CSR are reset as well, the only way to recognize the board went through the Standby is to check the CSBF bit at the beginning of the main() and set the flag if it did so.
 
-2. Both the Stop and Standby modes uses the PA0 for wake-up
+2. Both the Stop and Standby modes use the PA0 for wake-up
 
-The Stop mode uses the PA0 for the EXTI0 interrupt on falling edge (the tactile button with a pull up resistor), while the Standby mode wakes on the rising edge of the WKUP 0 that also the pin PA0. The user presses and releases the button, the wake occurs. 
+The Stop mode uses the PA0 for the EXTI0 interrupt on falling edge (the tactile button with a pull up resistor), while the Standby mode wakes on the rising edge of the WKUP0 that also the pin PA0. The user presses and releases the button, the wake occurs. 
 
 3. HSI clock settling time before the clock output is trustworthy
 
 Both the Stop and Standby modes halt the HSI oscillator. After the Stop mode exits the execution continues after the `__WFI()`, meanwhile after the Standby mode exits the main() is re-entered. 
 After the Stop-mode `__WFI()` returns, HSI has to start from a cold stop. The printf() executes immediately after `__WFI()` returns before HSI has had time to fully stabilize and before USART2's f_CK is running at its true, correct frequency. The first few bits transmitted while the clock is still ramping up would come out at the wrong effective baud rate - garbled - and then self-correct once the clock settles.
-Now after the Stop's `__WFI()` and unconditionally at the beginning of the main() there is a timeout of 128 iterations (HSI oscillator startup time is max 4 microseconds). It fixes the HSI oscillator problem completely.
+Now after the Stop's `__WFI()` and unconditionally at the beginning of the main() there is a timeout of 128 iterations (HSI oscillator startup time is max 4 microseconds). 
+One CPU cycle in the while loop takes around 3-5 instructions. 
+One cycle at HSI with 16 MHz is 62.5 ns. 62.5n = 5 instructions.
+4 microseconds is 4000 ns => 4000ns/62.5 = 64 cycles.
+64/5 = approximately 13 iterations. After safety margin introductions: 64 * 10 = 640 cycles => 640 / 5 = 128 loop iterations.
+It fixes the HSI oscillator problem completely.
 
 ## Known Limitations
 
@@ -45,7 +50,7 @@ While Stop mode utilizes the EXTI0 interrupt on the falling edge (pull up tactil
 
 2. A button press consumption before WFI()
  
- A button press occurring after menu selection but before WFI() is reached in process_stop_mode() is silently consumed by EXTI0_IRQHandler (PR cleared, no flag/confirmation).
+A button press occurring after menu selection but before WFI() is reached in process_stop_mode() is silently consumed by EXTI0_IRQHandler (PR cleared, no flag/confirmation).
 The CPU proceeds into Stop Mode and requires a second press to wake.
 Window is ~microseconds, not reachable in practice during manual demo/testing.
 Not a race, bus hang, or correctness violation - the mode still wakes and confirms correctly on the press that matters.

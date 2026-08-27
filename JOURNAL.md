@@ -27,6 +27,26 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-27
+
+**Morning:**
+- Checked my README.md for the Low-power modes project.
+- Learned about fflush() and fflush(stdout) with my implementation of `_write()` that makes it an effective no-op.
+- Learned about voltage regulator and low power voltage regulator.
+- Learned about Hardware block diagrams and how read them.
+- Learned about masked and non-masked interrupts.
+- Remind myself about UART 8N1 configuration.
+- Learned about the NVIC seeing the pending interrupt signal immediately upon unmasking IMR, even without a new edge occurring.
+- Learned about CPSIE back-to-back with WFI is an explicitly supported, architecturally recognized sequence in ARM Cortex-M cores.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-26
 
 **Morning:**
