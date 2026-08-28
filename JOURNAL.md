@@ -35,6 +35,7 @@
 - Wrote a LinkedIn post about the measurements of the Low Power modes project.
 
 **Evening:**
+- Repeated the I2C main information and stuck at some questions.
 
 **Current measurement results:**
 - Active: 7.1mA (predicted 3.6-4.8mA typ per RM0383 Table 24 - some excess likely from real peripheral usage beyound the "disabled" baseline row).
