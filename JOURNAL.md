@@ -32,6 +32,7 @@
 **Morning:**
 - Measured once again, eliminated all possible reasons why the measurement results have significant excesses.
 - Updated the UART driver: both the submodule and the local copies in the main repo.
+- Wrote a LinkedIn post about the measurements of the Low Power modes project.
 
 **Evening:**
 

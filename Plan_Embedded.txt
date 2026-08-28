@@ -156,7 +156,7 @@ Handle TC interrupt in DMA1_Stream6_IRQHandler
 
 Done bar: transmit a 64-byte buffer over USART2 via DMA, CPU not involved in the transfer, TC interrupt signals completion.
 
-Week 19: Low Power Modes
+Week 19: Low Power Modes ✅
 
 Read RM0383 Chapter 5 (power modes) in full before coding.
 
