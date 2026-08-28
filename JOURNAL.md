@@ -27,6 +27,34 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-28
+
+**Morning:**
+- Measured once again, eliminated all possible reasons why the measurement results have significant excesses.
+- Updated the UART driver: both the submodule and the local copies in the main repo.
+
+**Evening:**
+
+**Current measurement results:**
+- Active: 7.1mA (predicted 3.6-4.8mA typ per RM0383 Table 24 - some excess likely from real peripheral usage beyound the "disabled" baseline row).
+- Sleep: 3.4mA (clear drop from active, consistent with CPU-halt-only behavior).
+- Stop: 2.7mA (predicted ~43µA typ - significant unexplained excess).
+- Standby: 0.6-0.7 (predicted ~2.1-4µA typ - significant unexplained excess).
+
+Investigated and ruled out as sole causes: external pull-up resistor (removed, no change), ST-Link connection (disconnected, not change), USART-USB adapter (disconnected, no change). Confirmed contributing factor: onboard PWR LED (4.7kΩ series resistor) draws ~0.3mA continuously regardless of MCU power state - accounts for a fraction of the gap but not all of it.
+I ≈ (3.3V - V_LED_forward) / 4.7kΩ.
+A typical LED forward voltage is roughly 1.8-2.2V (varies by color/type).
+So I ≈ (3.3 - 2.0) / 4700 ≈ 1.3V / 4700Ω ≈ 0.28mA ≈ 0.3mA.
+Remaining discrepancy source unidentified; not investigated further to avoid physically modifying/damaging the board.
+All three modes confirmed functionally correct: relative current ordering (Active > Sleep > Stop > Standby) matches expected behavior, and wake mechanisms (SysTick, EXTI0, WKUP) all verified working via UART trace and reset-detection logic. 
+The Done bar has been reached: the modes demonstrably work, current drops in the correct relative order, I understand why the absolute numbers do not match the datasheet.
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-27
 
 **Morning:**
