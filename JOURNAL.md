@@ -34,6 +34,7 @@
 - Learned about the LD linker script. Next is understanding what is happening and being a bit more comfortable with all of this.
 
 **Evening:**
+- Continued to trying to grasp the GNU LD linker script.
 
 **Problems encountered:**
 - (None today) etc
