@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-08-29
+
+**Morning:**
+- Finished repetion of I2C and SPI with questions.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-28
 
 **Morning:**
