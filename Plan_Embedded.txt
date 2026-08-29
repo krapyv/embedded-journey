@@ -211,7 +211,7 @@ Program word by word — set PG bit, write to Flash address, wait for BSY
 
 Done bar: bootloader receives a binary over UART, writes it to Sector 1, validates the vector table, and jumps to the application. Application blinks an LED and prints "App running" over UART.
 
-Week 21: Integration Project — CAN Sensor Node
+Week 21: Integration Project — CAN Sensor Node ✅
 
 This is not a tutorial week. You build a complete system from everything in Phase 3.
 

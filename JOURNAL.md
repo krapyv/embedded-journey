@@ -31,6 +31,7 @@
 
 **Morning:**
 - Finished repetion of I2C and SPI with questions.
+- Learned about the LD linker script. Next is understanding what is happening and being a bit more comfortable with all of this.
 
 **Evening:**
 
