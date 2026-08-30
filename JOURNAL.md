@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 202x-xx-xx
+
+**Morning:**
+- Finished learning the LD linker script: stack model, .data/.bss copy semantics, alignment hazard mechanics, all understood at the register and byte levels.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-29
 
 **Morning:**
