@@ -31,6 +31,7 @@
 
 **Morning:**
 - Finished learning the LD linker script: stack model, .data/.bss copy semantics, alignment hazard mechanics, all understood at the register and byte levels.
+- Learned about the Startup file and its sections.
 
 **Evening:**
 
