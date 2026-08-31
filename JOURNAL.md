@@ -34,6 +34,8 @@
 - Started learning about the flash sector layouts for the upcoming bootloader application.
 
 **Evening:**
+- Finished learning about the flash sector layouts.
+- Started working on stack pointer validation and why first word of application vector table must be a valid SRAM address before jumping.
 
 **Problems encountered:**
 - (None today) etc
