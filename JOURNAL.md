@@ -27,7 +27,21 @@
 **Root cause at the register level:**
 -
 
-# 202x-xx-xx
+# 2026-08-31
+
+**Morning:**
+- Learned about the vector table relocation - SCB_VTOR register, why the application's vector table must be at a known offset. Designed it for the upcoming bootloader application.
+- Started learning about the flash sector layouts for the upcoming bootloader application.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+# 2026-08-30
 
 **Morning:**
 - Finished learning the LD linker script: stack model, .data/.bss copy semantics, alignment hazard mechanics, all understood at the register and byte levels.

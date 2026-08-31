@@ -188,7 +188,7 @@ Done bar: demonstrate all three modes via UART menu — press 1 for sleep, 2 for
 
 Week 20: Bootloader
 
-This is the most architecturally complex week in Phase 3. Read the linker script and startup file before writing a single line.
+This is the most architecturally complex week in Phase 3. Read the linker script ✅ and startup file ✅ before writing a single line.
 
 Concepts to understand first:
 
