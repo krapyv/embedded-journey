@@ -38,6 +38,8 @@
 - Started learning and deriving the Bare-bones HardFault handler (register dump on fault, halt).
 
 **Evening:**
+- Repeated the Full Descending stack model.
+- Finished working on the bare-bones HardFult handler (re-read of the last derivations is needed).
 
 **Problems encountered:**
 - (None today) etc
