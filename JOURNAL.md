@@ -27,6 +27,24 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-01
+
+**Morning:**
+- Finished the stack pointer validation.
+- Learned the Stack Pointer Alignment.
+- Learned about naked function attribute (`__attribute__((naked))`).
+- Learned about the C function prologue and epilogue.
+- Learned about the naked function vs normal C function.
+- Started learning and deriving the Bare-bones HardFault handler (register dump on fault, halt).
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-08-31
 
 **Morning:**
