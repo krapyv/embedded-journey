@@ -27,6 +27,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-02
+
+**Morning:**
+- Learned about LDR and STR.
+- Learned about MSP and PSP as well as their differences and PSP in RTOS.
+- Theory is finally almost over (the last thing is SP and PC). The designing of the bootloader is next.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-01
 
 **Morning:**
