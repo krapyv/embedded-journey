@@ -35,6 +35,8 @@
 - Theory is finally almost over (the last thing is SP and PC). The designing of the bootloader is next.
 
 **Evening:**
+- Learned about SP and PC.
+- Started designing the bootloader.
 
 **Problems encountered:**
 - (None today) etc

@@ -195,7 +195,7 @@ Concepts to understand first:
 Vector table relocation — SCB_VTOR register, why the application's vector table must be at a known offset ✅
 Flash sector layout on STM32F411 — Sector 0 is bootloader (0x08000000), Sector 1 is application (0x08004000 or 0x08008000) ✅
 Stack pointer validation — first word of application vector table must be a valid SRAM address before jumping ✅
-Bare-bones HardFault handler (register dump on fault, halt).
+Bare-bones HardFault handler (register dump on fault, halt).✅
 Bootloader sequence:
 
 On reset, bootloader runs from Sector 0
