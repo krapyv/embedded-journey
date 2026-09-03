@@ -27,6 +27,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-03
+
+**Morning:**
+- Finished designing the bootloader.
+- Implemented the FLASH register map struct, the address define macro and the useful Flash enums.
+- Wrote a Linkedin post about the pre-work I have had before even touching the bootloader development.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-02
 
 **Morning:**
