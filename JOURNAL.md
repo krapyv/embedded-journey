@@ -35,6 +35,7 @@
 - Wrote a Linkedin post about the pre-work I have had before even touching the bootloader development.
 
 **Evening:**
+- Implemented the Program and Erase Flash functions and debugging them.
 
 **Problems encountered:**
 - (None today) etc
