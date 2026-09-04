@@ -36,6 +36,7 @@
 - Learned about read and write directly from/to a specific hardware memory address (`*(uint32_t*)(addresses[i])`).
 
 **Evening:**
+- Continued to design the UART chunk-receive protocol. Almost done: there is still ongoing SysTick timeout derivation.
 
 **Problems encountered:**
 - (None today) etc
