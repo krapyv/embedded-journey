@@ -27,6 +27,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-04
+
+**Morning:**
+- Finished debugging the Flash program and erase functions.
+- Implemented the Flash error checking function.
+- Started design the UART chunk-receive protocol: chunk size, framing - what a single packet actually does need to contain.
+- Learned about read and write directly from/to a specific hardware memory address (`*(uint32_t*)(addresses[i])`).
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-03
 
 **Morning:**
