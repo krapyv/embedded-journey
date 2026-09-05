@@ -16,4 +16,13 @@ typedef enum
     FLASH_WRPERR = (1UL << 4U),
 } FLASH_ErrorCodes_t;
 
+typedef struct
+{
+    uint8_t start_byte;
+    uint8_t payload_len;
+    uint8_t payload[128];
+    uint16_t checksum;
+    uint8_t end_byte;
+} UART_ChunkReceive_t;
+
 #endif // FLASH_CONFIG

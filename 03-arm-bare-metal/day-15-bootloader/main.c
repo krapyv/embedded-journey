@@ -1,5 +1,6 @@
-#include "stm32f411.h"
+#include "core/stm32f411.h"
 #include "flash_config.h"
+#include "uart/uart.h"
 
 void flash_bsy_checking(void)
 {
@@ -180,7 +181,41 @@ FLASH_ReturnTypes_t flash_erase(FLASH_SNB_t sector_num)
     return FLASH_OK;
 }
 
+void uart_chunk_receive_protocol()
+{
+}
+
 void main(void)
 {
+    // GPIO-check on a boot
+    // pin PB13 with 5 kOhms external resistor
+
+    // enable the RCC clock for the port B
+    RCC->AHB1ENR |= (1UL << 1U);
+
+    // set MODER for PB13 to 00 (input)
+    // pin 13 has bits 27:26 in the MODER register layout
+    // for port B the reset state: 0x00000280 -bits 7 and 9 are 1
+    // so there is no explicit need to clear the bits 27:26 of MODER
+
+    // but still, to be 100% sure, let's clear the bits 27:26 of the GPIOB_MODER
+    // 11 = 0x3
+    GPIOB->MODER &= ~(0x3UL << 26U);
+
+    while (1)
+    {
+        // there is a tactile push-button connected to GND - a pull up - so the pin reads 1 when open and reads 0 when the circuit is closed
+        // to read the logic value of the PB13, we are using GPIO_IDR
+
+        // if the logic value is 1, then the button is not pressed -> jump to application
+        if (GPIOB->IDR & (1UL << 13U))
+        {
+        }
+        // if the value is 0 -> stay in bootloader
+        else
+        {
+        }
+    }
+
     return;
 }
