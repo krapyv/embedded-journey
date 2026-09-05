@@ -27,6 +27,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-05
+
+**Morning:**
+- Learned about why does a bootloader exist and a usage of bootloaders in automotive industry.
+- Finished developing (designing) the UART chunk-receive protocol.
+- Designed the GPIO-pin check.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-04
 
 **Morning:**
