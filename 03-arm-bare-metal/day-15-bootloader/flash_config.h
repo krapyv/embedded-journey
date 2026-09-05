@@ -23,6 +23,22 @@ typedef struct
     uint8_t payload[128];
     uint16_t checksum;
     uint8_t end_byte;
-} UART_ChunkReceive_t;
+} UART_ChunkReceive_Layout_t;
+
+typedef enum
+{
+    UART_IDLE = 0,
+    UART_START_BYTE,
+    UART_PAYLOAD_LEN,
+    UART_PAYLOAD,
+    UART_CHECKSUM,
+    UART_END_BYTE,
+} UART_Chunks_States_t;
+
+typedef enum
+{
+    UART_RECEPTION = 0,
+    UART_CHECKING
+} UART_Reception_States_t;
 
 #endif // FLASH_CONFIG

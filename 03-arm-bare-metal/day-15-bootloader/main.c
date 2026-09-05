@@ -1,4 +1,4 @@
-#include "core/stm32f411.h"
+#include "stm32f411.h"
 #include "flash_config.h"
 #include "uart/uart.h"
 
@@ -83,7 +83,7 @@ FLASH_ReturnTypes_t flash_error_checking()
     return FLASH_OK;
 }
 
-FLASH_ReturnTypes_t flash_program(uint32_t *addresses, uint32_t *data, uint32_t len)
+FLASH_ReturnTypes_t flash_program(uint32_t address_base, uint32_t *data, uint32_t len)
 {
     // check whether the FLASH CR is locked (bit 31 is set to 1)
     if (FLASH->CR & (1 << 31))
@@ -108,10 +108,10 @@ FLASH_ReturnTypes_t flash_program(uint32_t *addresses, uint32_t *data, uint32_t 
     FLASH->CR |= (0x2 << 8);
 
     // word-write loop
-    for (uint32_t i = 0; i < len; i++)
+    for (uint32_t i = 0, offset = 0; i < len, offset < 128; i++, offset += 4)
     {
         // write a word to the FLASH memory
-        *(volatile uint32_t *)(addresses[i]) = data[i];
+        *(volatile uint32_t *)(address_base + offset) = data[i];
         // volatile in order to prevent the compiler optimization of writes and its changes of write order
 
         flash_bsy_checking();
@@ -127,6 +127,51 @@ FLASH_ReturnTypes_t flash_program(uint32_t *addresses, uint32_t *data, uint32_t 
 
     return FLASH_OK;
 }
+
+// FLASH_ReturnTypes_t flash_program(uint32_t *addresses, uint32_t *data, uint32_t len)
+// {
+//     // check whether the FLASH CR is locked (bit 31 is set to 1)
+//     if (FLASH->CR & (1 << 31))
+//     {
+//         // FLASH unlock
+//         // The keys 1 and 2 must be programmed consecutively to unlock the FLASH_CR register and allow programming/erasing it
+//         FLASH->KEYR = FLASH_KEY1;
+//         FLASH->KEYR = FLASH_KEY2;
+//     }
+
+//     // activate Flash programming, bit 0 PG
+//     FLASH->CR |= (1UL << 0U);
+
+//     // set the program size
+
+//     // since the PSIZE value takes 2 bits, clear the range
+//     // 11 = 0x3
+//     FLASH->CR &= ~(0x3 << 8);
+
+//     // set the value of x32 = 10
+//     // 10 = 0x2
+//     FLASH->CR |= (0x2 << 8);
+
+//     // word-write loop
+//     for (uint32_t i = 0; i < len; i++)
+//     {
+//         // write a word to the FLASH memory
+//         *(volatile uint32_t *)(addresses[i]) = data[i];
+//         // volatile in order to prevent the compiler optimization of writes and its changes of write order
+
+//         flash_bsy_checking();
+//     }
+
+//     // after all words have been written to FLASH, disable the PG
+//     FLASH->CR &= ~(1UL << 0U);
+
+//     if (flash_error_checking() != FLASH_OK)
+//     {
+//         return FLASH_ERROR;
+//     }
+
+//     return FLASH_OK;
+// }
 
 FLASH_ReturnTypes_t flash_erase(FLASH_SNB_t sector_num)
 {
@@ -183,6 +228,109 @@ FLASH_ReturnTypes_t flash_erase(FLASH_SNB_t sector_num)
 
 void uart_chunk_receive_protocol()
 {
+    // erasing the sector 2 before the first chunk
+    flash_erase(FLASH_SNB2);
+
+    usart2_init();
+
+    uint8_t is_last = 0; // flag to track the reception of the sentinel packet
+
+    UART_Reception_States_t reception_state = UART_RECEPTION;
+    UART_Chunks_States_t chunk_state = UART_START_BYTE;
+    UART_ChunkReceive_Layout_t packet;
+    uint8_t payload_index = 0;
+    uint8_t checksum_received = 0;
+
+    while (!is_last)
+    {
+
+        if (reception_state == UART_RECEPTION)
+        {
+
+            // waiting for the read data register to receive a byte
+            while (!(USART2->SR & (1UL << 5U)))
+                ;
+
+            switch (chunk_state)
+            {
+            case UART_START_BYTE:
+                packet.start_byte = USART2->DR;
+                chunk_state = UART_PAYLOAD_LEN;
+                break;
+
+            case UART_PAYLOAD_LEN:
+                uint8_t payload_len = USART2->DR;
+
+                // payload_len = 0 -> we received the end-of-transfer packet
+                if (payload_len == 0)
+                {
+                    is_last = 1;
+                }
+                else
+                {
+                    packet.payload_len = payload_len;
+                    payload_index = 0;
+                    chunk_state = UART_PAYLOAD;
+                }
+
+                break;
+
+            case UART_PAYLOAD:
+                packet.payload[payload_index++] = USART2->DR;
+
+                // 128 because payload_index has already incremented from 127 (the last element since we began from 0) to 128
+                if (payload_index == 128)
+                {
+                    checksum_received = 0;
+                    chunk_state = UART_CHECKSUM;
+                }
+
+                break;
+
+            case UART_CHECKSUM:
+                checksum_received++;
+
+                uint8_t byte = USART2->DR;
+
+                // reconstruction of 16 bit length checksum
+                if (checksum_received == 1)
+                {
+                    packet.checksum = ((uint16_t)byte << 8U);
+                }
+                else if (checksum_received == 2)
+                {
+                    packet.checksum |= ((uint16_t)byte << 0U);
+                    chunk_state = UART_END_BYTE;
+                }
+
+                break;
+
+            case UART_END_BYTE:
+                packet.end_byte = USART2->DR;
+
+                reception_state = UART_CHECKING;
+                chunk_state = UART_START_BYTE;
+                break;
+            }
+        }
+
+        else if (reception_state == UART_CHECKING)
+        {
+            uint16_t payload_sum = 0;
+
+            for (uint8_t i = 0; i < 128; i++)
+            {
+                payload_sum += packet.payload[i];
+            }
+
+            uint16_t covered_sum = packet.start_byte + packet.payload_len + payload_sum;
+
+            if (covered_sum == packet.checksum)
+            {
+                flash_program()
+            }
+        }
+    }
 }
 
 void main(void)

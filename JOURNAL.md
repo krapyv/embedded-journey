@@ -35,6 +35,8 @@
 - Designed the GPIO-pin check.
 
 **Evening:**
+- Implemented the GPIO-pin check.
+- Mid-way implementing the UART chunk-receive protocol.
 
 **Problems encountered:**
 - (None today) etc
