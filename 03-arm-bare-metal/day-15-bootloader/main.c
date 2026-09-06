@@ -1,6 +1,7 @@
 #include "stm32f411.h"
 #include "flash_config.h"
 #include "uart/uart.h"
+#include "systick/systick.h"
 
 void flash_bsy_checking(void)
 {
@@ -108,10 +109,10 @@ FLASH_ReturnTypes_t flash_program(uint32_t address_base, uint32_t *data, uint32_
     FLASH->CR |= (0x2 << 8);
 
     // word-write loop
-    for (uint32_t i = 0, offset = 0; i < len, offset < 128; i++, offset += 4)
+    for (uint32_t i = 0; i < len; i++)
     {
         // write a word to the FLASH memory
-        *(volatile uint32_t *)(address_base + offset) = data[i];
+        *(volatile uint32_t *)(address_base + (i * 4)) = data[i];
         // volatile in order to prevent the compiler optimization of writes and its changes of write order
 
         flash_bsy_checking();
@@ -226,20 +227,30 @@ FLASH_ReturnTypes_t flash_erase(FLASH_SNB_t sector_num)
     return FLASH_OK;
 }
 
-void uart_chunk_receive_protocol()
+UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
 {
     // erasing the sector 2 before the first chunk
     flash_erase(FLASH_SNB2);
 
+    SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     usart2_init();
 
-    uint8_t is_last = 0; // flag to track the reception of the sentinel packet
+    uint8_t is_last = 0;     // flag to track the reception of the sentinel packet
+    uint8_t is_overflow = 0; // flag to signal the 16 KB ceiling is hit, the incoming image as well as the next ones are going to be rejected
+    uint8_t is_retries = 0;  // flag to signal the byte has exhausted 3 retries
+
+    uint8_t did_retry_expire = 0;
 
     UART_Reception_States_t reception_state = UART_RECEPTION;
     UART_Chunks_States_t chunk_state = UART_START_BYTE;
     UART_ChunkReceive_Layout_t packet;
+
     uint8_t payload_index = 0;
+    uint8_t retries_counter = 0;
+    uint32_t all_payload_bytes = 0;
     uint8_t checksum_received = 0;
+
+    uint32_t chunks_received = 0;
 
     while (!is_last)
     {
@@ -248,8 +259,17 @@ void uart_chunk_receive_protocol()
         {
 
             // waiting for the read data register to receive a byte
+            uint32_t start = SysTick_GetTick();
+
             while (!(USART2->SR & (1UL << 5U)))
-                ;
+            {
+                if ((SysTick_GetTick() - start) >= 2)
+                {
+                    retries_counter++;
+                }
+            }
+
+            retries_counter = 0; // retries reload
 
             switch (chunk_state)
             {
@@ -276,6 +296,7 @@ void uart_chunk_receive_protocol()
                 break;
 
             case UART_PAYLOAD:
+                all_payload_bytes++;
                 packet.payload[payload_index++] = USART2->DR;
 
                 // 128 because payload_index has already incremented from 127 (the last element since we began from 0) to 128
@@ -306,6 +327,7 @@ void uart_chunk_receive_protocol()
                 break;
 
             case UART_END_BYTE:
+                chunks_received++;
                 packet.end_byte = USART2->DR;
 
                 reception_state = UART_CHECKING;
@@ -318,18 +340,55 @@ void uart_chunk_receive_protocol()
         {
             uint16_t payload_sum = 0;
 
-            for (uint8_t i = 0; i < 128; i++)
+            if (all_payload_bytes > 16384)
             {
-                payload_sum += packet.payload[i];
+                // 16384 = 128 payloads with 32-word long payloads
+                // sector 2 is full
+                // reject the image
+
+                is_overflow = 1;
             }
 
-            uint16_t covered_sum = packet.start_byte + packet.payload_len + payload_sum;
-
-            if (covered_sum == packet.checksum)
+            if (!is_overflow)
             {
-                flash_program()
+                for (uint8_t i = 0; i < 128; i++)
+                {
+                    payload_sum += packet.payload[i];
+                }
+
+                uint16_t covered_sum = packet.start_byte + packet.payload_len + payload_sum;
+
+                if (covered_sum == packet.checksum)
+                {
+                    uint32_t flash_payload[32];
+
+                    for (uint8_t i = 0, byte_count = 0; byte_count < 128 && i < 32; byte_count += 4, i++)
+                    {
+                        flash_payload[i] = packet.payload[byte_count] | (packet.payload[byte_count + 1] << 8U) | (packet.payload[byte_count + 2] << 16U) | (packet.payload[byte_count + 3] << 24U);
+                    }
+
+                    flash_program((FLASH_SECTOR2 + 128 * (chunks_received - 1)), flash_payload, 32);
+                }
             }
         }
+    }
+
+    // overflow happened before the byte has exhausted 3 retries
+    if (is_overflow && is_retries)
+    {
+        return UART_OVERFLOW_RETRIES_ABORT;
+    }
+    else if (is_overflow && !is_retries)
+    {
+        return UART_OVERFLOW_ABORT;
+    }
+    else if (is_retries && !is_overflow)
+    {
+        return UART_RETRIES_ABORT;
+    }
+    else
+    {
+        return UART_OK;
     }
 }
 

@@ -30,6 +30,19 @@
 # 2026-09-05
 
 **Morning:**
+- Continued implementing and debugging the UART chunk-receive protocol in the bootloader project.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+# 2026-09-05
+
+**Morning:**
 - Learned about why does a bootloader exist and a usage of bootloaders in automotive industry.
 - Finished developing (designing) the UART chunk-receive protocol.
 - Designed the GPIO-pin check.

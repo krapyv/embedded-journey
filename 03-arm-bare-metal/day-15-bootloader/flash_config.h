@@ -41,4 +41,12 @@ typedef enum
     UART_CHECKING
 } UART_Reception_States_t;
 
+typedef enum
+{
+    UART_OK = 0,
+    UART_OVERFLOW_ABORT,
+    UART_RETRIES_ABORT,
+    UART_OVERFLOW_RETRIES_ABORT
+} UART_ChunkReceive_ReturnTypes_t;
+
 #endif // FLASH_CONFIG
