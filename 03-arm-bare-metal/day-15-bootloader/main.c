@@ -11,6 +11,14 @@ void flash_bsy_checking(void)
         ;
 }
 
+void uart_ack_nack_host(UART_HostConfirmation_t value)
+{
+    while (!(USART2->SR & (1UL << 7U)))
+        ;
+
+    USART2->DR = value;
+}
+
 FLASH_ReturnTypes_t flash_error_checking()
 {
     uint32_t flash_errors = 0;
@@ -129,51 +137,6 @@ FLASH_ReturnTypes_t flash_program(uint32_t address_base, uint32_t *data, uint32_
     return FLASH_OK;
 }
 
-// FLASH_ReturnTypes_t flash_program(uint32_t *addresses, uint32_t *data, uint32_t len)
-// {
-//     // check whether the FLASH CR is locked (bit 31 is set to 1)
-//     if (FLASH->CR & (1 << 31))
-//     {
-//         // FLASH unlock
-//         // The keys 1 and 2 must be programmed consecutively to unlock the FLASH_CR register and allow programming/erasing it
-//         FLASH->KEYR = FLASH_KEY1;
-//         FLASH->KEYR = FLASH_KEY2;
-//     }
-
-//     // activate Flash programming, bit 0 PG
-//     FLASH->CR |= (1UL << 0U);
-
-//     // set the program size
-
-//     // since the PSIZE value takes 2 bits, clear the range
-//     // 11 = 0x3
-//     FLASH->CR &= ~(0x3 << 8);
-
-//     // set the value of x32 = 10
-//     // 10 = 0x2
-//     FLASH->CR |= (0x2 << 8);
-
-//     // word-write loop
-//     for (uint32_t i = 0; i < len; i++)
-//     {
-//         // write a word to the FLASH memory
-//         *(volatile uint32_t *)(addresses[i]) = data[i];
-//         // volatile in order to prevent the compiler optimization of writes and its changes of write order
-
-//         flash_bsy_checking();
-//     }
-
-//     // after all words have been written to FLASH, disable the PG
-//     FLASH->CR &= ~(1UL << 0U);
-
-//     if (flash_error_checking() != FLASH_OK)
-//     {
-//         return FLASH_ERROR;
-//     }
-
-//     return FLASH_OK;
-// }
-
 FLASH_ReturnTypes_t flash_erase(FLASH_SNB_t sector_num)
 {
     // check whether the FLASH CR is locked (bit 31 is set to 1)
@@ -235,11 +198,12 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     usart2_init();
 
-    uint8_t is_last = 0;     // flag to track the reception of the sentinel packet
-    uint8_t is_overflow = 0; // flag to signal the 16 KB ceiling is hit, the incoming image as well as the next ones are going to be rejected
-    uint8_t is_retries = 0;  // flag to signal the byte has exhausted 3 retries
+    uint8_t is_last = 0;      // flag to track the reception of the sentinel packet
+    uint8_t is_overflow = 0;  // flag to signal the 16 KB ceiling is hit, the incoming image as well as the next ones are going to be rejected
+    uint8_t is_retries = 0;   // flag to signal the byte has exhausted 3 retries
+    uint8_t is_corrupted = 0; // flag to signal the chunk got corrupted
 
-    uint8_t did_retry_expire = 0;
+    uint8_t did_retry_hit = 0;
 
     UART_Reception_States_t reception_state = UART_RECEPTION;
     UART_Chunks_States_t chunk_state = UART_START_BYTE;
@@ -266,7 +230,31 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
                 if ((SysTick_GetTick() - start) >= 2)
                 {
                     retries_counter++;
+
+                    if (retries_counter >= 3U)
+                    {
+                        is_retries = 1;
+                        break;
+                    }
+
+                    did_retry_hit = 1;
+                    break;
                 }
+            }
+
+            if (is_retries)
+            {
+                chunk_state = UART_START_BYTE;
+                reception_state = UART_CHECKING; // in the Checking NACK the bit
+                continue;
+            }
+
+            if (did_retry_hit)
+            {
+                chunk_state = UART_START_BYTE;
+                reception_state = UART_CHECKING;
+                payload_index = 0;
+                continue;
             }
 
             retries_counter = 0; // retries reload
@@ -340,6 +328,23 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
         {
             uint16_t payload_sum = 0;
 
+            if (is_retries)
+            {
+                // send NACK to the UART and go to the main()
+                uart_ack_nack_host(UART_NACK_ABORT);
+                break;
+            }
+
+            if (did_retry_hit)
+            {
+                // send NACK to the UART for the chunk and expect it to retransmit the entire 132-byte packet from scratch
+                uart_ack_nack_host(UART_NACK_RETRY);
+
+                did_retry_hit = 0;
+                reception_state = UART_RECEPTION;
+                continue;
+            }
+
             if (all_payload_bytes > 16384)
             {
                 // 16384 = 128 payloads with 32-word long payloads
@@ -360,29 +365,57 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
 
                 if (covered_sum == packet.checksum)
                 {
+
                     uint32_t flash_payload[32];
 
                     for (uint8_t i = 0, byte_count = 0; byte_count < 128 && i < 32; byte_count += 4, i++)
                     {
-                        flash_payload[i] = packet.payload[byte_count] | (packet.payload[byte_count + 1] << 8U) | (packet.payload[byte_count + 2] << 16U) | (packet.payload[byte_count + 3] << 24U);
+                        // explicit cast from uint8_t to uint32_t to prevent implicit case to int
+                        flash_payload[i] = ((uint32_t)packet.payload[byte_count]) | (((uint32_t)packet.payload[byte_count + 1]) << 8U) | (((uint32_t)packet.payload[byte_count + 2]) << 16U) | (((uint32_t)packet.payload[byte_count + 3]) << 24U);
                     }
 
-                    flash_program((FLASH_SECTOR2 + 128 * (chunks_received - 1)), flash_payload, 32);
+                    FLASH_ReturnTypes_t flash_result = flash_program((FLASH_SECTOR2 + 128 * (chunks_received - 1)), flash_payload, 32);
+
+                    if (flash_result == FLASH_OK)
+                    {
+                        // acknowledge the packet
+                        uart_ack_nack_host(UART_ACK_OK);
+                    }
+                    else
+                    {
+                        // FLASH_ERROR
+                        uart_ack_nack_host(UART_NACK_FLASH);
+                    }
                 }
+                else
+                {
+                    // the calculated checksum does not agree with the received checksum
+                    // the packet got corrupted
+                    is_corrupted = 1;
+                    uart_ack_nack_host(UART_NACK_CORRUPTED);
+                    // the UART_NACK_CORRUPTED should be treated as UART_NACK_RETRY - the host should send the chunk from scratch
+                    continue;
+                }
+            }
+            else
+            {
+                // NACK the chunk since it is overflown
+                uart_ack_nack_host(UART_NACK_OVERFLOW);
+                break; // exit the outer loop
             }
         }
     }
 
     // overflow happened before the byte has exhausted 3 retries
-    if (is_overflow && is_retries)
+    if (is_corrupted)
     {
-        return UART_OVERFLOW_RETRIES_ABORT;
+        return UART_CORRUPTED;
     }
-    else if (is_overflow && !is_retries)
+    else if (is_overflow)
     {
         return UART_OVERFLOW_ABORT;
     }
-    else if (is_retries && !is_overflow)
+    else if (is_retries)
     {
         return UART_RETRIES_ABORT;
     }

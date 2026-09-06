@@ -46,7 +46,17 @@ typedef enum
     UART_OK = 0,
     UART_OVERFLOW_ABORT,
     UART_RETRIES_ABORT,
-    UART_OVERFLOW_RETRIES_ABORT
+    UART_CORRUPTED
 } UART_ChunkReceive_ReturnTypes_t;
+
+typedef enum
+{
+    UART_ACK_OK = 0,
+    UART_NACK_RETRY,
+    UART_NACK_ABORT,
+    UART_NACK_CORRUPTED,
+    UART_NACK_OVERFLOW,
+    UART_NACK_FLASH
+} UART_HostConfirmation_t;
 
 #endif // FLASH_CONFIG
