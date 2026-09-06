@@ -202,6 +202,7 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
     uint8_t is_overflow = 0;  // flag to signal the 16 KB ceiling is hit, the incoming image as well as the next ones are going to be rejected
     uint8_t is_retries = 0;   // flag to signal the byte has exhausted 3 retries
     uint8_t is_corrupted = 0; // flag to signal the chunk got corrupted
+    uint8_t is_flash_error = 0;
 
     uint8_t did_retry_hit = 0;
 
@@ -210,11 +211,14 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
     UART_ChunkReceive_Layout_t packet;
 
     uint8_t payload_index = 0;
-    uint8_t retries_counter = 0;
+
     uint32_t all_payload_bytes = 0;
     uint8_t checksum_received = 0;
-
     uint32_t chunks_received = 0;
+
+    uint8_t retries_counter = 0;
+    uint8_t corrupted_counter = 0;
+    uint8_t error_counter = 0;
 
     while (!is_last)
     {
@@ -350,7 +354,7 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
                 // 16384 = 128 payloads with 32-word long payloads
                 // sector 2 is full
                 // reject the image
-
+                chunks_received--;
                 is_overflow = 1;
             }
 
@@ -365,8 +369,9 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
 
                 if (covered_sum == packet.checksum)
                 {
-
                     uint32_t flash_payload[32];
+
+                    corrupted_counter = 0;
 
                     for (uint8_t i = 0, byte_count = 0; byte_count < 128 && i < 32; byte_count += 4, i++)
                     {
@@ -379,21 +384,48 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
                     if (flash_result == FLASH_OK)
                     {
                         // acknowledge the packet
+                        error_counter = 0;
                         uart_ack_nack_host(UART_ACK_OK);
+
+                        reception_state = UART_RECEPTION;
+                        payload_index = 0;
+                        continue;
                     }
                     else
                     {
                         // FLASH_ERROR
+                        error_counter++;
+                        chunks_received--;
                         uart_ack_nack_host(UART_NACK_FLASH);
+
+                        if (error_counter >= 3U)
+                        {
+                            is_flash_error = 1;
+                            break;
+                        }
+
+                        reception_state = UART_RECEPTION;
+                        payload_index = 0;
+                        continue;
                     }
                 }
                 else
                 {
                     // the calculated checksum does not agree with the received checksum
                     // the packet got corrupted
-                    is_corrupted = 1;
+                    corrupted_counter++;
+                    chunks_received--;
                     uart_ack_nack_host(UART_NACK_CORRUPTED);
                     // the UART_NACK_CORRUPTED should be treated as UART_NACK_RETRY - the host should send the chunk from scratch
+
+                    if (corrupted_counter >= 3U)
+                    {
+                        is_corrupted = 1;
+                        break;
+                    }
+
+                    reception_state = UART_RECEPTION;
+                    payload_index = 0;
                     continue;
                 }
             }
@@ -418,6 +450,10 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
     else if (is_retries)
     {
         return UART_RETRIES_ABORT;
+    }
+    else if (is_flash_error)
+    {
+        return UART_FLASH_ERROR;
     }
     else
     {

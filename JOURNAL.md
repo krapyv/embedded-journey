@@ -33,6 +33,9 @@
 - Continued implementing and debugging the UART chunk-receive protocol in the bootloader project.
 - Incorporated the retry logic and ACK/NACK to the host from the bootloader.
 
+**Afternoon:**
+- Finished implementing the UART chunk-receive protocol in the bootloader project.
+
 **Evening:**
 
 **Problems encountered:**

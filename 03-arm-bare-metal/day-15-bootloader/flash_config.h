@@ -46,7 +46,8 @@ typedef enum
     UART_OK = 0,
     UART_OVERFLOW_ABORT,
     UART_RETRIES_ABORT,
-    UART_CORRUPTED
+    UART_CORRUPTED,
+    UART_FLASH_ERROR
 } UART_ChunkReceive_ReturnTypes_t;
 
 typedef enum
