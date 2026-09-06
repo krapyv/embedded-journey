@@ -35,6 +35,7 @@
 
 **Afternoon:**
 - Finished implementing the UART chunk-receive protocol in the bootloader project.
+- Developed (designed) the jump function (sequence).
 
 **Evening:**
 
