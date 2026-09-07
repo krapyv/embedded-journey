@@ -27,7 +27,20 @@
 **Root cause at the register level:**
 -
 
-# 2026-09-05
+# 2026-09-07
+
+**Morning:**
+- Wrote a Linkedin post about the ORE/flash-erase discovery - why raw UART streaming is unsafe during flash erase (RXNE never cleared while flash is stalled -> Overrun Error -> protocol desync).
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+# 2026-09-06
 
 **Morning:**
 - Continued implementing and debugging the UART chunk-receive protocol in the bootloader project.
