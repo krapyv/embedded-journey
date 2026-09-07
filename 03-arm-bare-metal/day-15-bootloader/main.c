@@ -3,6 +3,13 @@
 #include "uart/uart.h"
 #include "systick/systick.h"
 
+#define SRAM_START 0x20000000U
+#define SRAM_SIZE (128U * 1024U) // 128 KB
+#define SRAM_END (SRAM_START + SRAM_SIZE)
+
+#define APP_FLASH_START 0x08008000U // start of the sector 2
+#define APP_FLASH_END 0x0800BFFF    // end of the sector 2
+
 void flash_bsy_checking(void)
 {
     // check if the flash memory operation is in progress
@@ -461,6 +468,82 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
     }
 }
 
+bool is_valid_application(uint32_t app_sp, uint32_t app_reset_handler)
+{
+    // verify Stack Pointer points inside SRAM1 (0x2000 0000 - 0x2002 0000)
+
+    if ((app_sp < SRAM_START) || (app_sp > SRAM_END))
+    {
+        return false;
+    }
+
+    // 0x7 = 0111
+    if ((app_sp & 0x7U) != 0U)
+    {
+        return false;
+    }
+
+    // verify Reset Handler has Thumb bit set (Bit 0 must be 1, not 0 (32-bit ARM mode))
+    if ((app_reset_handler & 0x01U) == 0U)
+    {
+        return false;
+    }
+
+    if ((app_reset_handler < APP_FLASH_START) || (app_reset_handler > APP_FLASH_END))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+__attribute__((naked, noreturn)) void jump_to_application(uint32_t app_sp, uint32_t app_reset_handler)
+{
+    // r0 contains app_sp, r1 contains app_reset_handler
+
+    // 1. Set the Main Stack Pointer to Application's Stack Pointer
+
+    // 2. Jump to Application's Reset_Handler
+
+    __asm__ volatile(
+        "MSR msp, r0 \n"
+        "BX r1 \n");
+}
+
+SP_Validation_t execute_user_application()
+{
+    // Flash sector 0 and 1 belong to the bootloader
+    // Flash sector 2 belongs to the application
+
+    // Application Vector Table sits at sector 2 Start Address
+    uint32_t app_vector_table = 0x08008000;
+
+    // extract Main Stack Pointer (1st entry in Vector Table)
+    uint32_t app_msp = *(volatile uint32_t *)(app_vector_table); // turns a raw hexadecimal memory address into a directly writable/readable 32-bit hardware register
+
+    // extract Reset Handler address (2nd entry in Vector Table)
+    uint32_t app_reset_handler = *(volatile uint32_t *)(app_vector_table + 4);
+
+    // SP and Reset Handler validation
+    if (!is_valid_application(app_msp, app_reset_handler))
+    {
+        return SP_Validation_ERROR;
+    }
+
+    // disable SysTick peripheral and interrupts
+
+    // bit 16 COUNTFLAG is read only, bit 2 CLKSOURCE is irrelevant when the SysTick is disabled, bit 1 TICKINT is 0, so no exceptio requests are possible, bit 0 ENABLE is 0, so the counter is disabled
+    SYST->CSR = 0;
+    SYST->RVR = 0;
+    SYST->CVR = 0;
+
+    // relocate Vector Offset Register (VTOR) to App Start
+    SCB->VTOR = app_vector_table;
+
+    // execute Naked Jump that never returns
+    jump_to_application(app_msp, app_reset_handler);
+}
+
 void main(void)
 {
     // GPIO-check on a boot
@@ -486,6 +569,10 @@ void main(void)
         // if the logic value is 1, then the button is not pressed -> jump to application
         if (GPIOB->IDR & (1UL << 13U))
         {
+            if (execute_user_application() == SP_Validation_ERROR)
+            {
+                // SP validation failed
+            }
         }
         // if the value is 0 -> stay in bootloader
         else

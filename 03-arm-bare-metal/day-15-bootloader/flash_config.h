@@ -60,4 +60,10 @@ typedef enum
     UART_NACK_FLASH
 } UART_HostConfirmation_t;
 
+typedef enum
+{
+    SP_Validation_OK = 0,
+    SP_Validation_ERROR
+} SP_Validation_t;
+
 #endif // FLASH_CONFIG

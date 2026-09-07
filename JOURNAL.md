@@ -31,6 +31,7 @@
 
 **Morning:**
 - Wrote a Linkedin post about the ORE/flash-erase discovery - why raw UART streaming is unsafe during flash erase (RXNE never cleared while flash is stalled -> Overrun Error -> protocol desync).
+- Finished the jump sequence implementation.
 
 **Evening:**
 
