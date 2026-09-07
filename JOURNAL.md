@@ -32,6 +32,7 @@
 **Morning:**
 - Wrote a Linkedin post about the ORE/flash-erase discovery - why raw UART streaming is unsafe during flash erase (RXNE never cleared while flash is stalled -> Overrun Error -> protocol desync).
 - Finished the jump sequence implementation.
+- Started implementing the HardFault_Handler: grasped what should I do and why do I need to do it (theory part).
 
 **Evening:**
 

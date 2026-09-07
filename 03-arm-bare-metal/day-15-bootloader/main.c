@@ -26,7 +26,12 @@ void uart_ack_nack_host(UART_HostConfirmation_t value)
     USART2->DR = value;
 }
 
-FLASH_ReturnTypes_t flash_error_checking()
+void HardFault_Handler()
+{
+}
+
+FLASH_ReturnTypes_t
+flash_error_checking()
 {
     uint32_t flash_errors = 0;
 
