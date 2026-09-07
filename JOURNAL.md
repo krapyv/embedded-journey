@@ -34,7 +34,8 @@
 - Finished the jump sequence implementation.
 - Started implementing the HardFault_Handler: grasped what should I do and why do I need to do it (theory part).
 
-**Evening:**
+**Afternoon:**
+- Implemented the HardFault_Handler.
 
 **Problems encountered:**
 - (None today) etc

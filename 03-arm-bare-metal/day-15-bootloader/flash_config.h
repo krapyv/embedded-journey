@@ -1,6 +1,8 @@
 #ifndef FLASH_CONFIG
 #define FLASH_CONFIG
 
+#include <stdbool.h>
+
 typedef enum
 {
     FLASH_OK = 0,
@@ -65,5 +67,24 @@ typedef enum
     SP_Validation_OK = 0,
     SP_Validation_ERROR
 } SP_Validation_t;
+
+typedef struct
+{
+    volatile uint32_t PC;
+    volatile uint32_t R0;
+    volatile uint32_t R1;
+    volatile uint32_t R2;
+    volatile uint32_t R3;
+    volatile uint32_t R12;
+    volatile uint32_t LR;
+    volatile uint32_t xPSR;
+    volatile uint32_t CFSR;
+    volatile uint32_t HFSR;
+    volatile uint32_t MMFAR;
+    volatile uint32_t BFAR;
+    bool mmfar_valid;
+    bool bfar_valid;
+    bool hfsr_forced;
+} HardFault_Struct_t;
 
 #endif // FLASH_CONFIG

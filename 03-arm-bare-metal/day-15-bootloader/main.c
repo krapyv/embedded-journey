@@ -10,6 +10,9 @@
 #define APP_FLASH_START 0x08008000U // start of the sector 2
 #define APP_FLASH_END 0x0800BFFF    // end of the sector 2
 
+// global instance of HardFault_Struct_t
+static volatile HardFault_Struct_t hardfault_dump;
+
 void flash_bsy_checking(void)
 {
     // check if the flash memory operation is in progress
@@ -26,12 +29,84 @@ void uart_ack_nack_host(UART_HostConfirmation_t value)
     USART2->DR = value;
 }
 
-void HardFault_Handler()
+__attribute__((naked)) void HardFault_Handler(void)
 {
+    __asm volatile(
+        "tst lr, #4     \n"                 // bit 2 of EXC_RETURN tells which SP was used; #4 is 0b100, i.e. bit 2 set
+        "ite eq         \n"                 // sets up an if/else over the next two instructions
+        "mrseq r0, msp  \n"                 // if lr & 0x4 == 0 -> EQ is true -> MSP was used
+        "mrsne r0, psp  \n"                 // if lr & 0x4 != 0 -> NE is true -> PSP was used
+        "ldr r1, =HardFault_Handler_C   \n" // ldr loads a register with a value from a PC-relative memory address
+        "bx r1  \n"                         // tail-jump into a normal C function, passing the stack pointer as the argument
+    );
+
+    // b HardFault_Handler_C would do the same job as
+    // ldr r1, =HardFault_Handler_C
+    // bx r1
+    // since HardFault_Handler_C is a fixed, statically-known symbol (not a runtime-computed address)
 }
 
-FLASH_ReturnTypes_t
-flash_error_checking()
+void HardFault_Handler_C(uint32_t *faultStackedRegs)
+{
+    // faultStackedRegs[0..7] = R0, R1, R2, R3, R12, LR, PC, xPSR
+    volatile uint32_t r0 = faultStackedRegs[0];
+    volatile uint32_t r1 = faultStackedRegs[1];
+    volatile uint32_t r2 = faultStackedRegs[2];
+    volatile uint32_t r3 = faultStackedRegs[3];
+    volatile uint32_t r12 = faultStackedRegs[4];
+    volatile uint32_t lr = faultStackedRegs[5];
+    volatile uint32_t pc = faultStackedRegs[6];
+    volatile uint32_t xpsr = faultStackedRegs[7];
+
+    // SCB->CFSR
+    volatile uint32_t cfsr = SCB->CFSR;
+
+    // SCB->HFSR
+    volatile uint32_t hfsr = SCB->HFSR;
+
+    // MMARVALID
+    bool mmfar_valid = (SCB->CFSR & (1UL << 7U)); // 1 - true, 0 - false
+    // MMARVALID
+    bool bfar_valid = (SCB->CFSR & (1UL << 15U)); // 1 - true, 0 - false
+
+    // SCB->MMAR
+    volatile uint32_t mmfar = SCB->MMFAR;
+
+    // SCB->BFAR
+    volatile uint32_t bfar = SCB->BFAR;
+
+    // HFSR
+    bool hfsr_forced = (hfsr & (1UL << 30U));
+
+    hardfault_dump.PC = pc;
+    hardfault_dump.R0 = r0;
+    hardfault_dump.R1 = r1;
+    hardfault_dump.R2 = r2;
+    hardfault_dump.R3 = r3;
+    hardfault_dump.R12 = r12;
+    hardfault_dump.LR = lr;
+    hardfault_dump.xPSR = xpsr;
+    hardfault_dump.CFSR = cfsr;
+    hardfault_dump.HFSR = hfsr;
+    hardfault_dump.hfsr_forced = hfsr_forced;
+    hardfault_dump.mmfar_valid = mmfar_valid;
+    hardfault_dump.bfar_valid = bfar_valid;
+
+    if (mmfar_valid)
+    {
+        hardfault_dump.MMFAR = mmfar;
+    }
+    if (bfar_valid)
+    {
+        hardfault_dump.BFAR = bfar;
+    }
+
+    while (1)
+    {
+    }
+}
+
+FLASH_ReturnTypes_t flash_error_checking()
 {
     uint32_t flash_errors = 0;
 
@@ -566,22 +641,26 @@ void main(void)
     // 11 = 0x3
     GPIOB->MODER &= ~(0x3UL << 26U);
 
+    bool logic_state = (GPIOB->IDR & (1UL << 13U));
+
     while (1)
     {
         // there is a tactile push-button connected to GND - a pull up - so the pin reads 1 when open and reads 0 when the circuit is closed
         // to read the logic value of the PB13, we are using GPIO_IDR
 
         // if the logic value is 1, then the button is not pressed -> jump to application
-        if (GPIOB->IDR & (1UL << 13U))
+        if (logic_state)
         {
             if (execute_user_application() == SP_Validation_ERROR)
             {
                 // SP validation failed
+                uart_chunk_receive_protocol();
             }
         }
         // if the value is 0 -> stay in bootloader
         else
         {
+            uart_chunk_receive_protocol();
         }
     }
 
