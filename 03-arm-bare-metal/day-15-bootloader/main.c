@@ -660,7 +660,10 @@ void main(void)
         // if the value is 0 -> stay in bootloader
         else
         {
-            uart_chunk_receive_protocol();
+            if (uart_chunk_receive_protocol() == UART_OK)
+            {
+                execute_user_application();
+            }
         }
     }
 

@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-08
+
+**Morning:**
+- Derived and implemented the error handing in the main() function.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-07
 
 **Morning:**
