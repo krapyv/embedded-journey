@@ -33,8 +33,10 @@
 - Derived and implemented the error handing in the main() function.
 - Built a breadboard circuit for the project. Tested it.
 - Fully closed the UART chunk-receive protocol - sentinel acknowledgement.
+- Started developing and implementing a host Python script.
 
-**Evening:**
+**Evening**:
+- Continued to developing and implementing the Python host script.
 
 **Problems encountered:**
 - (None today) etc
