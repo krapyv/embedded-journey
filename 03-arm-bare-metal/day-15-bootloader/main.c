@@ -364,6 +364,7 @@ UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
                 if (payload_len == 0)
                 {
                     is_last = 1;
+                    uart_ack_nack_host(UART_ACK_OK);
                 }
                 else
                 {

@@ -31,6 +31,8 @@
 
 **Morning:**
 - Derived and implemented the error handing in the main() function.
+- Built a breadboard circuit for the project. Tested it.
+- Fully closed the UART chunk-receive protocol - sentinel acknowledgement.
 
 **Evening:**
 
