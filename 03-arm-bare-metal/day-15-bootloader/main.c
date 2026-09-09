@@ -280,10 +280,12 @@ FLASH_ReturnTypes_t flash_erase(FLASH_SNB_t sector_num)
 UART_ChunkReceive_ReturnTypes_t uart_chunk_receive_protocol()
 {
     // erasing the sector 2 before the first chunk
-    flash_erase(FLASH_SNB2);
-
-    SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     usart2_init();
+
+    flash_erase(FLASH_SNB2);
+    SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
+
+    uart_ack_nack_host(UART_ACK_START);
 
     uint8_t is_last = 0;      // flag to track the reception of the sentinel packet
     uint8_t is_overflow = 0;  // flag to signal the 16 KB ceiling is hit, the incoming image as well as the next ones are going to be rejected

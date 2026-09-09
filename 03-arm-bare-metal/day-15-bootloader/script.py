@@ -38,41 +38,52 @@ with open("file.bin", "rb") as file:
         packet = bytes([0xAA, 128]) + new_chunk + bytes([high_sum, low_sum, 0xBB])
         packets.append(packet)
 
-    while j < total_chunks:
-        ser.write(packets[j])
+    # 500 ms timeout
+    ser.timeout = 0.5
+    start_signal = ser.read(1)
 
-        received_answer = ser.read(1)
+    ser.timeout = 0.03
 
-        if not received_answer:
-            timeout_counter += 1
-
-            if timeout_counter >= 2:
-                print("There is an error!")
-                break
-        else:
-            timeout_counter = 0
-            numerical_response = int.from_bytes(received_answer, "little")
-
-            if numerical_response == 0:
-                j += 1
-            else:
-                action = NACK_ACTIONS.get(numerical_response)
-                action_result = action()
-
-                if action_result == "abort":
-                    break
-
-    last_sentinel = bytes([0xAA, 0])
-    ser.write(last_sentinel)
-
-    sentinel_response = ser.read(1)
-
-    if not sentinel_response:
-        print("The device failed to ACK/NACK the sentinel with length = 0")
+    if not start_signal:
+        print("The start timeout has elapsed! No response!") 
     else:
-        numerical_sentinel_response = int.from_bytes(sentinel_response, "little")
+        if int.from_bytes(start_signal, "little") == 6:
 
-        if numerical_sentinel_response != 0:
-            print(f"The device sent data {sentinel_response} that is not what was expected")
-        else:
-            print("The device has successfully ACKed the last sentinel")
+            while j < total_chunks:
+                ser.write(packets[j])
+
+                received_answer = ser.read(1)
+
+                if not received_answer:
+                    timeout_counter += 1
+
+                    if timeout_counter >= 2:
+                        print("There is an error!")
+                        break
+                else:
+                    timeout_counter = 0
+                    numerical_response = int.from_bytes(received_answer, "little")
+
+                    if numerical_response == 0:
+                        j += 1
+                    else:
+                        action = NACK_ACTIONS.get(numerical_response)
+                        action_result = action()
+
+                        if action_result == "abort":
+                            break
+
+            last_sentinel = bytes([0xAA, 0])
+            ser.write(last_sentinel)
+
+            sentinel_response = ser.read(1)
+
+            if not sentinel_response:
+                print("The device failed to ACK/NACK the sentinel with length = 0")
+            else:
+                numerical_sentinel_response = int.from_bytes(sentinel_response, "little")
+
+                if numerical_sentinel_response != 0:
+                    print(f"The device sent data {sentinel_response} that is not what was expected")
+                else:
+                    print("The device has successfully ACKed the last sentinel")

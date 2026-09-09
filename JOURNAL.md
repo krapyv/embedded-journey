@@ -37,6 +37,7 @@
 
 **Afternoon:**
 - Started testing and debugging + learnt how to run Python programs.
+- Continued debugging - hit a core lockup state.
 
 **Evening:**
 

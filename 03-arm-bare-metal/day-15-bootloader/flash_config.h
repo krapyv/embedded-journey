@@ -59,7 +59,8 @@ typedef enum
     UART_NACK_ABORT,
     UART_NACK_CORRUPTED,
     UART_NACK_OVERFLOW,
-    UART_NACK_FLASH
+    UART_NACK_FLASH,
+    UART_ACK_START
 } UART_HostConfirmation_t;
 
 typedef enum
