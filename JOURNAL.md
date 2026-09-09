@@ -27,6 +27,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-09
+
+**Morning:**
+- Derived and implemented assembling of 133-byte packet.
+- Designed the sending and handling the response stage.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-08
 
 **Morning:**
