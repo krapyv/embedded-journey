@@ -40,6 +40,7 @@
 - Continued debugging - hit a core lockup state.
 
 **Evening:**
+- Continued debugging - fixed the core lockup state - it was OpenOCD/GDB tooling artifact.
 
 **Problems encountered:**
 - (None today) etc
