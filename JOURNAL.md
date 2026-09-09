@@ -32,6 +32,8 @@
 **Morning:**
 - Derived and implemented assembling of 133-byte packet.
 - Designed the sending and handling the response stage.
+- Implemented the sending and handling the response mechanism.
+- Designed and implemented sending the sentinel and waitig for the final confirmation.
 
 **Evening:**
 
