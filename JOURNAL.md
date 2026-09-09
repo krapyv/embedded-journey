@@ -35,6 +35,9 @@
 - Implemented the sending and handling the response mechanism.
 - Designed and implemented sending the sentinel and waitig for the final confirmation.
 
+**Afternoon:**
+- Started testing and debugging + learnt how to run Python programs.
+
 **Evening:**
 
 **Problems encountered:**

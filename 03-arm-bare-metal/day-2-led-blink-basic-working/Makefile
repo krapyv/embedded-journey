@@ -25,11 +25,11 @@ $(BIN): $(ELF)
 
 # Flash using ST-LINK
 flash: $(BIN)
-	STM32_Programmer_CLI -c port=SWD -w $(BIN) 0x08000000 -v -rst
+	STM32_Programmer_CLI -c port=SWD -w $(BIN) 0x08008000 -v -rst
 
 # Flash using st-flash (alternative)
 flash-st: $(BIN)
-	st-flash --reset write $(BIN) 0x08000000
+	st-flash --reset write $(BIN) 0x08008000
 
 # Clean build artifacts
 clean:
