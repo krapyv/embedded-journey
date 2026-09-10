@@ -1,4 +1,5 @@
 #include "stm32f411.h"
+#include "core_cm4.h"
 #include "flash_config.h"
 #include "uart/uart.h"
 #include "systick/systick.h"

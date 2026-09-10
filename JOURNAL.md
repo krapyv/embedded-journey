@@ -27,6 +27,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-10
+
+**Morning:**
+- Finished debugging the bootloader application: found the reason it was not working (I have messed up with the submodules).
+- Tested the program on the breadboard.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-09
 
 **Morning:**
