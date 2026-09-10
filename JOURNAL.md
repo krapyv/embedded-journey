@@ -36,6 +36,8 @@
 
 **Afternoon:**
 - Completed the JOURNAL logs for 01.09 and 03.09.
+- Completed the JOURNAL logs for 04.09 and 05.09. 
+- In a halfway to complete the logs for 06.09.
 
 **Evening:**
 
@@ -109,10 +111,47 @@
 - Finished implementing the UART chunk-receive protocol in the bootloader project.
 - Developed (designed) the jump function (sequence).
 
-**Evening:**
+**What was done:**
+*Retry mechanism:*
+
+**Bug 1:** 
+On timeout, incremented a retry counter and reset the SysTick start time, but never reset chunk_state or payload_index back to the start of the packet. This meant the receiver just kept waiting for the exact same byte position it was already stuck on, up to 3 times, before aborting - not the "3 full chunk re-attempts" I'd actually designed.
+Also: no NACK was ever sent on timeout, so the host had no signal a stall occurred.
+
+Fix: added a did_retry_hit flag that, when set, resets chunk_state = UART_START_BYTE and payload_index = 0, sends a NACK, and loops back to wait for a completely fresh packet.
+
+**Bug 2:**
+After adding the did_retry_hit reset in UART_RECEPTION, the corresponding handling in UART_CHECKING set reception_state = UART_CHECKING (should have been UART_RECEPTION) before continuing - this meant the next outer_loop iteration landed straight back into UART_CHECKING, re-evaluating stale data from before the timeout, without ever going back to wait for a new byte. 
+
+Fix: set reception_state = UART_RECEPTION in that branch instead.
+
+**Bug 3:**
+The checksum-corruption path (is_corrupted) had the identical missing-reset bug - set the flag, sent the NACK, but never reset reception_state back to UART_RECEPTION before continuing, causing it to loop forever re-checking the same stale packet and sending the same NACK repeatedly with no change to receive anything new.
+
+**Bug 4:**
+is_corrupted was a permament one-way flag, never cleared on a subsequent successful retry. If chunk 3 failed once, then succeeded on retry, and the transfer completed normally afterward, the function would still return UART_CORRUPTED at the end - even though the transfer actually succeeded. 
+Same root pattern as the SER leftover bug in the flash routine: that was true once, read later as if still current.
+
+Fix: cleared is_corrupted (via a corrupted_counter reset) the moment a chunk succeeds cleanly.
+
+**Bug 5:**
+Checksum failures had no bound at all - only the timeout path had a 3-strike budget. If the link was simply noisy and every retransmission of a chunk also failed its checksum, this would loop forever with no terminal state - an unbounded loop, exactly the "no bus hangs" criterion violation.
+
+Fix: gave corruption its own independently bounded 3-strike counter, structurally mirroring the timeout retry logic.
+
+**Bug 6:**
+flash_program()'s FLASH_ERROR return was completely unhandled - no flag set, nothing. If a chunk's checksum passed but the actual flash write failed, and the transfer otherwise completed to the sentinel, the function would return UART_OK - the caller would believe the whole image was written correctly when one chunk had silently failed to program. 
+
+Fix: added a dedicated error_counter with its own 3-strike bounded retry, sending UART_NACK_FLASH and looping back for a resend on transient failures, escalating to is_flash_error/break after 3 failures.
+
+**Bug 7:**
+Even after all retry paths were correctly bounded and reset, the flash-result success branch (FLASH_OK) never advanced reception_state back to UART_RECEPTION either. 
+Trace: on a successful flash write, execution fell through to the bottom of UART_CHECKING with reception_state still stuck at UART_CHECKING - the next outer iteration would land straight back into UART_CHECKING and reprogram the exact same chunk at the exact same address indefinitely, never moving on to receive chunk 2. 
+
+Fix: added the same reception_state = UART_RECEPTION; payload_index = 0; continue; pattern to the success branch as well.
 
 **Problems encountered:**
-- (None today) etc
+- **Bug: chunks_received 0ff-by-N across retries:**
 
 **Root cause at the register level:**
 -
@@ -129,7 +168,45 @@
 - Mid-way implementing the UART chunk-receive protocol.
 
 **Problems encountered:**
-- (None today) etc
+**1. Byte-to-word reconstruction:**
+First attempt: `uint8_t array[4] = {payload[0..3]}; uint32_t word = *(uint32_t*)array;`
+
+Two separate problems with this, both caught before writing it into the real function:
+* Alignment isn't guaranteed by the language - uint8_t only requires 1-byte alignment, nothing forces a local array onto a 4-byte boundary, and Cortex-M4's unaligned-access behavior depends on the UNALIGN_TRP bit in SCB->CCR, which I had not checked.
+* Strict-aliasing violation - reinterpreting a uint8_t[4] through a uint32t* is accessing memory through a pointer type that doesn't match its effective type. Undefined at the language level, independent of hardware, and exactly the calss of pointer conversion MISRA restricts.
+
+Decided against memcpy() as well, on a personal consistency preference - I already do manual bit-shift reconstruction in other projects: word = payload[0] | (payload[1] << 8) | (payload[2] << 16) | (payload[3] << 24). Cortex-M4 is little-endian, so the byte that arrived first (payload[0]) naturally ends up as the LSB - no manual reordering needed, just correct shift positions.
+
+**Bug: Address arithmetic bug:**
+flash_program((FLASH_SECTOR2 * (32 * (chunks_received - 1))) + 1, ...) - multiplying an address by a chunk-derived number produces an arbitrary, meaningless value; addresses only make sense with offsets added, never multiplied.
+Also noticed: 32 is the word count per chunk, not the byte count - using it directly as a byte offset would have silently computed an offset 4x too small, causing chunk 2 to overwrite chunk 1 instead of landing after it.
+
+Fix: FLASH_SECTOR2 + 128 * (chunks_received - 1) - 128 bytes per chunk, added as an offset to the fixed base address, correctly landing each chunk sequentially.
+
+
+**UART Chunk-Receive protocol design and implementation:**
+
+*Packet layout:*
+Start_byte(1) -> payload_len(1) -> payload[128] -> checksum (16-bit additive, big-endian: high byte, then low byte) -> end_byte (1). Total: 133 bytes per chunk.
+
+Chose additive checksum over CRC deliberately - simpler arithmetic, acceptable blind spot (insensitive to byte reordering and certain paired bit-flips) for a short physical UART link with mostly single-bit/burst noise. Documemted explicitly that this is a known limitation, not an oversight - CRC upgrade is legitimate future scope.
+
+Payload_len kept as a meaningful field (not redundant with the fixed 128-byte wire size) - it tells the bootloader how many of the 128 bytes are real image data versus 0xFF padding on the final chunk. Padding with 0xFF up to a 4-byte multiple is provably safe: erased flash is all-1s, and writing 1-bits onto already-erased flash changes nothing electrically - confirmed against the manual's own note that changing bits from 1 -> 0 requires an erase, but writing 1 onto 1 requires nothing.
+
+End_byte kept deliberately as a resync sanity check, and for future-proofing if payload size ever becomes dynamic instead of fixed.
+
+*Sentinel packet:*
+Payload_len = 0 signals end-of-transfer. Confirmed against my own state machine: UART_PAYLOAD_LEN case checks payload_len == 0, sets is_last = 1 immediately, never proceeds to read payload/checksum/end_byte for that packet - so the sentinel really is only 2 bytes on the wire (Start_byte + Payload_len = 0), not a full 133-byte packet with dummy filter.
+
+*Reception mechanism:*
+Polling loop, not interrupt-driven. Justified from the actual timing: the protocol is strictly half-duplex request/response (host sends chunk, waits, bootloader ACKs/NACKs, host sends next) - the bootloader has nothing else to do while waiting, so a blocking poll loop is simpler and just as correct as interrupts here.
+
+*Inter-byte timeout derivation:*
+Baud rate 115200, 8-N-1 framing = 10 bit-frames per byte = 86.8 µs per byte on the wire. Wanted roughly 5x margin over that (not too tight, not too loose) = ~434 µs.
+But SysTick resolution is 1ms per tick, and a 1-tick countdown has a real hazard: if the start measurement lands one cycle before the tick boundary, the "1 tick" timeout can fire after almost no real time has elapsed at all. Minimum safe value is 2 ticks (2ms), guaranteeing at least 1 full tick of real margin regardless of phase alignment. 2ms against a required 434µs margin is actually a ~23x margin, not 5x - but the binding constraint became tick resolution, not the original margin target. No cost to this looseness in the happy path - timeout value only affects failure-detection latency, never throughput, since every real byte arrives well within 86.8µs and reloads the countdown long before it could expire.
+
+Chose inter-byte timeout (resets on every byte arrival) over a whole-chunk fixed deadline - a whole-chunk deadline sized around the flash-timing budget would false-fail a slow-but-steady host (e.g. 128 bytes at 50ms gaps = 6.4s total, failing every chunk even on a healthy link). Inter-byte timeout only fires on a genuine stall, regardless of how slowly the rest of the chunk trickles in.
+
 
 **Root cause at the register level:**
 -
@@ -146,7 +223,36 @@
 - Continued to design the UART chunk-receive protocol. Almost done: there is still ongoing SysTick timeout derivation.
 
 **Problems encountered:**
-- (None today) etc
+
+**Bug 1: sector number written to FLASH_CR without shifting:**
+FLASH->CR |= sector_num; - cleared bits 6:3 for SNB right above this line, but then ORed sector_number straight in with no shift. A sector_num of 2 landed in bits 1:0, colliding with SER/MER bits instead of the actual SNB field.
+
+Fix: pre-shift the sector values inside the enum itself instead of shifting at the call site - FLASH_SNB 2 = (2 << 3) etc. Bare |= now places the value correctly and the enum prevents anyone from passing an unshifted raw number by mistake.
+
+**Bug 2: BSY not checked on function entry:**
+Neither flash_program() nor flash_erase() checked BSY before touching FLASH_CR, only after. Traced through my actual call pattern: both functions poll BSY to 0 internally before returning, so entering either function fresh with BSY=1 isn't reachable as long as nothing else (no ISR) ever touches FLASH_CR concurrently. Confirmed the UART RX path never touches flash registers at all - single-writer architecture holds. BSY pre-check is legitimately dead code given this and was skipped.
+
+**Bug 3: PSIZE never set inside flash_erase():**
+flash_program() explicitly sets PSIZE = 10 (x32) every call. flash_erase() never touched PSIZE at all. FLASH_CR resets with PSIZE = 00 (x8) - it only becomes x32 once flash_program() has actually executed once. In my actual call order (erase Sector 2, then program it chunk by chunk), PSIZE was still 0 at the moment the very first erase set STRT. 16 KB sector erase at PSIZE = x8 is max 800ms - busts straight through the 500ms +  margin timeout I'd already derived for the host side.
+
+Fix: added the PSIZE = 10 write inside flash_erase(), before STRT, so the 500ms budget (not 800ms) actually governs the timing.
+
+**Bug 4: leftover SER bit not cleared after erase completed**
+flash_program() correctly clears PG after the write loop. flash_erase() cleared STRT after BSY dropped but never cleared SER (bit 1) - the bit that activates sector-erase mode in the first place. After flash_erase() returns, SER is still 1 in FLASH_CR. The very next call is flash_program(), which sets PG=1 without SER ever being cleared.
+
+Traced whether this is a live simultaneous-request hazard or just stale leftover state: the erase has already physically finished by the time the program call starts - SER=1 at that point is not a real "erase and program requested at the same time" situation, it's justa control register that was never correctly reset. PGSERR's actual trigger condition ("write access performed while control register not correctly configured") fits this exactly.
+
+Fix: added FLASH->CR &= ~(1UL << 1U); to cear SER right after the STRT clear, before the function returns.
+
+**Bug 5: error flags never checked after operations:**
+Both flash_program() and flash_erase() polled BSY to 0 and returned - never read FLASH_SR for ony of the 5 unconditional error flags. Silent success/failure either way.
+
+Resolved that error bits are guaranteed valid the instant BSY clears - no dependency on PG/STRT still being set - so the check belongs after PG/STRT are cleared, when no program or erase operation is still possible. Both functions now have typed return values (FLASH_OK/FLASH_ERROR) and call a shared flash_error_checking() function after clearing their respective control bits.
+
+**Bug 6: flash_program's parameter shape mismatch**
+flash_program(uint32_t * addresses, uint32_t * data, uint32_t len) assumed a caller would hand it a pre-built array of individual word addresses. In practice I only ever have one base address per chunk, with every subsequent word address entirely derivable (base, base + 4, base + 8 ...). There was no reason to force the caller to build an address array when the pattern is fully predictable.
+
+Fix: changed signature to flash_program(uint32_t address_base, uint32_t data, uint32_t len), computing each word's target address inside the loop as address_base + (i * 4), case through volatile uint32_t to prevent the compiler from reordering or eliding the writes.
 
 **Root cause at the register level:**
 -
