@@ -32,6 +32,7 @@
 **Morning:**
 - Finished debugging the bootloader application: found the reason it was not working (I have messed up with the submodules).
 - Tested the program on the breadboard.
+- Completed the JOURNAL log for 31.08.
 
 **Evening:**
 
@@ -209,6 +210,80 @@
 **Evening:**
 - Finished learning about the flash sector layouts.
 - Started working on stack pointer validation and why first word of application vector table must be a valid SRAM address before jumping.
+
+**What was done:**
+**1. SCB_VTOR - Vector Table Relocation**
+*What was studied:*
+
+SCB_VTOR lives at 0xE000ED08 (SCB base 0xE000ED00 + offset 0x08), reset value 0x00000000. TBLOFF field is bits [29:9] on STM32F411 - this is the vendor-specific value from PM0214, not the generic ARMv7-M doc which gives [31:7]. The difference exists because the F411 has ~98 total vector entries (82 external IRQs + 16 core exceptions), rounded up to 128 words = 512 bytes = 0x200 minimum alignment, which forces bits [8:0] to reserved-zero. The generic doc gives the formula; PM0214 gives the already-computed device-specific answer.
+
+On exception entry, the NVIC performs a direct hardware memory read:`handler_address = *(VTOR + 4 * exception_number)`. No software dispatch, no checking - pure fixed-formula fetch. If VTOR points somewhere wrong, the CPU fetches garbage and jumps there with interrupts live.
+
+*Without a bootloader - no need to write VTOR explicitly:*
+At reset VTOR = 0x00000000. The boot alias (controller by BOOT pins) maps flash at 0x08000000 to also appear at 0x00000000 bit for bit. Word 0x00000000 = word 0x08000000 (`_estack`). Word 0x00000004 = word 0x08000004 (Reset_Handler). All subsequent NVIC lookups at VTOR + IRQn * 4 correctly resolve to the .isr_vector in flash. No explicit VTOR write needed - the alias makes the reset value functionally correct.
+
+*With a bootloader - VTOR becomes load-bearing:*
+If the bootloader lives at 0x08000000 and the application at 0x08008000, VTOR is still 0x00000000 (pointing at the bootloader's vector table via the alias) when the application starts running. If the application enables any interrupt without first writing VTOR to 0x08008000, the NVIC fetches the vector from the bootloader's table - not the application's.
+
+Two failure modes depending on what the bootloader put in that slot:
+* Bootloader has a Default_Handler (infinite loop `b Infinite_Loop`) for that IRQ: the application's interrupt flag is never cleared, the line stays asserted, the CPU re-enters the bootloader's Default_Handler endlessly. Main loop freezes, no HardFault raised, completely silent.
+* Bootloader has a real handler for the same peripheral (e.g. USARTS for its own firmware update protocol): the CPU jumps to valid, correctly-aligned Thumb code - no fault at all. But it executes in the wrong context: reads DR/RDR (clearing RXNE the application was waiting on), may write bytes to the TX line with bootloader framing, may reprogram baud rate or parity bits, may corrupt application RAM if the linked maps overlap. No fault flag, no wrong PC visible in a debugger, just silent state corruption that manifests randomly elsewhere.
+
+*Alignment check of 0x08008000:*
+0x08008000 = 0b1000000000000100000000000000 ... bits [8:0] = 00000000. All zero - satisfies the reserved-zero requirement. Legal to load into TBLOFF.
+
+*Lesson learned:*
+VTOR much be written in the application's early startup, before any interrupt is unmasked, to the application's own vector table base. The ordering constraint: validate the application image first (while nothing is committed), then write VTOR, then unmask interrupts. If anything goes wrong after VTOR is written, reverting it while running on a potentially corrupted or mismatched stack is not safe - the window between the VTOR write and a correctly-running application is one where the system is in a partially-committed state.
+
+**2. Flash Sector Layout - STM32F411 Partition Decision:**
+*What was studied:*
+
+Asymmetric sector layout:
+* Sectors 0-3: 16 KB
+* Sector 4: 64 KB
+* Sectrs 5-7: 128 KB each
+
+The layout is intentionally asymmetric - small sectors at the bottom give fine-grained boundary options for bootloader/config partitions. Flash erase is issued via FLASH_CR with SNB[3:0] selecting the sector. There is no sub-sector erase - minimul erase granularity is one full sector. This, not VTOR's 512-byte alignment, is the binding constraint on partition boundaries.
+
+*Partition decision:*
+* Bootloader: Sector 0 + Sector 1 = 32 KB. 32 KB gives room for a flash-write driver, CRC/checksum verification, and a minimal UART comms protocol without being cramped.
+* Application: Sector 2 onward, starting at 0x08008000.
+
+Both 0x08004000 and 0x08008000 land exactly on sector boundaries - neither is mid-sector. VTOR alignment (512 bytes, bits [8:0] = 0) is looser than what flash geometry already forces - it drops out as a non-issue.
+
+*Self-update decision:*
+Self-update capability (bootloader rewriting its own flash sector while running from it) is out of scope for v1. The bootloader is flash-once-via-SWD.
+Consequence: no RAM-resident erase/program routine needed. If the bootloader ever issued a sector erase against its own sector while executing from it, the CPU would be fetching  instructions from flash mid-erase - not "risky", architecturally undefined. That's the same structural reason .data exists: code that must remain stable while flash is unstable must not be in flash at the moment. Defereed with explicit TODO in README.
+
+**3. Stack Pointer Validation Before Application Jump:**
+*What was studied:*
+
+A bootloader jumping to an application is not a hardware reset. The CPU is already running. The hardware's automatic word-0/word-1 load (MSP from vector table[0], PC from vector table[1]) happened once at reset for the bootloader - it does not happen again. The bootloader must manually replicate that behavior: read the application's vector table word 0, load it into MSP explicitly (MSR MSP instruction), then branch to word 1 (Reset_Handler address).
+
+*Why validate word 0 before trusting it:*
+
+Word 0 is just data sitting in flash at the application's sector base. If the application was never flashed, the sector is is erased state - that means every bit 1, value 0xFFFFFFFF. If flashing was interrupted or used the wrong offset, it could be anything. The valid range for a legitimate `_estack` on this part: SRAM1 spans for 128 KB from 0x20000000 to 0x2001FFFF. Any value outside that window is invalid.
+
+*Failure mode if the validation is skipped:*
+
+MSR MSP with word0 = 0xFFFFFFFF: this is a core-register write, not a bus transaction. MSP is now 0xFFFFFFFF.
+
+Branch to word1 (also 0xFFFFFFFF on an erased sector): CPU attempts instruction fetch from 0xFFFFFFFF - but no memory mapped there. Bus matrix returns a BusFault. BusFault is not separately enabled, so it escalates directly to HardFault.
+
+HardFault entry on the other hand attempts auto-stacking: 8 registers pushed to MSP = 0xFFFFFFFF. Stack write targets 0xFFFFFFFF - 0x20 = 0xFFFFFFDR which is also unmapped. A fault during the stacking phase of another fault's entry with no valid stack = Lockup state. CPU halts instruction execution entirely. Only external reset or debugger intervention can recover it. There is no watchdog recovery, no software recovery.
+
+Lockup cannot be classified as a hang - the difference between hangs and the Lockup state is that hangs are watchdog-recoverable, the Lockup is not. The "no bus hangs" done bach is not met without introducing the check.
+
+*The check:*
+
+* Range: word0 must fall within 0x20000000 - 0x2001FFFF
+* Alignment: bits [2:0] must be 000 (8-byte alignment - matches what a standard ARM toolchain's `_estack` alsways produces, but it is stricter than the 4-byte architectural floor).
+
+*Ordering:*
+
+Validate word0 against SRAM range and alignment using a general-purpose register (MSP untouched, VTOR untouched). If check fails, then return false or abort - bootloader remains fully operational, recovery path (wait for new binary over UART, safe mode) available. Only after the check passes: MSR MSP word0 -> then write VTOR -> only then branch to word1.
+
+The window between MSR MSP and a successful branch into working app code is a window where the CPU cannot survive any exception - any stack push of any kind during that window produces the Lockup state. Validation must be strictly before the instruction.
 
 **Problems encountered:**
 - (None today) etc
