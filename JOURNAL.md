@@ -34,6 +34,9 @@
 - Tested the program on the breadboard.
 - Completed the JOURNAL log for 31.08.
 
+**Afternoon:**
+- Completed the JOURNAL logs for 01.09 and 03.09.
+
 **Evening:**
 
 **Problems encountered:**
@@ -158,6 +161,55 @@
 **Evening:**
 - Implemented the Program and Erase Flash functions and debugging them.
 
+**What was done:**
+**1. Bootloader design:**
+
+*Partition finalized:*
+Bootloader = Sector 0 + 1 (32 KB), application = sector 2 + starting at 0x08008000.
+
+*Boot trigger:*
+GPIO pin read at reset. RTC_BKPxR (backup registers, requiring DBP unlock in PWR_CR) deferred - unnecessary complexity for v1.
+
+*Protocol and why raw streaming is unsafe:*
+During flash erase or programming, instruction fetches from flash stall. Sector erase time - 16 KB sector max 500 ms. During that 500 ms window, the bootloader's own UART ISR code (sitting in flash) cannot be fetched. Incoming UART bytes arrive with nothing pulling them from DR. RXNE stays set. Next byte arrives before DR is read - RXNE still set when new data arrives in shift register. ORE (Overrun Error) asserts. The incoming byte is lost. Protocol desynchorizes.
+
+Fixed-chunk ACK/NACK protocol solves this perfectly: host sends one chunk, waits for ACK before the next. Host timeout must exceed max erase time + max program time with margin - a too-short host timeout causes retransmission into a deaf bootloader, ORE, desync.
+
+*Flash unlock sequence:*
+* Write KEY1 (0x45670123) and then KEY2 (0xCDEF89AB) to FLASH_KEYR.
+* Check LOCK bit (bit 31) to FLASH_CR = 0 to confirm unlock. 
+Any wrong key or wrong order re-locks and sets an error flag.
+
+*Erase sequence:*
+* Poll BSY (bit 16 FLASH_SR).
+* Set SER (bit 1 FLASH_CR).
+* Write SNB`[3:0]` (bits 6:3 FLASH_CR) with target sector number.
+* Set STRT (bit 16 FLASH_CR).
+* Poll BSY until clear.
+* Check error flags.
+
+*Program sequence:*
+* Poll BSY.
+* Set PG (bit 0 FLASH_CR).
+* Set PSIZE = 10 (bit 9:8 FLASH_CR) = 32-bit parallelism - legal at VDD = 3.3V (minimum 2.7V).
+* Write 32-bit word to target flash address.
+* Poll BSY.
+* Check error flags.
+* Repeat for each word in chunk.
+* After last word confirmed - clear PG.
+* PG is held across the entire word-write loop - no window where a write happens with PG deasserted.
+
+*5 unconditional bits of FLASH_SR error flags:*
+WRPERR (bit 4), PGAERR (bit 5), PGPERR (bit 6), PGSERR (bit 7), RDERR (bit 8). All set regardless of interrupt enable state.
+
+OPERR (bit 1) and EOP (bit 0) are gated by ERRIE and EOPIE respectively - excluded from the error-check list.
+
+*Application validation before jump:*
+SP range (0x20000000 - 0x2001FFFF) + alignment (bits 2:0 = 000) only. No image CRC.
+
+*Jump sequence:* 
+Validate SP -> MSR MSP word0 -> write SCB_VTOR to 0x08008000 ->branch to word1 (Reset_Handler address from vector table[1]).
+
 **Problems encountered:**
 - (None today) etc
 
@@ -194,6 +246,35 @@
 **Evening:**
 - Repeated the Full Descending stack model.
 - Finished working on the bare-bones HardFult handler (re-read of the last derivations is needed).
+
+**What was done:**
+**1. Bare-Bones HardFault Handler:**
+
+*What was studied:*
+On exception entry, hardware auto-stacks 8 words to whichever stack was active: R0, R1, R2, R3, R12, LR, PC, xPSR in fixed order. The stacked PC is the faulting instruction address - the most useful diagnostic piece.
+
+*Why a plain C function is not enough:*
+A C function generates a compiler-produced prologue before the first line of user code runs - pushes R4-R11, may adjust SP for locals. By the time the C code's first line executes, SP has moved past the hardware-stacked frame. No register or variable in C scope automatically equals "the hardware-stacked frame".
+
+*Correct architecture:*
+Naked asm stub (GCC `__attribute__((naked))`) as the actual HardFault_Handler symbol. Naked instructs the compiler to emit zero prologue/epilogue - the first instruction executes with SP exactly where hardware left it.
+The naked function must be written entirely in basic inline assembly. From there, a tail-call into a real C function passes the resolved frame pointer as an argument - separating raw hardware context capture (asm, environment fully controlled) from complex diagnostic C logic.
+
+*MSP vs PSP resolution:*
+On exception entry, LR is loaded with EXC_RETURN. Bit 2: 0 = exception taken from MSP, 1 = exception taken from PSP. Currently (no RTOS) only MSP exists - but the bit-2 check is one TST/branch in asm already being written by hand. 
+Skipping it hardcodes it to "always MSP" - the moment FreeRTOS gives tasks their own PSP and one hits a fault, the handler reads the wrong stack frame silently. No fault, no indication, just wrong PC/LR/xPSR printed with no attribution trail.  
+
+*Fault status registers:*
+* CFSR at 0xE000ED28: MMFSR[7:0], BFSR[15:8], UFSR[31:16]. Some bits are write-1-to-clear - read and save immediately on entry.
+* HFSR at 0xE000ED2C: bit 30 FORCED - set when a configurable-priority fault (BusFault, MemManage, etc) escalated to HardFault because it was disabled or lower priority. If FORCED = 1, CFSR must be read for the real cause - HFSR alone won't tell you.
+* MMFAR at 0xE000ED34 and BFAR at 0xE000ED38: faulting data address. Only valid if MMARVALID/BFARVALID in CFSR is set.
+
+*No interrupt masking needed in the handler:*
+HardFault sits at priority -1 - only NMI (-2) and Reset can preempt it. Every configurable interrupt, including SysTick, cannot fire while inside HardFault_Handler. The captured data cannot be clobbered by another interrupt.
+
+*Capture destination - fixed global struct:*
+We cannot leave the frame pointer in a register and let GDB walk the stack if we are using -O2 compiler optimization: it produces liveness analysis, register allocation, and dead code elimination - all of this gives no guarantee the pointer survives in a predictable register once it is no longer needed for computation - especially once sitting in a halt loop where the compiler may see it as dead.
+The solution for this is a named global struct, written once by the C handler before entering the halt loop. It is readable by GDB by fixed address regardless of optimization lever or of debug symbol resolution.
 
 **Problems encountered:**
 - (None today) etc
