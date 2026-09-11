@@ -27,6 +27,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-11
+
+**Morning:**
+- Added new info to the JOURNAL logs for 05.09, 06.09.
+- Completed the JOURNAL log for 07.09.
+- Started the JOURNAL log for 08.09.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-10
 
 **Morning:**
@@ -80,7 +95,14 @@
 - Continued to developing and implementing the Python host script.
 
 **Problems encountered:**
-- (None today) etc
+
+**Bench verification bug:**
+Measured resistance across the button while unpowered - it gave a nonsensical 14.7kΩ reading (button open) instead of the expected open circuit (OL).
+Why: 14.7 = 4.7 + 10 -> suspiciously exact for a coincidence.
+The multimeter's own test current, pushed through the probes while unpowered, was finding an alternate path back through the 4.7kΩ pull-up and whatever else sits on that rail - measuring an unrelated combined circuit path instead of the switch actual open/closed state in isolation. Resistance measurement on a component still wired into a larger circuit is unreliable for exactly this reason.
+
+Correct test: power the board, measure voltage (not resistance) directly across PB13's node and GND, in-circuit. Button open: 3.3V (pulled up cleanly, no path pulling down). Button pressed: 1.8mV (effectively zero, well within noise for shorted to GND).
+This is the more faithful test overall, since it checks the exact electrical condition the firmware's GPIOB->IDR read actually depends on, under the real operating power condition, rather than an unpowered measurement vulnerable to picking up unrelated paths.
 
 **Root cause at the register level:**
 -
@@ -95,8 +117,26 @@
 **Afternoon:**
 - Implemented the HardFault_Handler.
 
+**What was done:**
+**1. HardFault Handler Implementation:**
+
+*Naked entry stub:*
+Assumed at first that ALL vector-table IRQ handlers had to avoid the naked attribute, based on a vague sense that vector table entries needed to be handled specifically. Traced through why that instinct was wrong: the actual deciding factor is not whether a function sits in the vector table, it is whether the handler needs raw pre-prologue access to hardware state and whether it needs a normal exception-return at all. USART2_IRQHandler is correctly not naked - it just reads SR/DR, does bookkeeping, and returns normally via the compiler's ordinary exception-return machinery. HardFault_Handler is different specifically because it needs to inspect the stacked frame before anything (including a compiled prologue) touches the stack, and because the bare-bones design never returns at all - it halts.
+
+Wrote the naked stub: tests bit 2 of LR (EXC_RETURN) via tst lr, #4 and an ite eq conditional pair, selects MSP or PSP into r0 accordingly, tail-branches into a plain C function (HardFault_Handler_C) with that pointer as the argument.
+
+*Capture destination:*
+First attempt discarded everything - first pass at HardFault_Handler_C pulled all the right fields (faultStackedRegs[6] for PC, CFSR from its address) but cast every one of them to (void) and discarded them - nothing was actually written anywhere. Caught this by going back to the earlier conclusion that local variables have no guaranteed lifetime once sitting in the halt loop, especially at higher optimization levels - marking them volatile locally doesn't fix that, volatile only prevents the compiler eliminating a read/write, it does nothing to guarantee the storage location survives past the function's own frame.
+
+Fix: built a proper global struct (static, not local) with fields for PC, R0-R3, R12, LR, xPSR, CFSR, HFSR, MMFAR, BFAR, plus explicit boolean validity flags (mmfar_valid, bfar_valid) and hfsr_forced, all marked volatile so the optimizer can never treat the writes as dead stores just because nothing in the C abstract machine reads them back.
+
 **Problems encountered:**
-- (None today) etc
+**1. Register naming bug - MMAR vs MMFAR:**
+Initially named a struct field MMAR, based on a table header in the reference doc.
+Checked the actual descriptive paragraph in the same document and confirmed the correct name is MMFAR. Corrected the field.
+
+**2. bkpt #0 hazard:**
+Original halt-loop implementation included bkpt #0 before the infinite loop, intended to force a debugger break. Traced what BKPT actually does with no debugger attached (DHCSR's halting-debug-enable and monitor-debug-enable bits both clear, which is the normal state of any deployed board not connected to SWD): it generates a HardFault, not a silent no-op. Since this instruction would executre while already inside HardFault_Handler, at priority -1, with the original fault never having returned - this is exactly the "fault escalation with nowhere to go" condition that leads to Lockup, the same chain derived during the bootloader's SP-validation design. Removed bkpt #0 entirely - the bare while(1) already gives full debugger inspection capability (breakpoint on the loop line, or just halt manually) without ever risking Lockup on hardware with no debugger attached.
 
 **Root cause at the register level:**
 -
@@ -112,7 +152,7 @@
 - Developed (designed) the jump function (sequence).
 
 **What was done:**
-*Retry mechanism:*
+**Retry mechanism:**
 
 **Bug 1:** 
 On timeout, incremented a retry counter and reset the SysTick start time, but never reset chunk_state or payload_index back to the start of the packet. This meant the receiver just kept waiting for the exact same byte position it was already stuck on, up to 3 times, before aborting - not the "3 full chunk re-attempts" I'd actually designed.
@@ -150,8 +190,47 @@ Trace: on a successful flash write, execution fell through to the bottom of UART
 
 Fix: added the same reception_state = UART_RECEPTION; payload_index = 0; continue; pattern to the success branch as well.
 
+**main() control flow - two-branch boot logic:**
+
+*First pass:*
+GPIO check happened, but the "stay in bootloader" branch was an empty else block - uart_chunk_receive_protocol() was never actually called anywhere in main(). Same for the SP-validation-failure case inside the jump branch - recognized in a comment but there was no code for it.
+
+*What should happen in each branch:*
+- For the "button held" branch: decided a successful reflash (UART_OK) should immediately attempt execute_user_application() - treating a successful flash as "try booting it now" rather than requiring a manual reset - for better user experience.
+All four failure outcomes (overflow, retries, corrupted, flash-error) collapse to the same response: loop back and wait for another attempt, no special handling needed per-outcome, since uart_chunk_receive protocol() already re-erases the sector at its own entry point on every call regardless of why the previous attempt failed.
+
+For the SP-validation-failure: initially unclear whether a second, separate handling was needed for UART_OK there. Traced the actual control flow and found it was already structurally correct without any extra code - logic_state is captured once before the loop and never changes, so on the branch where SP validation failed and uart_chunk_receive_protocol() got called, the next iteration of the outer while(1) naturally lands back in the same if(logic_state) branch and calls execute_user_application() again automatically. If the reflash succeeded, SP validation now passes and the jump happens; if it failed, SP validation fails again and the process repeats. No switch statement needed - the fixed value of logic_state across loop iterations gave the retry semantics for free.
+
+The "button held" branch had no equivalent mechanism, since logic_state is permanently false in that branch and never triggers execute_user_application() on its own - required an explicit call added: 
+if (uart_chunk_receive_protocol() == UART_OK) {
+execute_user_application();
+}
+
 **Problems encountered:**
 - **Bug: chunks_received 0ff-by-N across retries:**
+Once every retry path was correctly resetting state and looping back to receive a fresh copy of the same chunk, a new bug surfaced: chunks_received was incremented unconditionally inside UART_END_BYTE - meaning a chunk that failed and got reset would increment the counter twice (once per attempt), even though only one of those attempts ever succeeded. This meant flash_program's address computation, which relies on chunks_received to determine which 128-byte slot in flash to write to, would drift forward by one slot for every retry anywhere in the transfer - silently overwriting the wrong flash addresses.
+
+Fix: decremented chunks_received in every branch that causes a full chunk resend after the increment already happened - corrupted-checksum, flash-error, and overflow branches, all of which only execute after UART_END_BYTE had already run for that attempt.
+
+One decrement was wrong, though: applying the same fix to the did_retry_hit (timeout) branch. Traced carefully: timeout fires from inside the byte-wait loop, which by construction always happens before UART_END_BYTE had run for that attempt - meaning the increment never happened in the first place for a timed-out attempt. Decrementing there would incorrectly subtract from a counter that was never incremented for that specific failure, causing the next successful chunk to land one slot too early, overwriting the previous chunk's already-correct data. Removed the decrement from that one branch specifically.
+
+Applied the same "was an increment ever real for this attempt" check to the terminal is_retries about branch - concluded no decrement was needed there either, for two independent reasons: no increment ever happened (same structural reason as did_retry_hit, since is_retries also fires from inside the byte-wait loop before UART_END_BYTE), and the function is about to return and break out of the loop entirely regardless, so chunks_received's value is dead the instant the function returns.
+
+- **Bug: 16 KB overflow boundary:**
+Original check was all_payload_bytes >= 16384. 16384 bytes is exactly 128 full 128-byte chunks - the maximum legal image size that exactly fills Sector 2, a legitimate, correct-size transfer, not an overflow condition. The >= check would reject the 128th chunk - the one that exactly and correctly fills the sector - as an overflow error even though nothing illegal happened. Fixed to > 16384, which only trips on chunk 129 and beyond.
+
+Decided that once overflow trips, the outer loop should break immediately (send UART_NACK_OVERFLOW, abort) rather than continuing to silently drain and discard incoming bytes - matches the same immediate-terminal treatment as retries-exhausted and corruption-exhausted, adn gives the host an actual signal instead of leaving it sending into silence.
+
+- **The most significant late-stage bug - ACK missing on the success path:**
+For a long stretch, the success path (checksum passes, flash_program succeeds) sent nothing back to the host at all. Given the entire protocol is built around the host blocking on a response before sending the next chunk, this meant a working transfer would just silently stall from the host's perspective after every single chunk. 
+
+Fix: added the ACK send - but only after flash_program's actual return value confirms the write succeeded, not right after the checksum passes. Originally the ACK was being sent before flash_program ran at all, which meant the host could be told "success" while the flash write itself hadn't happened yet or has failed - checksum only proves the bytes arrived over UART intack, it says nothing about whether the write to flash succeeded.
+
+*Sentinel ACK placement:*
+Needed one final ACK after the sentinel packet arrives, so the host has positive proof the bootloader reached a clean end-of-transfer state (as opposed to trusting silently that everything worked). Placed the ACK inside UART_PAYLOAD_LEN, right where is_last gets set - not after the loop exits - because several other exit paths (retries exhausted, overflow, corruption exhausted) also cause the loop to end without the sentinel ever arriving, and an ACK placed after the loop would incorrectly fire on those paths too.
+
+*Return type built:*
+UART_ChunkReceive_ReturnTypes_t with UART_OK, UART_OVERFLOW_ABORT, UART_RETRIES_ABORT, UART_CORRUPTED, UART_FLASH_ERROR. Originally included a combined UART_OVERFLOW_RETRIES_ABORT state for when both overflow and retry-exhaustion could theoretically both be true - removed once overflow was changed to immediately break the loop, since after that change neither condition can survive to interact with the other in a later chunk.
 
 **Root cause at the register level:**
 -
@@ -207,6 +286,18 @@ But SysTick resolution is 1ms per tick, and a 1-tick countdown has a real hazard
 
 Chose inter-byte timeout (resets on every byte arrival) over a whole-chunk fixed deadline - a whole-chunk deadline sized around the flash-timing budget would false-fail a slow-but-steady host (e.g. 128 bytes at 50ms gaps = 6.4s total, failing every chunk even on a healthy link). Inter-byte timeout only fires on a genuine stall, regardless of how slowly the rest of the chunk trickles in.
 
+**GPIO Boot-Trigger:**
+
+*Pin/resistor:*
+PB13, chosen because it's unused by any other driver in the project. External pull-up used exclusively (consistent with never using internal PUPDR in any project) - originally planned 5kΩ, switched to 4.7kΩ once that's what was actually on hand (as I found out, 5kΩ is not even a standard resistor value). 4.7kΩ is the closer standard part anyway, and exact resistance does not actually matter for a clean digital logic read.
+
+*Polarity decision:*
+Button open -> pin reads 1 (via external pull-up to VDD) -> jump to application. Button held -> pin reads 0 (shorted to GND) -> stay in bootloader.
+Chose this deliberately as the safer default: a dead battery, unpressed button, or normal power-up never accidentally strands the device in bootloader mode - deliberate action is required to enter the exceptional path, not the normal one.
+
+*Debounce:*
+Worked out the actual settle-time math rather than assuming a delay was needed. 
+At 16MHz HSU, 1 cycle = 62.5ns. Worst case bounce settle time ~9ms = 144 000 cycles. But this number assumes the button press and MCU reset happen at the exact same instant, which they never do in practice - the user is holding the button down well before or during reset, contacts settle within the first few ms, and the user continues holding for hundreds of ms to seconds. By the time Reset_Handler finishes zeroing .bss, copying .data, and main() reaches the actual GPIO read (2-3 instructions), the button has already been in a steady settle state for far longer than the bounce window. No debounce delay needed - confirmed by tracing actual timescales rather than assuming a guard was required.
 
 **Root cause at the register level:**
 -
