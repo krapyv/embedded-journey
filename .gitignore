@@ -1,4 +1,5 @@
 *.elf
 *.bin
 *.swp
+*.map
 compile_commands.json

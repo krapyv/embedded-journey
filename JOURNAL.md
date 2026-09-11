@@ -35,6 +35,9 @@
 - Started the JOURNAL log for 08.09.
 - Completed the JOURNAL logs for 08.09, 09.09 and 10.09. All bootloader-project JOURNAL logs are completed.
 
+**Afternoon:**
+- Wrote a README.md for the bootloader project.
+
 **Evening:**
 
 **Problems encountered:**
@@ -380,14 +383,14 @@ Fix: FLASH_SECTOR2 + 128 * (chunks_received - 1) - 128 bytes per chunk, added as
 *Packet layout:*
 Start_byte(1) -> payload_len(1) -> payload[128] -> checksum (16-bit additive, big-endian: high byte, then low byte) -> end_byte (1). Total: 133 bytes per chunk.
 
-Chose additive checksum over CRC deliberately - simpler arithmetic, acceptable blind spot (insensitive to byte reordering and certain paired bit-flips) for a short physical UART link with mostly single-bit/burst noise. Documemted explicitly that this is a known limitation, not an oversight - CRC upgrade is legitimate future scope.
+Chose additive checksum over CRC deliberately - simpler arithmetic, acceptable blind spot (insensitive to byte reordering and certain paired bit-flips) for a short physical UART link with mostly single-bit/burst noise. Documented explicitly that this is a known limitation, not an oversight - CRC upgrade is legitimate future scope.
 
 Payload_len kept as a meaningful field (not redundant with the fixed 128-byte wire size) - it tells the bootloader how many of the 128 bytes are real image data versus 0xFF padding on the final chunk. Padding with 0xFF up to a 4-byte multiple is provably safe: erased flash is all-1s, and writing 1-bits onto already-erased flash changes nothing electrically - confirmed against the manual's own note that changing bits from 1 -> 0 requires an erase, but writing 1 onto 1 requires nothing.
 
 End_byte kept deliberately as a resync sanity check, and for future-proofing if payload size ever becomes dynamic instead of fixed.
 
 *Sentinel packet:*
-Payload_len = 0 signals end-of-transfer. Confirmed against my own state machine: UART_PAYLOAD_LEN case checks payload_len == 0, sets is_last = 1 immediately, never proceeds to read payload/checksum/end_byte for that packet - so the sentinel really is only 2 bytes on the wire (Start_byte + Payload_len = 0), not a full 133-byte packet with dummy filter.
+Payload_len = 0 signals end-of-transfer. Confirmed against my own state machine: UART_PAYLOAD_LEN case checks payload_len == 0, sets is_last = 1 immediately, never proceeds to read payload/checksum/end_byte for that packet - so the sentinel really is only 2 bytes on the wire (Start_byte + Payload_len = 0), not a full 133-byte packet with dummy filler.
 
 *Reception mechanism:*
 Polling loop, not interrupt-driven. Justified from the actual timing: the protocol is strictly half-duplex request/response (host sends chunk, waits, bootloader ACKs/NACKs, host sends next) - the bootloader has nothing else to do while waiting, so a blocking poll loop is simpler and just as correct as interrupts here.
@@ -409,7 +412,7 @@ Chose this deliberately as the safer default: a dead battery, unpressed button, 
 
 *Debounce:*
 Worked out the actual settle-time math rather than assuming a delay was needed. 
-At 16MHz HSU, 1 cycle = 62.5ns. Worst case bounce settle time ~9ms = 144 000 cycles. But this number assumes the button press and MCU reset happen at the exact same instant, which they never do in practice - the user is holding the button down well before or during reset, contacts settle within the first few ms, and the user continues holding for hundreds of ms to seconds. By the time Reset_Handler finishes zeroing .bss, copying .data, and main() reaches the actual GPIO read (2-3 instructions), the button has already been in a steady settle state for far longer than the bounce window. No debounce delay needed - confirmed by tracing actual timescales rather than assuming a guard was required.
+At 16MHz HSI, 1 cycle = 62.5ns. Worst case bounce settle time ~9ms = 144 000 cycles. But this number assumes the button press and MCU reset happen at the exact same instant, which they never do in practice - the user is holding the button down well before or during reset, contacts settle within the first few ms, and the user continues holding for hundreds of ms to seconds. By the time Reset_Handler finishes zeroing .bss, copying .data, and main() reaches the actual GPIO read (2-3 instructions), the button has already been in a steady settle state for far longer than the bounce window. No debounce delay needed - confirmed by tracing actual timescales rather than assuming a guard was required.
 
 **Root cause at the register level:**
 -
@@ -480,13 +483,13 @@ Bootloader = Sector 0 + 1 (32 KB), application = sector 2 + starting at 0x080080
 GPIO pin read at reset. RTC_BKPxR (backup registers, requiring DBP unlock in PWR_CR) deferred - unnecessary complexity for v1.
 
 *Protocol and why raw streaming is unsafe:*
-During flash erase or programming, instruction fetches from flash stall. Sector erase time - 16 KB sector max 500 ms. During that 500 ms window, the bootloader's own UART ISR code (sitting in flash) cannot be fetched. Incoming UART bytes arrive with nothing pulling them from DR. RXNE stays set. Next byte arrives before DR is read - RXNE still set when new data arrives in shift register. ORE (Overrun Error) asserts. The incoming byte is lost. Protocol desynchorizes.
+During flash erase or programming, instruction fetches from flash stall. Sector erase time - 16 KB sector max 500 ms. During that 500 ms window, the bootloader's own UART ISR code (sitting in flash) cannot be fetched. Incoming UART bytes arrive with nothing pulling them from DR. RXNE stays set. Next byte arrives before DR is read - RXNE still set when new data arrives in shift register. ORE (Overrun Error) asserts. The incoming byte is lost. Protocol desynchnorizes.
 
 Fixed-chunk ACK/NACK protocol solves this perfectly: host sends one chunk, waits for ACK before the next. Host timeout must exceed max erase time + max program time with margin - a too-short host timeout causes retransmission into a deaf bootloader, ORE, desync.
 
 *Flash unlock sequence:*
 * Write KEY1 (0x45670123) and then KEY2 (0xCDEF89AB) to FLASH_KEYR.
-* Check LOCK bit (bit 31) to FLASH_CR = 0 to confirm unlock. 
+* Check that LOCK bit (bit 31) of FLASH_CR reads 0 to confirm unlock. 
 Any wrong key or wrong order re-locks and sets an error flag.
 
 *Erase sequence:*
@@ -571,7 +574,7 @@ The naked function must be written entirely in basic inline assembly. From there
 
 *MSP vs PSP resolution:*
 On exception entry, LR is loaded with EXC_RETURN. Bit 2: 0 = exception taken from MSP, 1 = exception taken from PSP. Currently (no RTOS) only MSP exists - but the bit-2 check is one TST/branch in asm already being written by hand. 
-Skipping it hardcodes it to "always MSP" - the moment FreeRTOS gives tasks their own PSP and one hits a fault, the handler reads the wrong stack frame silently. No fault, no indication, just wrong PC/LR/xPSR printed with no attribution trail.  
+Skipping it hardcodes it to "always MSP" - the moment FreeRTOS gives tasks their own PSP and one hits a fault, the handler reads the wrong stack frame silently. No fault, no indication, just wrong PC/LR/xPSR printed with no attribution trail. 
 
 *Fault status registers:*
 * CFSR at 0xE000ED28: MMFSR[7:0], BFSR[15:8], UFSR[31:16]. Some bits are write-1-to-clear - read and save immediately on entry.
@@ -633,7 +636,7 @@ Asymmetric sector layout:
 * Sector 4: 64 KB
 * Sectrs 5-7: 128 KB each
 
-The layout is intentionally asymmetric - small sectors at the bottom give fine-grained boundary options for bootloader/config partitions. Flash erase is issued via FLASH_CR with SNB[3:0] selecting the sector. There is no sub-sector erase - minimul erase granularity is one full sector. This, not VTOR's 512-byte alignment, is the binding constraint on partition boundaries.
+The layout is intentionally asymmetric - small sectors at the bottom give fine-grained boundary options for bootloader/config partitions. Flash erase is issued via FLASH_CR with SNB[3:0] selecting the sector. There is no sub-sector erase - minimum erase granularity is one full sector. This, not VTOR's 512-byte alignment, is the binding constraint on partition boundaries.
 
 *Partition decision:*
 * Bootloader: Sector 0 + Sector 1 = 32 KB. 32 KB gives room for a flash-write driver, CRC/checksum verification, and a minimal UART comms protocol without being cramped.
@@ -643,7 +646,7 @@ Both 0x08004000 and 0x08008000 land exactly on sector boundaries - neither is mi
 
 *Self-update decision:*
 Self-update capability (bootloader rewriting its own flash sector while running from it) is out of scope for v1. The bootloader is flash-once-via-SWD.
-Consequence: no RAM-resident erase/program routine needed. If the bootloader ever issued a sector erase against its own sector while executing from it, the CPU would be fetching  instructions from flash mid-erase - not "risky", architecturally undefined. That's the same structural reason .data exists: code that must remain stable while flash is unstable must not be in flash at the moment. Defereed with explicit TODO in README.
+Consequence: no RAM-resident erase/program routine needed. If the bootloader ever issued a sector erase against its own sector while executing from it, the CPU would be fetching  instructions from flash mid-erase - not "risky", architecturally undefined. That's the same structural reason .data exists: code that must remain stable while flash is unstable must not be in flash at the moment. Deferred with explicit TODO in README.
 
 **3. Stack Pointer Validation Before Application Jump:**
 *What was studied:*
