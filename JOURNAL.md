@@ -33,6 +33,7 @@
 - Added new info to the JOURNAL logs for 05.09, 06.09.
 - Completed the JOURNAL log for 07.09.
 - Started the JOURNAL log for 08.09.
+- Completed the JOURNAL logs for 08.09, 09.09 and 10.09. All bootloader-project JOURNAL logs are completed.
 
 **Evening:**
 
@@ -57,10 +58,19 @@
 **Evening:**
 
 **Problems encountered:**
-- (None today) etc
+**1. Bug: Unshifted FLASH_SNB2 Enum value - the real bug that has caused these problems:**
 
-**Root cause at the register level:**
--
+*Symptom, after ruling out the tooling issue:* With a genuinely fresh, healthy debug session, signle-stepping through flash_erase() and continuing past the call to flash_bsy_checking() never reached a breakpoint set immediately after it - a real, reproducible hang, confirmed by testing with a full-speed continue.
+
+*Root cause:*
+The direct register inspection at the line setting STRT (FLASH->CR |= (1UL << 16U)) and printing the content of FLASH->CR in binary showed: 1000000011. The bit 0 (PG) and bit 1 (SER) were set simultaneously. 
+Traced this back to the FLASH_SNB2 enum value, which still had been defined as bare 0x2 rather than pre-shifted into the SNB field's actual bit position (6:3). Since `sector_num` gets OR'd directly into FLASH->CR at whatever bit position it already holds, an unshifted value of 2 lands on bit 1 (SER) rather than anywhere in the SNB field at all.
+
+*Fix:* Redifined the sector-number enum values with the shift baked in at declaration(FLASH_SNB2 = (2 << 3) and so on), so the value already sits in the correct field position before it's ever ORed into FLASH->CR.
+
+*End-to-end confirmation:*
+Then I ran the Pythong script fresh, with no debugger attached, board power-cycled clean. Script printed a clean success message with no NACKs or timeouts along the way. LED on the target board physically started blinking - script reported success and there was an observable hardware behavior.
+
 
 # 2026-09-09
 
@@ -68,7 +78,7 @@
 - Derived and implemented assembling of 133-byte packet.
 - Designed the sending and handling the response stage.
 - Implemented the sending and handling the response mechanism.
-- Designed and implemented sending the sentinel and waitig for the final confirmation.
+- Designed and implemented sending the sentinel and waiting for the final confirmation.
 
 **Afternoon:**
 - Started testing and debugging + learnt how to run Python programs.
@@ -76,6 +86,90 @@
 
 **Evening:**
 - Continued debugging - fixed the core lockup state - it was OpenOCD/GDB tooling artifact.
+
+**What was done:**
+**Python Host-Side Uploader Script (Part 2):**
+
+*Step 3 - checksum and packet assembly:*
+Device side computes covered_sum as a uint16_t - every intermediate addition wraps at 16 bits silently in C. Python integers never wrap on their own.
+Confirmed modular arithmetic property (a+b+c) mod N == (((a mod N) + b) mod N + c) mode N holds, meaning masking once at the very end (& 0xFFFF) after summing everything gives an identical result to wrapping after every add on the device - no need to mask per-term.
+
+First checksum attempt used `content[0]` (the file's actual first byte) instead of 0xAA (the protocol's fixed Start_byte constant) - an accidental substitution of the wrong variable that happened to compile without error. Caught by tracing that content[0] never changes across loop iterations while the actual device-side checksum uses the fixed framing byte, not file content. Fix: changed to 0xAA.
+
+Confirmed Python 3's sum() works directl on a bytes object, iterating it as plain int (0-255) with no conversion step.
+
+Packet assembly: bytes([0xAA, 128]) + new_chunk + bytes([high_sum, low_sum, 0xBB]) - needed to learn that bytes only concatenates with another bytes-like object, never a bare int (bytes + int raises TypeError), fixed by wrapping every lone int in bytes([...]).
+
+First version of the packet-building loop build packet fresh every iteration but never appended it anywhere - meant only the last chunk's packet survived past the loop. Same category of bug already caught once with chunks.append(). Fix: added packet.append(packet).
+
+*Stage 4 - send/receive loop with retry semantics:*
+Built a byte->function dics (NACK_ACTIONS) mapping device response values to host actions, after reasoning that three of the six response values (UART_NACK_RETRY, UART_NACK_CORRUPTED, UART_NACK_FLASH) all resolve to the identical host action ("resend this packet"), and two others (UART_NACK_ABORT, UART_NACK_OVERFLOW) bith resolve to "stop entirely" - a dict avoided writing the same handling logic three times over in an if/elif chain.
+
+Retry function (retry()) is an empty no-op - since the loop's index only advances on a real ACK, "don't advance" is already the loop's natural behavior for any non-ACK response; the function exists only to be a valid dict entry. Abort function initially planned to return `return None` as its "stop" sentinel - caught before writing it that an empty-bodied Python function implicitly returns None too, meaning the retry function and the abort function would be indistinguishable by return value. Switched the abort sentinel to the string 'abort', a value nothing else in the flow could produce by accident.
+
+Discovered mid-build that a `for i in range(total_chunks)` loop structurally cannot support "resend the same index" - `for` always advances its loop variable every pass, with no mechanism to hold it still. Converted to while j < total_chunks, incrementing `j` only inside the ACK branch.
+
+First full draft of this loop accidentally kept all the Stage-2/Stage-3 chunk-building code (slicing, padding, checksum, packet assembly, `.append()`) sitting inside the same while body as the send/receive logic, reusing the same loop variable `i`/`j` for two conflicting purposes - "which packet to build next" and "which packet index to send/retry". This caused `packets` and `chunks` to grow unboundedly on every retry pass rather than being built once. 
+Fix: separated the two loops entirely: a `for i in range(total_chunks)` that builds the complete packets list once, finished before any sending starts, followed by a separate `while j < total_chunks` that only ever reads `packets[j]`.
+
+Host-side timeout-vs-NACK distinction: decided a device-silence timeout needs its own separate counter from the device's own internal retry counters, since the device's counters only exist and increment in response to bytes it actually receives - if the link or device is dead, the device has no idea a host is even trying to talk to it, so nothing on that side is counting anything. 
+Chose 2 total attempts (1 initial + 1 retry) before giving up on silence specifically, reasoning that a second attempt has a real chance of recovering from a transient USB-serial hiccupt, but a third attempt after two consecutive silences adds nothing. Timeout counter resets on any response at all - ACK or NACK - since receiving anything at all proves the device is alive; it's specifically the "went completely silent" failure mode being guarded against, not general packet failure.
+
+Several syntax corrections: Python has no `++`/`--` increment operators at all (timeout_counter++ and i++ both invalid - replaced with += 1), and confirmed int.from_bytes on a single byte gives an identical result regardless of the required byte-order argument ('little' vs 'big'), since there's nothing to reorder with only one byte.
+
+*Stage 5 - sentinel packet and final confirmation:*
+Sentinel confirmed to be genuinely 2 bytes only (Start_byte, Payload_len = 0) by re-checking the device's own case block - UART_PAYLOAD_LEN sets is_last = 1 and ACKs immediately on reading a zero length, without ever transitioning into the payload-reading state, so nothing else on the wire is expected or consumed for that packet.
+
+Decided the sentinel confirmation should be a single-shot attempt with just a print statement on failure, not the full retry machinery built for real chunks - reasoned that by the time the sentinel is sent, every real chunk has already been successfully flashed; nothing left to corrupt, so the proportional amount of engineering here is much less than for the data-carrying chunks.
+
+First draft called `int.from_bytes(ser.read(1))` directly, feeding the raw read result straight into the int conversion before checking whether it was empty - same emptiness-check-before-conversion issue already caught and fixed earlier in the timeout logic for real chunks. 
+Fix: check and then convert - test `if not sentinel_response` first, only call `int.from_bytes` inside the non-empty branch. Also caught a syntax error from an incomplete comparison (`elif sentinel_response != :`) missing its right-hand operand - filled in with 0, maching UART_ACK_OK's real value.
+
+*Final clean-up:*
+I removed the `chunks` list entirely once confirmed it was write-only (appended to but never read anywhere in the finished script) and removed an unused fallback lambda in the `NACK_ACTIONS.get()` call, since the enum is closed at values 0-5, 0 is intercepted before the dict lookup ever runs, and 1-5 are all explicitly mapped - meaning `.get()` can never actually return the fallback on real hardware. 
+
+**Application Image confusion:**
+I initially misunderstood the entire point of the bootloader/UART transfer - I had assumption that the bootloader's own compiled binary was somehow "the chunks" being passed around, and that packets needed to be constructed by hand from nothing. 
+Had to walk back to first principles:
+the bootloader and the application are two entirely separate compiled programs, built from separate source trees, separate linker scripts, living at two different flash addresses (bootloader at 0x08000000/sector 0+1, application at 0x08008000/sector 2). The UART transfer's entire purpose is delivering a fresh copy of the application binary into flash at the application's address, without needing a debugger physically attached - the bootloader is the receiving/writing mechanism, not a payload.
+
+I mistakenly ran the bootloader's own program.bin through the transfer at first - traced this by noticing the bootloader's own Makefile wrote to 0x08000000 (matching flash/flash-st targets and the linker script's ORIGIN), confirming that particular .bit was the bootloader itself, not an application payload, and definitely the wrong thing to send since it would try to overwrite the very code currently executing the transfer.
+
+Took previously built (back to the beginning of my bare-metal journey) minimal LED-blink application project specifically as the payload: its own main.c, its own .ld file with ORIGIN = 0x08008000 instead of 0x08000000 (one-line change from the bootloader's linker script), and initially left LENGTH = 512K in that linker script unchanged - recognized this was too generous, since the application only legitimately owns Sector 2 (16KB), and a future application that actually approached that size would silently link fine while the bootloader's own `all_payload_bytes > 16384` runtime check would reject it at transfer time rather than the build catching the mistake earlier.
+Fix: changed LENGTH to 16K to match the real sector boundary, so the linker itself would refuse to link an oversized image with a build-time error rather than deferring the failure to runtime.
+
+**Bench test:**
+**1. UART_ACK_START handshake bug at the 500ms erase stall:**
+*Symptom*: every single script run - regardless of the .bin used - reported an immediate timeout waiting for the very first response byte, even the widened 500ms wait for the newly-added start-of-transfer signal.
+
+Root cause: uart_chunk_receive_protocol()'s original first three lines were flash_erase(FLASH_SNB2), SysTick_Init(...), usart2_init() - it that order. 
+flash_erase() calls flash_bsy_checking(), which spins until the sector erase physically completes - up to 500ms worst case for 16 KB sector erase at PSIZE=x32. During that entire window, usart2_init() had not run yet - USART2 was completely unclocked and unconfigured. Any byte arriving on the wire during that time was not buffered anywhere; it simply vanished, since the peripheral receiving it did not exist from the CPU's point of view.
+
+*Fix, part 1:*
+Reordered uart_chunk_receive_protocol() to call usart2_init() first, before anything else - confirmed safe since usart2_init() depends only on RCC/GPIOA/USART2 registers, and flash_erase() depends only on FLASH registers; the two touch completely independent peripherals with no ordering dependency between them.
+
+*Fix, part 2:*
+Even with USART2 clocked and configured before the erase starts, the erase itself still blocks the CPU for up to 500ms while flash_bsy_checking() spins. A byte arriving during that window would be received into DR by hardware (the peripheral genuinely is listening), but the CPU has no opportunity to read it out before a second byte could arrive and overrun/overwrite the first - since the protocol is fully polled, not interrupt-driven, and the CPU is busy-spinning somewhere else entirely.
+
+Decided the correct fix wasn't a timing guess on the host side (waiting some arbitrary "long enough" delay before sending), but a real handshake: the device sends an explicit "ready now" signal to the host only once the erase has genuinely finished. 
+Added a new enum value UART_ACK_START = 6 to UART_HostConfirmation_t, sent unconditionally right after flash_erase() returns (not before - the "safe to send" promise only becomes true once the erase is actually done). Confirmed a distinc value was the right call rather than reusing UART_ACK_OK - collapsing them would make "ready for chunk 0" signal indistinguishable from "chunk N successfully flashed" if ever logged or debugged later.
+
+Deliberately did not add an error-check path around the erase step (no dedicated NACK for erase failure) - I have scoped it as out-of-scope for v1, consistent with the earlier decision to skip exhaustive fault coverage.
+
+Host-side change: I have added a standalone, one-time wait for the UART_ACK_START byte before the main chunk-sending loop even starts, using a deliberately larger timeout (500ms, matching the erase's worst case) rather then reusing the 30ms per-chunk, since 30ms was sized for a completely different wait (post-chunk-transmission response time).
+
+**2. False Lockup:**
+*Symptom, after the UART_ACK_START fix was in place:* GDB sessions repeatedly showed me that the core is in a lockup state - `pc: 0xFFFFFFFE`, `msp: 0xFFFFFFFC` - and reading the vector table at `0x08000000` showed erased flash (`0xFFFFFFFF`) even immediately after a `load` command reported successful writes. `hardfault_dump` read all zeros, meaning `HardFault_Handler_C` has genuinely never executed even once - ruling out a real scenario that there was a fault inside a fault (double-fault scenario), since that would still have left the first fault's data written before things went wrong.
+
+*Investigation:*
+Confirmed STM32_Programmer_CLI's own verify path (via make flash) read back correct data immediately after writing - meaning real bytes really were landing in flash.
+Yet the very next GDB attach, reading the identical addresses, showed erased flash again. Two tools disagreeing about the same physical memory - something was wrong with the debugging session. 
+
+Killed the stale OpenOCD process entirely and started a completely fresh instance after `make flash` had already finished - the very first halt message from that fresh session showed a plausible, real `msp` value and `Handler HardFault` mode, in contrast to every prior garbage reading. 
+Re-checking `hardfault_dump` right after a `load` (without an intervening reset) showed large nonsensical numbers - traced this to stale SRAM content from before Reset_Handler had run and zeroed .bss, not a genuine fault report; a reminder that RAM-resident state should never be trusted without a reset first.
+
+A subsequent fresh halt, after a proper reset, finally showed a completely healthy signature: `pc: 0x080001ac` (matching the `load` command's own reported start address) and `msp: 0x20020000` (exactly SRAM_START + SRAM_SIZE, the correct default stack top). Re-reading the vector table in the same clean session showed correct, real values (0x20020000, 0x080001ad with the Thumb bit set) - confirming the firmware, the flash write, and the reordering fix had never been actually broken. Every earlier lockup/garbage reading had been an artifact of a debug session.
+
 
 **Problems encountered:**
 - (None today) etc
@@ -95,14 +189,32 @@
 - Continued to developing and implementing the Python host script.
 
 **Problems encountered:**
-
-**Bench verification bug:**
+**1. Bench verification bug:**
 Measured resistance across the button while unpowered - it gave a nonsensical 14.7kΩ reading (button open) instead of the expected open circuit (OL).
 Why: 14.7 = 4.7 + 10 -> suspiciously exact for a coincidence.
 The multimeter's own test current, pushed through the probes while unpowered, was finding an alternate path back through the 4.7kΩ pull-up and whatever else sits on that rail - measuring an unrelated combined circuit path instead of the switch actual open/closed state in isolation. Resistance measurement on a component still wired into a larger circuit is unreliable for exactly this reason.
 
 Correct test: power the board, measure voltage (not resistance) directly across PB13's node and GND, in-circuit. Button open: 3.3V (pulled up cleanly, no path pulling down). Button pressed: 1.8mV (effectively zero, well within noise for shorted to GND).
 This is the more faithful test overall, since it checks the exact electrical condition the firmware's GPIOB->IDR read actually depends on, under the real operating power condition, rather than an unpowered measurement vulnerable to picking up unrelated paths.
+
+**What was done:**
+**Python Host-Side Uploader Script (Part 1):**
+Built from scratch.
+
+*Stage 1 - serial port setup:*
+Port /dev/ttyUSB0, baud 115200. First timeout value picked arbitrarily as 0.002s (matching the device's own 2ms inter-byte timeout), but that number answers a different question - the device's 2ms bounds the gap between bytes within a packet on the device side; the host's read() after sending a full packet has to wait through: full packet reception time, checksum computation, and - for a real chunk - a full flash_program() call (unlock, PSIZE set, 32-word write loop with per-word BSY poll).
+
+Worked the actual budget from real numbers: 133 bytes at 115200 baud, 8-N-1 framing = 86.8 µs/byte * 133 = ~11.54ms for transmission alone. Flash programming: datasheet gives 16µs typ / 100µ max per ford at PSIZE = x32, 32 words = up to 3.2ms. Added 3ms generous margin for checksum/state-machine overhead, 1ms for the ACK byte to phisically clear the shift register and arrive. Total: ~20 ms, rounded up with 10ms safety margin -> 30ms final host-side per-chunk timeout.
+
+Decided to hardcode this same 30ms for every chunk including the sentinel - reasoned that using the flash-inclusive timeout for the sentinel (which never calls flash_program) only means waiting a little longer than strictly necessary on that one path, a harmless direction to be wrong in.
+
+*Step 2 - reading and chunking the .bin file:*
+open("file.bin", "rb") + .read() to load the whole image into memory at once - no reason to stream incrementally given file size. Chunk count via ceiling-division using pure integer arithmetic: (len(content) + 128 - 1) // 128 - avoided math.ceil on a float division deliberately.
+
+First chunking attempt used content.slice(...), which does not exist as a method on Python bytes objects - corrected to bracket-slice syntax content[i * 128 : i * 128 + 128]. 
+Also caught a length-comparison bug: if new_chunk != 128 compares a bytes object to an int, which is always True regardless of actual length - needed len(new_chunk) != 128 instead. And the padding-count calculation was computing from len(content) % 128 (the whole file's remainder) rather than len(new_chunk) (the actual short slice in hand) - happened to produce the right number by coincidence on the true last chunk, but wasn't actually reasoning from the right variable. Fix: padding based on the actual slice length.
+
+Final padding logic: last chunk, if short, gets += (128 - len(new_chunk)) * b'\xff' - padding with 0xFF is provably safe since erased flash is already all-1s (established earlier on the firstware side).
 
 **Root cause at the register level:**
 -
