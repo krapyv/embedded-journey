@@ -27,6 +27,22 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-12
+
+**Morning:**
+- Learned about MSR.
+- Learned about ldr r1, =symbol.
+- Learned about XMODEM.
+- Wrote a Linkedin post about the bootloader project.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-11
 
 **Morning:**

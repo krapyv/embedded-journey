@@ -186,7 +186,7 @@ Measure: lowest current draw
 
 Done bar: demonstrate all three modes via UART menu — press 1 for sleep, 2 for stop, 3 for standby. Each mode wakes on button press and prints confirmation over UART.
 
-Week 20: Bootloader
+Week 20: Bootloader ✅
 
 This is the most architecturally complex week in Phase 3. Read the linker script ✅ and startup file ✅ before writing a single line.
 
@@ -209,7 +209,7 @@ Unlock FLASH_CR with KEY1 (0x45670123) and KEY2 (0xCDEF89AB)
 Erase target sector — set SER bit, SNB field, STRT bit, wait for BSY to clear
 Program word by word — set PG bit, write to Flash address, wait for BSY
 
-Done bar: bootloader receives a binary over UART, writes it to Sector 1, validates the vector table, and jumps to the application. Application blinks an LED and prints "App running" over UART.
+Done bar: bootloader receives a binary over UART, writes it to Sector 1, validates the vector table, and jumps to the application. Application blinks an LED and prints "App running" over UART.✅
 
 Week 21: Integration Project — CAN Sensor Node ✅
 
