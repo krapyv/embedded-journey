@@ -35,6 +35,9 @@
 - Learned about XMODEM.
 - Wrote a Linkedin post about the bootloader project.
 
+**Afternoon:**
+- Repeated the ring_buffer topic and fixed volatile issues on head/tail.
+
 **Evening:**
 
 **Problems encountered:**
