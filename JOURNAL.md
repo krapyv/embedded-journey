@@ -39,6 +39,7 @@
 - Repeated the ring_buffer topic and fixed volatile issues on head/tail.
 
 **Evening:**
+- Learned theory about the Circular buffer.
 
 **Problems encountered:**
 - (None today) etc
