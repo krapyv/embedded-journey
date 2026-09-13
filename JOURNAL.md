@@ -37,6 +37,7 @@
 - Finished deriving and designing the Task communication task.
 
 **Evening:**
+- Finished Thread-safery part of designing.
 
 **Problems encountered:**
 - (None today) etc
