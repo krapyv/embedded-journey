@@ -31,6 +31,10 @@
 
 **Morning:**
 - Learned about Lock-free vs locked and how protect shared state.
+- Started designing (deriving) the "Task communication" project: a generic, struct-based FIFO that moves discrete messages (no raw bytes) between two or more independent contexts on bare metal, with an explicit, provable answer to "why is this safe from races".
+
+**Afternoon:**
+- Finished deriving and designing the Task communication task.
 
 **Evening:**
 
