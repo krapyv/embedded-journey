@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-13
+
+**Morning:**
+- Learned about Lock-free vs locked and how protect shared state.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-12
 
 **Morning:**
@@ -40,6 +53,7 @@
 
 **Evening:**
 - Learned theory about the Circular buffer.
+- Learned about the Queue (FIFO), RTOS-style queue - a FIFO plus task blocking.
 
 **Problems encountered:**
 - (None today) etc
