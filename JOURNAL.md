@@ -36,6 +36,9 @@
 - Derived, designed and implemented BASEPRI assembly inline functions.
 - Bumped my_resusable_drivers/core to the new core submodule version.
 
+**Afternoon:**
+- Learned theory about GCC inline assembly and finally grasped it (but a little deeper dive in details is needed after the project is done).
+
 **Evening:**
 
 **Problems encountered:**
