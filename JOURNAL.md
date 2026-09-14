@@ -27,6 +27,23 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-14
+
+**Morning:**
+- Learned theory about alignment of unions and structs.
+- Learned about the reasons why array[] can get away without volatile in the struct.
+- Started implementing the Task communication project.
+- Derived, designed and implemented BASEPRI assembly inline functions.
+- Bumped my_resusable_drivers/core to the new core submodule version.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-13
 
 **Morning:**
