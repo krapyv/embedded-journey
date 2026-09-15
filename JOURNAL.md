@@ -34,6 +34,10 @@
 - Derived TIM2 for the project.
 - Continued implementing the task.
 
+**Afternoon:**
+- Finished implementating, fixed bugs.
+- Built the breadboard circuit.
+
 **Evening:**
 
 **Problems encountered:**

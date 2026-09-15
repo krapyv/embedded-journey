@@ -91,6 +91,19 @@ void Override_EXTI15_10_IRQHandler(void)
         uint8_t can_int_rx1_payload[8];
         uint8_t can_int_rx1_flag = 0;
 
+        uint8_t can_intf_val;
+
+        do
+        {
+
+            mcp2515_read(CANINTF, &can_intf_val, 1U);
+
+            if (can_intf_val)
+            {
+                mcp2515_canintf_handler(can_intf_val, can_int_rx0_header, can_int_rx0_payload, &can_int_rx0_flag, can_int_rx1_header, can_int_rx1_payload, &can_int_rx1_flag);
+            }
+        } while (can_intf_val & ~((1 << 7) | (1 << 5)));
+
         Payload_t message;
         message.producer_type = Payload_MCP2515;
 
@@ -106,6 +119,9 @@ void Override_EXTI15_10_IRQHandler(void)
 
             memcpy(frame.data, can_int_rx0_payload, 8 * sizeof(uint8_t));
 
+            message.payload.mcp2515_frame = frame;
+            queue_push(&queue, message);
+
             can_int_rx0_flag = 0;
         }
         // if rx1_flag is set, the rx1_buffer has a new frame
@@ -118,6 +134,9 @@ void Override_EXTI15_10_IRQHandler(void)
             frame.DLC = can_int_rx1_header[4];
 
             memcpy(frame.data, can_int_rx1_payload, 8 * sizeof(uint8_t));
+
+            message.payload.mcp2515_frame = frame;
+            queue_push(&queue, message);
 
             can_int_rx1_flag = 0;
         }
@@ -141,17 +160,27 @@ void TIM2_init(void)
     TIM2->CR1 |= (1UL << 4U);
 
     // ensure the UDIS (bit 1) is 0, so UEV is enabled
-    TIM2->CR1 &= ~(1UL << 3U);
+    TIM2->CR1 &= ~(1UL << 1U);
 
     // set the URS (bit 2) - Update request source - to 1
     // so only counter overflow/underflow generates an update interrupt
     TIM2->CR1 |= (1UL << 2U);
+
+    // set UIE (bit 0) of DIER to 1 to enable Update interrupts
+    TIM2->DIER |= (1UL << 0U);
 
     // set auto-reload register
     // HSI oscillator has by default 16MHz frequency
     // 1 ms = 16 000 ticks. then 20 ms = 20 * 16 000 = 320 000
     // ARR = 319 999 - since TIM2 has a 32-bit ADD register, it is ok
     TIM2->ARR = 319999;
+
+    // TIM2 Handler has the position 28 in the vector table
+    // the position 28 is the ISER0 bit 28
+    // set the TIM2 a priority of 4
+    NVIC->IPR[28] = ((uint8_t)TIM2_INTERRUPT_PRIORITY_LEVEL << 4U);
+
+    NVIC->ISER[0] = (1UL << 28U);
 
     // enable counter
     TIM2->CR1 |= (1UL << 0U);
@@ -160,6 +189,10 @@ void TIM2_init(void)
 void TIM2_IRQHandler(void)
 {
     tim2_counter++;
+
+    // clear UIF bit 0 of TIM2->SR
+    // UIF is write-0-to-clear
+    TIM2->SR &= ~(1UL << 0U);
 
     Payload_t message = {
         .payload.tick_count = tim2_counter,
@@ -179,6 +212,8 @@ void main(void)
 
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     spi_init(SPI_BR_8);
+
+    queue_init(&queue, payload_buffer, 16U);
 
     // set the EXTI15_10 a priority of 4
     NVIC->IPR[40] = ((uint8_t)MCP2515_INTERRUPT_PRIORITY_LEVEL << 4U);
@@ -255,7 +290,7 @@ void main(void)
             }
             else
             {
-                print("Tick counter: " PRIu32 "\r\n", message.payload.tick_count);
+                printf("Tick counter: %" PRIu32 "\r\n", message.payload.tick_count);
             }
         }
     }

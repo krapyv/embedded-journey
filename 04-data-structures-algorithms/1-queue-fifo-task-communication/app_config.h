@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define MCP2515_INTERRUPT_PRIORITY_LEVEL 4U
-#define BASEPRI_MASK_INTERRUPT_PRIORITY_LEVEL 0U
+#define TIM2_INTERRUPT_PRIORITY_LEVEL 8U
 
 typedef enum
 {
