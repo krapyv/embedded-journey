@@ -39,6 +39,8 @@
 - Built the breadboard circuit.
 
 **Evening:**
+- Tested the built circuit with the multimeter.
+- Started designing the host Python script to send CAN frames to the STM32.
 
 **Problems encountered:**
 - (None today) etc
