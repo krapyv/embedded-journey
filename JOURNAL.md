@@ -27,6 +27,21 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-15
+
+**Morning:**
+- Changed BMP280 to TIM2 in the Task Communication task description since BMP280 does not have an interrupt line.
+- Derived TIM2 for the project.
+- Continued implementing the task.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-14
 
 **Morning:**

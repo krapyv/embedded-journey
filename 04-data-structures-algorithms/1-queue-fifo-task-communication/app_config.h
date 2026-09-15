@@ -1,6 +1,7 @@
 #ifndef APP_CONFIG_H
 #define APP_CONFIG_H
 
+#include <stdint.h>
 #include <stdbool.h>
 
 #define MCP2515_INTERRUPT_PRIORITY_LEVEL 4U
@@ -8,7 +9,7 @@
 
 typedef enum
 {
-    Payload_BMP280 = 0,
+    Payload_Timer = 0,
     Payload_MCP2515
 } Payload_ProducerTypes_t;
 
@@ -19,26 +20,19 @@ typedef struct
     uint8_t EID8;
     uint8_t EID0;
     uint8_t DLC;
-    uint8_t SIDH;
     uint8_t data[8];
 } CAN_Frame_t;
-
-typedef struct
-{
-    int32_t temp_value;
-    uint32_t press_value;
-} BMP280_Reading_t;
 
 union Payload_Messages
 {
     CAN_Frame_t mcp2515_frame;
-    BMP280_Reading_t bmp280_measurements;
+    uint32_t tick_count;
 };
 
 typedef struct
 {
     union Payload_Messages payload;
-    Payload_ProducerTypes_t producer_type
+    Payload_ProducerTypes_t producer_type;
 } Payload_t;
 
 typedef struct
@@ -54,5 +48,13 @@ bool queue_push(Queue_t *queue, Payload_t message);
 bool queue_pop(Queue_t *queue, Payload_t *message);
 bool queue_is_empty(Queue_t *queue);
 bool queue_is_full(Queue_t *queue);
+
+/* UART2 CONFIGURATION */
+#define UART_MODE_TX_ONLY 0U
+#define UART_MODE_RX_ONLY 1U
+#define UART_MODE_TX_RX 2U
+
+// select active mode for the project
+#define TARGET_UART_MODE UART_MODE_TX_ONLY
 
 #endif // APP_CONFIG_H
