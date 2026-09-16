@@ -31,6 +31,8 @@
 
 **Morning:**
 - Completed the design (development) of the Python host script for the Task Communication project.
+- Implemented the Python script for generating and sending out the CAN frames.
+- Debugged it and the program on the circuit. Fixed bugs. Now it works.
 
 **Evening:**
 

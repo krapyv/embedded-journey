@@ -1,5 +1,5 @@
 #include <memory.h>
-#include <inttypes.h>
+#include <stdio.h>
 #include "app_config.h"
 #include "mcp2515.h"
 #include "systick.h"
@@ -273,24 +273,24 @@ void main(void)
                 // CAN frame has a 11-bit wide ID
                 // SIDH contains bits 11:3, SIDL - bits 2:0 of that 11 bit ID
                 // SIDH has all 8 bits with ID data, SIDL - bits 7:5
-                uint16_t id = message.payload.mcp2515_frame.SIDH | (message.payload.mcp2515_frame.SIDL >> 5U);
+                uint16_t id = (message.payload.mcp2515_frame.SIDH << 3) | (message.payload.mcp2515_frame.SIDL >> 5U);
 
                 // DLC register has DLC bits 3:0
-                // 111 = 0x7
-                uint8_t dlc = message.payload.mcp2515_frame.DLC & 0x7;
+                // 1111 = 8 + 4 + 2 + 1 = 15 = 0xF
+                uint8_t dlc = message.payload.mcp2515_frame.DLC & 0xF;
 
-                printf("ID: %" PRIu16 " | DLC: %" PRIu8 " | Payload: ", id, dlc);
+                printf("ID: %u | DLC: %u | Payload: ", id, dlc);
 
                 for (uint8_t i = 0; i < dlc; i++)
                 {
-                    printf("%02" PRIx8 " ", message.payload.mcp2515_frame.data[i]);
+                    printf("%02x ", message.payload.mcp2515_frame.data[i]);
                 }
 
                 printf("\r\n");
             }
             else
             {
-                printf("Tick counter: %" PRIu32 "\r\n", message.payload.tick_count);
+                printf("Tick counter: %u\r\n", message.payload.tick_count);
             }
         }
     }
