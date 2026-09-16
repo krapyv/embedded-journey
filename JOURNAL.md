@@ -34,6 +34,10 @@
 - Implemented the Python script for generating and sending out the CAN frames.
 - Debugged it and the program on the circuit. Fixed bugs. Now it works.
 
+**Afternoon:**
+- Bumped the SPI and Integrational Project submodules.
+- Started writing (completing) the JOURNAL logs: finished for 13.09.
+
 **Evening:**
 
 **Problems encountered:**
@@ -57,8 +61,45 @@
 - Tested the built circuit with the multimeter.
 - Started designing the host Python script to send CAN frames to the STM32.
 
+**BMP280 removed from the project:**
+* Discovered, by checking the BMP280 datasheet directly, that it has no dedicated interrupt pin at all - every interaction is polled I2C, driven synchronously from `main()` own state-machine loop, never from an ISR context.
+* Conclusion: what had been designed at MPSC (BMP280 + MCP2515) was actually SPSC - BMP280's push and main's pop are two steps of one sequential thread, never running concurrently, since nothing preempts one to run the other except MCP2515's genuine hardware interrupt.
+* Decided to introduce a genuine second hardware interrupt source - a periodic timer (TIM2) - specifically so the derived mechanism would be proven against real silicon rather than remain a thought experiment. Rejected a button-press alternative as less representative of automotive firmware than a periodic broadcast/heartbeat pattern.
+* BMP280 was fully removed from this project's scope.
+
+**TIM2 design decisions:**
+* Selected TIM2 over TIM3/4/5 - for a plain periodic tick, 16-bit vs 32-bit auto-reload makes no practical difference; TIM2 chosen on availability, no other constraint applied.
+* First payload idea for the timer message (head/tail/max_size snapshot) was rejected on inspection: max_size is redundant (already a fixed field on the queue itself, accessible to anyone holding a queue pointer), and head/tail inside a message about the queue that contains it is self-referential and inert - it doesn't change any consumer decision. Settled on a monotonic tick count as the minimal, meaningful payload - matches the real automotive pattern of a periodic heartbeat/liveness signal.
+* Priority assignment between MCP2515 and TIM2 required an explicit physical-cost argument: a delayed heartbeat causes no real damage (fires late, no data lost, purely a liveness signal); a delayed MCP2515 ISR risks a second incoming CAN frame overwriting one of only two hardware RX buffers, since the MCP2515 does not allow buffer overwrite and instead raises an overrun error, silently and unrecoverably losing the frame.
+Conclusion: MCP2515 keeps priority 4 (more urgent, no BASEPRI needed - protected for free by NVIC hardware preemption), TIM2 gets priority 8 (less urgent, BASEPRI-masked push required, masking to level 4 before touching head/buffer).
+
 **Problems encountered:**
-- (None today) etc
+**TIM2 implementation bugs:**
+* **Bug: TIM2->DIER never touched.**
+CEN (bit 0 in CR1) makes the counter count and sets UIF in TIM2->SR on overflow, but does not route that event to the NVIC - that routing is gated separately by the Update Interrupt Enable bit in DIER. Without it, TIM2_IRQHandler would never execute regardless of how long the counter ran.
+* **Bug: TIM2's NVIC priority byte and NVIC->ISER bit were never set.** 
+Without the ISER bit, the interrupt request never reaches the CPU at all regardless of DIER. 
+Separately: an NVIC_IPR byte's reset value is 0x00 - the most urgent level possible - so if DIER and ISER were fixed but the priority byte left untouched, TIM2 would silently become the single most urgent interrupt in the system, inverting the entire asymmetric-BASEPRI design.
+* **Bug: TIM2_IRQHandler never cleared UIF in TIM2->SR.**
+The NVIC keeps an interrupt pending as long as the peripheral's own status flag remains set. Without clearing it, the instant execution returns from the handler, the NVIC sees the same pending condition and re-enters TIM2_IRQHandler immediately - an infinite re-entry loop, not a misbehavior.
+* **Bug: comment/code mismatch on UDIS.**
+A comment read "ensure UDIS (bit 1) is 0" directly above a line clearing bit 3. Happened to be harmless only because both bits reset to 0 anyway.
+
+**Queue wiring bugs:**
+* **Bug: queue_init() never called.**
+Queue_t queue; is a global with static storage duration, guaranteed zero-initialized by the C standard - but queue.buffer is a `Payload_t *` pointer member, not an array. Zero-initializing a pointer sets it to NULL, not to a zeroed backing array. The very first TIM2_IRQHandler firing (~20ms after boot) would execute `queue->buffer[queue->head] = message` against address `0x00000000` - a genuine HardFault via null-pointer dereference, not a silently-wrong logic bug. Separately, `queue_is_full()` max_size - 1 on an unset uint8_t max_size = 0 wraps to 255, producing a plausible-looking but meaningless fullness check.
+Fix: called `queue_init()` before any interrupt source could fire.
+
+* **Bug: CANINTF drain loop tested a stale local snapshot.**
+`Override_EXTI15_10_IRQHandler` do...while loop checked `can_intf_val & ~((1 << 7) | (1 << 5))` against the same local variable read at the top of that iteration - never a fresh value. Since `mcp2515_read()` is a pure read that never clears any hardware bit, and RX0IF (bit 0) was included in the "keep looking" mask, the loop as originally written could never observe the bit clearing and would spin forever the instant a real CAN frame arrived. Because this ISR runs at priority 4 (more urgent than TIM2's 8), at infinite loop here would starve TIM2 completely - NVIC hardware preemption rules means the less-urgent timer interrupt cannot fire at all while the more-urgent handler never returns.
+Root cause traced: the loop terminates once a fresh `mcp2515_read()` each iteration reflects the real, now-cleared hardware state - one guaranteed "wasted" extra SPI read per real event, but never unbounded.
+
+* **Bug: decoded CAN frame never actually pushed.**
+`frame` was populated from `can_int_rx0_header`/`can_int_rx1_header`, but never assigned into message.payload.mcp2515_frame, and queue_push() was never called anywhere in the function - a fully-built decode path with no destination. 
+Fix: assigned the decoded CAN frame into the union and called queue_push() in both the RX0 and RX1 branches.
+
+**Message decode bugs on the consumer side:**
+* **Bug: CAN ID reconstruction missing a bit shift.**
 
 **Root cause at the register level:**
 -
@@ -78,7 +119,12 @@
 **Evening:**
 
 **Problems encountered:**
-- (None today) etc
+**1. Bug: wrote raw priority value (0x04) directly into BASEPRI and NVIC_IPRx, unshifted**
+Root cause: the STM32F411's NVIC only implements bits [7:4] of each 8-bit priority field; bits [3:0] are hard-wired to read as zero and ignore writes.
+Writing 4 (0b00000100) lands the bit in position 2 - inside the discarded low nibble - producing zero actual masking while looking correct in code. Confirmed the exact bit range from ST's PM0214.
+Corrected value: 4 << 4 = 0x40. Confirmed both NVIC_IPRx and BASEPRI share the identical bits [7:4] encoding, so the same shifted raw value applies to both - no divergence between the two register writes.
+
+**BASEPRI hardware implementation:**
 
 **Root cause at the register level:**
 -
@@ -94,6 +140,39 @@
 
 **Evening:**
 - Finished Thread-safery part of designing.
+
+**Project framing:**
+No RTOS exists yet. The "Task communication" for this week has to be the bare-metal ancestor of `xQueueSend`/`xQueueReceive` - a hand-built, struct-based FIFO moving discrete messages between independent execution contexts, with an explicit, provable answer for why each shared field is race-free.
+
+**Scenario selection:**
+MPSC (Multiple Producers/Single Consumer): two independent interrupt sources (originally, BMP280 I2C completion + MCP2515 CAN RX) feeding one queue, at different NVIC priorities - a genuinely different problem than SPSC.
+
+**Message struct design:**
+* Initially conflated "unique message ID" (sequence number) with "type discriminator" (which producer/payload variant). Corrected: only need a small enum tag, not a unique-per-instance ID.
+* Renamed the tag field from "ID" to `producer_type` - avoids collision with CAN's own 11-bit arbitration ID, which is a separate, protocol-level field living inside the payload itself.
+* Chose a `union` over a worst-case fixed buffer for the payload - avoids wasting SRAM on the smaller producer's messages.
+* Considered and rejected a checksum/verification field - checksums exist to catch bit-flit/drop on a physical transmission line. Memory-to-memory struct writes have no such transit; correct write-before-advance-index ordering already prevents the only real corruption mechanism (a preempting ISR observing an advanced index pointing at a slot that hasn't been populated yet).
+
+**Struct sizing arithmetic:**
+* First CAN frame field count was wrong (SIDH, SIDL, EID8, EID0, DLC + 4 data bytes = 8, miscounted). Corrected: SIDH, SIDL, EID8, EID0, DLC + up to 8 data bytes = 13 bytes (MCP2515 has two full RX buffers, DLC max is 8).
+* Initially summed union member sizes as if it was a struct (13 + 8 = wrong). Corrected: a union's size is at least its largest member, rounded up tp satisfy the alignment requirement of the strictest member. BMP280 variant contains int32_t/uint32_t (4-byte alignment) - so the 13-byte CAN variant gets padded to 16 bytes (3 bytes trailing padding) to satisfy that 4-byte alignment for the union as a whole.
+* Enum storage size: arm-none-eabi-gcc defaults to `-fshort-enums`, shrinking a 2-value enum to 1 byte - an ABI choice, not a universal C guarantee. Noted `__attribute__((packed))` or : uint8_t as ways to pin this explicitly, but judged overkill for a trainee project on one fixed toolchain.
+* Field ordering: derived from first principles that placing the largest-alignment member first avoids leading padding - verified with a 3-member hypothetical (1-byte flag + 2-byte field + 16-byte union): union-first ordering gives 20 bytes total; flag-first ordering gives 24 bytes.
+* Total message struct: `producer_type`(1 byte) + union (16 bytes) + 3 bytes padding = 20 bytes.
+
+**Queue depth and full/empty:**
+* Chose queue depth as a power of two for cheap masked wraparound ((index + 1) & (SIZE - 1)) instead of modulo.
+* Power-of-two sizing alone does not resolve full-vs-empty ambiguity (`head == tail` looks identical in both states). Two standard resolutions considered: reserve one slot permanently unusable, or track count separately. Rejected the count field - a count shared and written by two independent ISRs is exactly the single-writer violation already rulled out. Chose the reserved-slot approach: 16-slot array, 15 usable slots, one sacrificed to disambiguate full from empty.
+
+**Priority and BASEPRI reasoning:**
+* Derived the asymmetric protection principle: NVIC hardware preemption arbitration is purely priority-based and requires no software help - a currently-running ISR can only be preempted by a strictly more-urgent (numerically smaller) pending exception. So the more-urgent producer's ISR needs zero masking; only the less-urgent producer's ISR needs a BASEPRI-based critical section to protect against the more-urgent one preempting it mid-push.
+* Hit a terminology collision on "same or lower priority" in the ARM manula - resolved that "priority" throughout Cortex-M4 documentation means urgency, not the raw numeric value: numerically smaller = more urgent = higher priority in the urgency sense.
+* Established BASEPRI masks "at or less urgent than" the value written (>=, not >) - to protect against two priorities simultaneously, BASEPRI must be set to the more urgent (numericall smaller) of the two, not the less urgent one.
+
+**Thread-safety design:**
+* Initially concluded `pop()` needed a BASEPRI mask against both producers. Later re-derived from first principles that this was over-specification: `tail` has exactly one writer (`pop()` itself), and any stale read of `head` by a producer during a partial pop only ever yields a conservative decision (reject a push that might have technically succeeded - functionally identical to a genuinely full queue, which the design already handles) - never an unsafe one (corrupting a slot). Same argument mirrored on the empty side: a producer's in-flight write that hasn't yet advanced `head` simply isn't visible to `pop()` yet, which is the correct, safe outcome.
+Conclusion: `pop()` needs no BASEPRI regardless of producer count, because the argument depends only on "tail has one writer + every stale reader is restricted to conservative outcomes" - not on how many producers exist.
+* Established `volatile` requirements precisely: `head` and `tail` need `volatile` (each is read by a context that didn't write it, and nothing else forces a fresh reload). `buffer[]` itself does not need `volatile` - every access to `buffer[tail]`/`buffer[head]` computes its address from an already-volatile index, creating a data dependency the compiler cannot hoist around; the index's volatile qualifier transitively forces a fresh read of whatever memory it points to. Verified this reasoning also holds for a `memcpy`-based pop implementation, not just plain assignment - `memcpy` is an opaque external call the compiler cannot see into, acting as an additional soft barrier independent of the volatile argument.
 
 **Problems encountered:**
 - (None today) etc
