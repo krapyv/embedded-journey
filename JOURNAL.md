@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-17
+
+**Morning:**
+- Completed the JOURNAL logs of the Task Communication project: 14.09, 15.09 and 16.09.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-16
 
 **Morning:**
@@ -40,8 +53,44 @@
 
 **Evening:**
 
+**Python CAN frame generator script**:
+* Confirmed CANable was running candleLight/gs_usb firmware (SocketCAN-native, `can0` interface via kernel driver), not the older slcan text-protocol firmware - determines `python-can`'s `interface='socketcan'` argument and rules out `bustype='slcan'`.
+* Confirmed bit rate (500 kbit/s, CNF1/2/3=0x00/0x91/0x01 at an 8MHz MCP2515 crystal) is configured entirely at the OS/netlink level via `sudo ip link set can0 up type can bitrate 500000` - not a parameter passed into `python-can`'s bus constructor for a SocketCAN backend.
+
 **Problems encountered:**
-- (None today) etc
+**Message decode bugs on the consumer side:**
+* **Bug: CAN ID reconstruction missing a bit shift.**
+`SIDH | (SIDL >> 5)` treated SIDH's raw byte value as already occupying the correct bit posi
+tions of an 11-bit ID, when in fact SIDH holds ID bits 10:3 sitting in byte positions 7:0 -
+it needs `<< 3` before ORing with the top 3 bits of SIDL shifted down (`SIDL >> 5`).
+Symptom was an obvious, diagnosable pattern once looked at as data: printed IDs cycled repea
+tedly through a narrow 8-value band (160-167) with occasional exact duplicates - exactly the
+ signature of ORing a constant high byte against a value that only ever varies across 3 low
+bits.
+* **Bug: DLC mask too narrow.**
+`DLC & 0x7` (3 bits) against a real DLC field that is 4 bits wide (`0x0F`). Every test frame carried DLC = 8 (0b1000), whose set bit sits in bit 3 - entirely outside a 3-bit mask, producing `dlc = 0` and a silently empty payload print despite correct underlying data (confirmed via GDB: `frame.data` and `message.payload.mcp2515_frame.DLC` both held correct values throughout; only the masking at print time was wrong).
+* **Bug: PRIu8 / PRIx8* printed literal fallback text ("hu", "hx") instead of numbers.**
+Root cause: the project's own hand-written/minimal printf implementation recognizes a single `h` length modifier but not the double-h that PRIu8/PRIx8 expand to ("hhx"/"hhx") - so those specifiers fell through to literal text instead of being parsed. PRIu16 ("hu", single-h) printed correctly, which was the diagnostic clue. 
+Understood the deeper reason a fix without any length modifier is actually correct, not just a workaround: variadic-function default argument promotion widens any integer smaller than `int` (including uint8_t) to `int` before it reaches `printf` at all, so a bare `%u`/`%x` with no length modifier expects exactly the type that's actually arriving on the stack - no length-modifier support is needed in the first place for this toolchain. Removed `<inttypes.h>` from the file entirely once this was understood; portable-across-ABI macros solve a problem this specific hand-built printf, on this specific known board does not have.
+
+**Python CAN frame generator script - bugs:**
+* **Bug: initial ID range assumed 0x2828 as a valid ceiling**.
+It is a decimal/hex mixup. An 11-bit standard CAN ID's real ceiling is `2^11 - 1 = 0x7FF` (2047 decimal).
+* **Bug: is_extended_id left at its library default of True.**
+Without setting it explicitly false, an ID like `0x2828` would not have been rejected as invalid - it would have been silently accepted as a legal 29-bit extended-format value, transmitted as a genuinely different frame format on the wire. The STM32 firmware, which only ever reads SIDH/SIDL and treats EID8/EID0 as permanent don't-care garbage, would have reconstructed a plausible-looking but numerically wrong 11-bit ID from just the top bits of a 29-bit identifier it was never designed to parse - a silent data-corruption bug, not a crash.
+Fix: implemented a factory wrapper function (StandardMessage(`**kwargs`)) that always forces `is_extended_id=False`, guaranteeing every call site is protected structurally rather than by remembering a flag each time.
+* **Bug: payload derivation data[i] = id + i could exceed a single byte's range for larger IDs, with no truncation.**
+The first fix attempt used the wrong mask (`(id + i) & 254`), reusing the ring-buffer wraparound pattern (`x & (SIZE - 1)`) without checking that its correctness depends on SIZE matching the actual boundary being enforced - 254 has bit 0 permanently cleared and can never produce an odd result.
+Fix: corrected to `& 0xFF` (256 - 1, the true "keep only the low byte" mask), verified by hand against the raw binary representation of a real example value.
+* **Bug: biterate=500000 (misspelled) passed into can.interface.Bus(...).SocketcanBus.__ init __ signature**.
+The signature ends in `**kwargs`, which silently absorbed the misspelled keyword with no error - a property of that specific function's signature, not a general Python behavior (an ordinary function without a `**kwargs` catch-all would raise TypeError on an unexpected keyword).
+Separately confirmed that even the correctly-spelled `bitrate` kwarg would have done nothing at all for the SocketCAN backend, since bit rate is already fixed by the earlier `ip link` command - removed the keyword entirely, since keeping a non-functional kwarg around implies configuration that is not actually happening at that line.
+* **Bug: shebang missing ! (#/usr/bin/env python3 instead of #!/usr/bin/env python3).**
+Affects only direct execution (./script.py), not invocation via `python3 script.py`.
+
+**Final verified result:**
+Ran the finished script against real hardware: sequential CAN IDs with no gaps or duplicates, each frame's payload bytes matching `(id + i) & 0xFF` exactly as designed - allowing every frame to be hand-verified against its own ID by eye on the UART terminal. Timer heartbeat ticks interleaved cleanly between CAN frames with no stalls or drops, confirming the MPSC mechanism functioning correctly under genuine simultaneous interrupt traffic from two independent real hardware sources. 
+
 
 **Root cause at the register level:**
 -
@@ -98,9 +147,6 @@ Root cause traced: the loop terminates once a fresh `mcp2515_read()` each iterat
 `frame` was populated from `can_int_rx0_header`/`can_int_rx1_header`, but never assigned into message.payload.mcp2515_frame, and queue_push() was never called anywhere in the function - a fully-built decode path with no destination. 
 Fix: assigned the decoded CAN frame into the union and called queue_push() in both the RX0 and RX1 branches.
 
-**Message decode bugs on the consumer side:**
-* **Bug: CAN ID reconstruction missing a bit shift.**
-
 **Root cause at the register level:**
 -
 
@@ -118,13 +164,24 @@ Fix: assigned the decoded CAN frame into the union and called queue_push() in bo
 
 **Evening:**
 
+**BASEPRI hardware implementation:**
+* Established that BASEPRI is a processor core special register, not part of the memory-mapp
+ed address space - ordinary struct/pointer load-store cannot reach it; the only mechanism is
+ the `MSR`/`MRS` instruction pair (same instruction class already used once before, for the bootloader's `MSR msp, r0` stack-pointer jump).
+* Wrote `__set_basepri()` using `asm volatile("msr basepri, %0" : : "r"(priority) : "memory")` and `__get_basepri()` using `asm volatile("mrs %0, basepri" : "=r"(result) : : )`.
+* Justified the "memory" clobber precisely: the project's shared queue state (`head`, `tail`) is already `volatile`, and GCC guarantees volatile accesses are never reordered relative t
+o another `volatile asm` statement - so that ordering is already covered without any clobber
+. The "memory" clobber's read, non-redundant job is protecting everything not tagged `volatile` (local variables, buffer payloads, ordinary struct fields) from being hoisted across the
+ critical-section boundary, since without it GCC treats the bare `MSR` as touching nothing.
+* Confirmed BASEPRI's priority number lives in exactly one macro (`MCP2515_INTERRUPT_PRIORITY_LEVEL`), consumed raw (unshifted) by both the NVIC priority-register write (which applies its own explicit `<< 4` at the point of use) and `__set_basepri()` (which shifts internally) - no duplicated bare literal across the two call sites.
+
 **Problems encountered:**
 **1. Bug: wrote raw priority value (0x04) directly into BASEPRI and NVIC_IPRx, unshifted**
 Root cause: the STM32F411's NVIC only implements bits [7:4] of each 8-bit priority field; bits [3:0] are hard-wired to read as zero and ignore writes.
 Writing 4 (0b00000100) lands the bit in position 2 - inside the discarded low nibble - producing zero actual masking while looking correct in code. Confirmed the exact bit range from ST's PM0214.
 Corrected value: 4 << 4 = 0x40. Confirmed both NVIC_IPRx and BASEPRI share the identical bits [7:4] encoding, so the same shifted raw value applies to both - no divergence between the two register writes.
-
-**BASEPRI hardware implementation:**
+* **2. Bug: set_basepri() always shifted its input << 4, but get_basepri() returned the raw hardware value unshifted**.
+It was causing inconsistency and breaking in the save/restore round trip the moment the saved value was fed back into `__set_basepri()` for restoration, since it would be shifted a second time. The bug was initially invisible because the first test case happened to save a value of 0, which shifts to 0 either way. Caught by explicitly tracing a nested scenario with a nonzero outer value (raw level 2, hardware value `0x20`): `__get_basepri()` needed to return `result >> 4` to recover the raw level 2, so that a later `__set_basepri(old)` call would correctly re-derive `0x20` on restore. Verified numerically end to end that the round trip holds under real nesting, not just the zero case.
 
 **Root cause at the register level:**
 -
