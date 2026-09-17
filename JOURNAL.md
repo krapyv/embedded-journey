@@ -33,6 +33,9 @@
 - Completed the JOURNAL logs of the Task Communication project: 14.09, 15.09 and 16.09.
 - Wrote a README.md for the Task Communication project.
 
+**Afternoon:**
+- Wrote a Linkedin post about the Task Communication project.
+
 **Evening:**
 
 **Problems encountered:**
