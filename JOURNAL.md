@@ -38,6 +38,7 @@
 - Learned about the GCC's Volatile Ordering Rule, "memory" in the clobber asm list, GCC Inline Assembly positional operand placeholders, the C standard absolute, zero-initialization guarantee.
 
 **Evening:**
+- Learned about Hardware memory reordering on the ARM Cortex-M4 and why it is not a concern for single-core ring buffer implementations.
 
 **Problems encountered:**
 - (None today) etc
