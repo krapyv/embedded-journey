@@ -35,6 +35,7 @@
 
 **Afternoon:**
 - Wrote a Linkedin post about the Task Communication project.
+- Learned about the GCC's Volatile Ordering Rule, "memory" in the clobber asm list, GCC Inline Assembly positional operand placeholders, the C standard absolute, zero-initialization guarantee.
 
 **Evening:**
 
