@@ -37,6 +37,7 @@
 
 **Afternoon:**
 - Started designing and implementing a line-based command console over UART with an RPN (Reverse Polish Notation) eval command.
+- Continued designing the application (I do not like it much, tbh).
 
 **Evening:**
 
