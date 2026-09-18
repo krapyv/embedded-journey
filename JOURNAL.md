@@ -32,6 +32,8 @@
 **Morning:**
 - Learned about The Sequence Point Rule for Volatile Writes.
 - Learned about ARM's architecture that does not guarantee FIFO write completion for any two arbitrary memory writes to different locations without a barrier and about the Cortex-M4 TRM statement that the core mechanically cannot perform out-of-order writes.
+- Learned about a Stack.
+- Learned about Linked Lists (both Singly and Doubly Linked Lists) and how Doubly Linked Lists are used in RTOS Task Handling once it blocks on queue or the data arrives and from the "waiting" list it goes back to "ready" list.
 
 **Evening:**
 

@@ -241,7 +241,7 @@ Portfolio project extracted: stm32-bootloader-c repo
 Phase 4: Data Structures + Algorithms (C) (Weeks 20-27)
 Week	Topic	Morning Practice	Evening Theory	Project
 20	Circular buffer	Implement from scratch	Compare interrupt-safe versions	UART driver with ring buffer ✅
-21	Queue (FIFO)	RTOS-style queue	Lock-free vs. locked	Task communication
+21	Queue (FIFO)	RTOS-style queue	Lock-free vs. locked	Task communication ✅
 22	Stack + Linked list	Expression evaluator	Memory analysis	Command parser
 23	Binary search + Sorting	Lookup tables, median filter	Algorithm complexity	Sensor calibration
 24	CRC + Checksums	Implement CRC-16, CRC-32	Error detection theory	Reliable UART protocol
