@@ -35,6 +35,9 @@
 - Learned about a Stack.
 - Learned about Linked Lists (both Singly and Doubly Linked Lists) and how Doubly Linked Lists are used in RTOS Task Handling once it blocks on queue or the data arrives and from the "waiting" list it goes back to "ready" list.
 
+**Afternoon:**
+- Started designing and implementing a line-based command console over UART with an RPN (Reverse Polish Notation) eval command.
+
 **Evening:**
 
 **Problems encountered:**
