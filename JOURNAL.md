@@ -27,6 +27,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-18
+
+**Morning:**
+- Learned about The Sequence Point Rule for Volatile Writes.
+- Learned about ARM's architecture that does not guarantee FIFO write completion for any two arbitrary memory writes to different locations without a barrier and about the Cortex-M4 TRM statement that the core mechanically cannot perform out-of-order writes.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-17
 
 **Morning:**
