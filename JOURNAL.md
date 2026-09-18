@@ -40,6 +40,7 @@
 - Continued designing the application (I do not like it much, tbh).
 
 **Evening:**
+- Continued designing the tokenizer.
 
 **Problems encountered:**
 - (None today) etc
