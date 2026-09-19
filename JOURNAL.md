@@ -33,6 +33,9 @@
 - Continued implementing the UART Debugger: finished the line assembly block.
 - Fully derived and designed the tokenization loop.
 
+**Afternoon:**
+- Continued designing and implementing the UART Debugger: implemented the tokenization mechanism and designed the dispatcher loop.
+
 **Evening:**
 
 **Problems encountered:**

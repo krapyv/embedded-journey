@@ -5,3 +5,13 @@
 
 // select active mode for the project
 #define TARGET_UART_MODE UART_MODE_TX_RX
+
+typedef enum
+{
+    TOKEN_OPERAND = 0,
+    TOKEN_OP_ADD,
+    TOKEN_OP_SUB,
+    TOKEN_OP_MULT,
+    TOKEN_OP_DIV,
+    TOKEN_INVALID
+} TOKEN_Classification_t;
