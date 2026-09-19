@@ -27,6 +27,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-19
+
+**Morning:**
+- Continued implementing the UART Debugger: finished the line assembly block.
+- Fully derived and designed the tokenization loop.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-18
 
 **Morning:**
