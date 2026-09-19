@@ -37,6 +37,8 @@
 - Continued designing and implementing the UART Debugger: implemented the tokenization mechanism and designed the dispatcher loop.
 
 **Evening:**
+- Finished deriving the classificator function for the project.
+- Started implementing the classificator function.
 
 **Problems encountered:**
 - (None today) etc

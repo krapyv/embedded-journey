@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "uart.h"
 #include "stack.h"
 
@@ -18,8 +19,60 @@ uint8_t token_count;
 
 bool prev_was_space = true;
 
+char operands[4] = {{'+', '\0'}, {'-', '\0'}, {'*', '\0'}, {'/', '\0'}};
+
 TOKEN_Classification_t classify_token(char *token)
 {
+    uint8_t str_length = strlen(token);
+
+    if (str_length == 0)
+    {
+        return TOKEN_INVALID;
+    }
+    else if (str_length == 1)
+    {
+        char *endptr;
+
+        strtol(token, &endptr, 10);
+
+        // if the endptr pointer points to the null terminator, the token in a valid digit
+        if (*endptr == '\0')
+        {
+            return TOKEN_OPERAND;
+        }
+        else if (strcmp(token, operands[0]) == 0)
+        {
+            return TOKEN_OP_ADD;
+        }
+        else if (strcmp(token, operands[1]) == 0)
+        {
+            return TOKEN_OP_SUB;
+        }
+        else if (strcmp(token, operands[2]) == 0)
+        {
+            return TOKEN_OP_MULT;
+        }
+        else if (strcmp(token, operands[4]) == 0)
+        {
+            return TOKEN_OP_DIV;
+        }
+    }
+    else if (str_length >= 2)
+    {
+        char pos0[2] = {token[0], '\0'};
+
+        if (strcmp(pos0, operands[2]) == 0)
+        {
+            // minus
+        }
+        else
+        {
+            // pos 0 is a digit
+        }
+    }
+
+    // fall through, invalid token (neither an operator nor a digit)
+    return TOKEN_INVALID;
 }
 
 void main()
@@ -110,7 +163,7 @@ void main()
                     }
                     else if (strcmp(tokens[0], "EVAL") == 0)
                     {
-                                        }
+                    }
                     else if (strcmp(tokens[0], "ECHO") == 0)
                     {
                         for (uint8_t i = 0; i < 32; i++)
