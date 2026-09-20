@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 #include "uart.h"
 #include "stack.h"
 
@@ -19,8 +20,6 @@ uint8_t token_count;
 
 bool prev_was_space = true;
 
-char operands[4] = {{'+', '\0'}, {'-', '\0'}, {'*', '\0'}, {'/', '\0'}};
-
 TOKEN_Classification_t classify_token(char *token)
 {
     uint8_t str_length = strlen(token);
@@ -31,8 +30,8 @@ TOKEN_Classification_t classify_token(char *token)
     }
     else if (str_length == 1)
     {
-        char *endptr;
 
+        char *endptr;
         strtol(token, &endptr, 10);
 
         // if the endptr pointer points to the null terminator, the token in a valid digit
@@ -40,34 +39,28 @@ TOKEN_Classification_t classify_token(char *token)
         {
             return TOKEN_OPERAND;
         }
-        else if (strcmp(token, operands[0]) == 0)
+
+        switch (*token)
         {
+        case '+':
             return TOKEN_OP_ADD;
-        }
-        else if (strcmp(token, operands[1]) == 0)
-        {
+        case '-':
             return TOKEN_OP_SUB;
-        }
-        else if (strcmp(token, operands[2]) == 0)
-        {
+        case '*':
             return TOKEN_OP_MULT;
-        }
-        else if (strcmp(token, operands[4]) == 0)
-        {
+        case '/':
             return TOKEN_OP_DIV;
         }
     }
     else if (str_length >= 2)
     {
-        char pos0[2] = {token[0], '\0'};
+        char *endptr;
+        // strtol also accepts a leading '+', outside original grammar, accepted as harmless
+        strtol(token, &endptr, 10);
 
-        if (strcmp(pos0, operands[2]) == 0)
+        if (*endptr == '\0')
         {
-            // minus
-        }
-        else
-        {
-            // pos 0 is a digit
+            return TOKEN_OPERAND;
         }
     }
 
@@ -163,12 +156,135 @@ void main()
                     }
                     else if (strcmp(tokens[0], "EVAL") == 0)
                     {
+                        uint8_t is_error = 0;
+                        uint32_t operand_A, operand_B, result;
+                        long val;
+
+                        for (uint8_t i = 1; i < token_count; i++)
+                        {
+                            if (is_error)
+                            {
+                                break;
+                            }
+
+                            TOKEN_Classification_t token_type = classify_token(tokens[i]);
+
+                            switch (token_type)
+                            {
+                            // relies on long == int32_t on this toolchain (ILP32); would need re-checking if ported
+                            case TOKEN_OPERAND:
+                                val = strtol(tokens[i], NULL, 10);
+
+                                // checking for stack overflow
+                                if (!Stack_push(&stack, val))
+                                {
+                                    is_error = 1;
+                                    printf("Stack overflow!\n\r");
+                                    break;
+                                }
+                                break;
+                            case TOKEN_OP_ADD:
+                                if (!Stack_pop(&stack, &operand_A) || !Stack_pop(&stack, &operand_B))
+                                {
+                                    is_error = 1;
+                                    printf("Stack underflow!\n\r");
+                                    break;
+                                }
+
+                                result = operand_B + operand_A;
+                                if (!Stack_push(&stack, result))
+                                {
+                                    is_error = 1;
+                                    printf("Stack overflow!\n\r");
+                                    break;
+                                }
+                                break;
+                            case TOKEN_OP_SUB:
+                                if (!Stack_pop(&stack, &operand_A) || !Stack_pop(&stack, &operand_B))
+                                {
+                                    is_error = 1;
+                                    printf("Stack underflow!\n\r");
+                                    break;
+                                }
+
+                                result = operand_B - operand_A;
+                                if (!Stack_push(&stack, result))
+                                {
+                                    is_error = 1;
+                                    printf("Stack overflow!\n\r");
+                                    break;
+                                }
+                                break;
+                            case TOKEN_OP_MULT:
+                                if (!Stack_pop(&stack, &operand_A) || !Stack_pop(&stack, &operand_B))
+                                {
+                                    is_error = 1;
+                                    printf("Stack underflow!\n\r");
+                                    break;
+                                }
+
+                                result = operand_B * operand_A;
+                                if (!Stack_push(&stack, result))
+                                {
+                                    is_error = 1;
+                                    printf("Stack overflow!\n\r");
+                                    break;
+                                }
+                                break;
+                            case TOKEN_OP_DIV:
+                                if (!Stack_pop(&stack, &operand_A) || !Stack_pop(&stack, &operand_B))
+                                {
+                                    is_error = 1;
+                                    printf("Stack underflow!\n\r");
+                                    break;
+                                }
+
+                                if (operand_A == 0)
+                                {
+                                    is_error = 1;
+                                    printf("Division by 0! Aborted!\n\r");
+                                    break;
+                                }
+
+                                result = (int32_t)operand_B / (int32_t)operand_A;
+                                if (!Stack_push(&stack, result))
+                                {
+                                    is_error = 1;
+                                    printf("Stack overflow!\n\r");
+                                    break;
+                                }
+                                break;
+                            case TOKEN_INVALID:
+                                is_error = 1;
+                                printf("Invalid token detected!\n\r");
+                                break;
+                            }
+                        }
+
+                        if (!is_error)
+                        {
+                            if (stack.top != 0)
+                            {
+                                printf("Invalid equation!\n\r");
+                            }
+                            else
+                            {
+                                uint32_t final_res;
+                                Stack_pop(&stack, &final_res);
+
+                                printf("Result: %d\n\r", (int32_t)final_res);
+                            }
+                        }
                     }
                     else if (strcmp(tokens[0], "ECHO") == 0)
                     {
-                        for (uint8_t i = 0; i < 32; i++)
+                        for (uint8_t i = 1; i < token_count; i++)
                         {
-                            printf(line_assembly_buf[i]);
+                            printf(tokens[i]);
+                            if (i != token_count - 1)
+                            {
+                                printf(" ");
+                            }
                         }
                         printf("\n\r");
                     }
@@ -186,6 +302,7 @@ void main()
             prev_was_space = true;
             write_idx = 0;
             is_tokenization_overflow = false;
+            Stack_clear(&stack);
             break;
         }
     }

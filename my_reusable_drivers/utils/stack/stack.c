@@ -37,3 +37,8 @@ bool Stack_pop(Stack_t *stack, uint32_t *element)
 
     return true;
 }
+
+void Stack_clear(Stack_t *stack)
+{
+    stack->top = -1;
+}
