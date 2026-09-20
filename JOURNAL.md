@@ -36,11 +36,103 @@
 **Afternoon:**
 - Tested the program on the breadboard circuit.
 - Debugged the program, fixed more bugs. Now it works.
+- Completed the JOURNAL logs for 18.09, 19.09, 20.09.
 
 **Evening:**
 
+**Debug console - token-count-overflow proven unreachable by construction:**
+
+Attempting to construct a test for the 16-token limit revealed it can't be triggered independently of the 31-char line-length limit using single-character tokens.
+
+*Derivation:* N single-character tokens packed tightly need `2N - 1` characters (N chars + N-1 separating spaces).
+`token_count` counts the command word too, so the overflow trigger is `N = 16` total tokens. `2 * 16 - 1 = 31` - landing exactly on the line buffer's own limit. One more token (17 in total) needs 33 characters, already over budget - so line-overflow always fires first.
+Confirmed empirically: a 17-single-digit test line triggered line-overflow around the 14th digit, exactly as predicted.
+
+*Decision:* left both limits as-is rather than loosening one just to manufacture a test - proving the path structurally unreachable by exact arithmetic was treated as satisfying the "handled" requirement, consistent with not chasing edge cases beyond what the architecture needs. 
+Documented the `2N - 1` relationship as a comment at the check itself.
+
 **Problems encountered:**
-- (None today) etc
+
+* **Debug console - EVAL implementation bugs:**
+
+1. *Switch-case scope collision:*
+Every case declared `operand_A`/`operand_B`/`result` directly under its own label with no braces - case labels share one scope in C, not separate ones, so this was both a redeclaration collision and independently a label-followed-by-declaration violation.
+
+Fix: hoisted shared variables above the loop.
+
+2. *Variable shadowing:*
+`TOKEN_Classification_t result = classify_token(...)` inside the loop shadowed the outer `uint32_t result` meant to hold the arithmetic sum - every `result = operand_B + operand_A` was silently writing to the wrong, enum-typed variable. 
+
+Fix: renamed the inner one to `token_type`.
+
+3. *Division-by-zero detected but not stopped:*
+The zero-check printed an error but had no `break`, so the divide ran anyway - Cortex-M4's SDIV doesn't trap by default, it silently returns 0, so this was a wrong-but-plausible result getting pushed rather than a crash.
+
+Fix: added `break` before the divide.
+
+4. *Wrong value printed:*
+`printf("Result: %d", stack.top)` printed the stack's index (always `0` on a valid single-item stack), not the value stored there.
+
+Fix: popped the value first and used it in the printf.
+
+5. *Stack never reset between expressions:*
+No exit path called `Stack_clear()`, so stranded operands or leftover results survived into the next EVAL call. 
+
+Fix: added an unconditional, idempotent `Stack_clear()` at the end of every dispatch cycle.
+
+6. *Double error messages:*
+The leftover-depth check ran unconditionally after the loop, so a specific failure (e.g. division-by-zero) would print its own message and then a redundant "Invalid equation!" because the stack wasn't at the expected depth either. 
+
+Fix: added a gate for the whole leftover-depth-and-result-block behind `if (!is_error)`.
+
+**Dropped as dead weight:**
+An INT32_MAX/INT32_MIN range check on the converted operand - `long` is 32-bit on this toolchain, so `strtol` had already saturated anything out of range before the check could matter, and the check itself had a boundary bug (`>=` rejecting the legitimate value of `2147483647`). 
+Removed, with a one-line comment nothing the removal depends on long === int32_t on this specific toolchain.
+
+**Debug console - ECHO command and pointer/format-string bugs:**
+ECHO needed reconstruct `tokens[1..]` with spacing restored, despite the tokenizer having already destroyed the original spacing.
+
+1. *Integer-as-pointer confusion, twice:*
+A `char operands[4] = {'+', '-', '*`, '/'}` array passed to strcmp forced the compiler to treat a raw ASCII values as a memory address and dereference it. 
+The same mechanism showed up in an early `print(line_assembly_buf[i])` - passing a char where printf expects a `char *`.
+
+Both fixes: used real pointers, and ulimately replaced strcmp-on-single-chars with `switch (*token)`.
+
+2. *Array out-of-bounds read:*
+`operands[4]` on a 4-element array (valid indices 0-3), independent of the bug above.
+
+3. *Per-character printf loop:*
+`printf(&line_assembly_buf[i])` in a loop is type-correct but behaviorally wrong - `printf` reads until `\0`, so each iteration reprinted the entire remaining string, not one character. 
+
+Fix: collapsed to a single call.
+
+4. *Wrong source string.*
+Even fixed, printf(line_assembly_buf) only printed "ECHO", since the tokenizer had already null-terminated the buffer into separate fragments. 
+
+Fix: iterated `tokens[1..token_count-1]` instead.
+
+5. *Separator bugs:*
+No separator ran words together; an unconditional separator produced a trailing space before the newline.
+
+Fix: added `if (i != token_count - 1) printf(" ")`, verified against single-word, multi-word, and zero-argument ECHO.
+
+**Debug console - real-hardware bugs: UART line-ending mismatch and Stack_push signed/unsigned comparison:**
+
+1. *Console hung on every input:*
+
+Firmware checked `popped_byte == '\n'` (0x0A), but minicom sends '\r' (0x0D) on Enter - a terminal setting, not a UART property.
+Every keystroke including Enter fell into the ordinary-character branch, so the line never completed. 
+Confirmed in GDB (`p byte` -> `13 '\r'` at the exact moment of the push) rather than guessed.
+
+Fix: checked '\r' instead - considered accepting either terminator for robustness, but that risks double-triggering on a CRLF-sending terminal, so checked what this specific terminal actually sends before choosing.
+
+2. *First-ever EVAL reported "Stack overflow!" on a trivial push:*
+`Stack_push`'s guard (`stack->top >= stack->size - 1`) mixed a signed `top` (int) with an unsigned `size` (uint32_t) - C's usual arithmetic conversions promote the signed operand to unsigned, so on an empty stack `top == -1` reinterprets as `0xFFFFFFFF`, making an empty stack look maximally full.
+Confirmed with GDB (`p stack->top >= (stack->size - 1)` evaluated true with `top == -1`).
+
+Fix: changed to `stack->top >= (int)stack->size - 1`.
+
+**Also caught retesting:** the missing mid-line terminator bug from the tokenizer entry - only visible once real multi-word input was typed rather than single-token GDB tests.
 
 **Root cause at the register level:**
 -
@@ -58,8 +150,43 @@
 - Finished deriving the classificator function for the project.
 - Started implementing the classificator function.
 
+**Debug console - tokenizer boundary detection and terminator bugs:**
+
+*Boundary condition:* "this character" derived as `prev_was_space && current != space` - a two-part condition, not just "not a space" (needed to correctly reject the second space in a double-space run). Index 0 handled by seeding `prev_was_space = true` before the loop starts, standing in for a nonexistent index -1, rather than a separate `if (i == 0)` branch.
+
+**Debug console - classify_token derivation**
+
+Classified an isolated post-tokenizing token (no surrounding-whitespace context survives) into operand, one of four operators, or invalid - branching on length, since every operator is exactly one character (a hard guarantee from the grammer, not a guess).
+
+**Threshold correction:**
+Switching from a hand-counted "length" (character + terminator together) to `strlen()` (terminator excluded) silently invalidated every existing threshold - had to explicitly re-derive all three (empty/single-char/multi-char) against what strlen actuall returns rather than assume they carried over.
+
+**Simplification:**
+Replaced the hand-rolled digit scan with strtol + checking `*endptr == '\0'` - also naturally absorbs the sign, so the separate "position 0 must be - or a digit" check became unnecessary. 
+Accepted as a known, harmless side effect that `strtol` also accepts a leading `+` (outside the original grammar) - flagged with a comment rather than silently asborbed.
+
 **Problems encountered:**
-- (None today) etc
+
+**Bug 1 - stale prev_was_space:**
+The  update line was buried inside the token-detected branch, so it only refreshed on iterations where a token actually started - going stale across every space and mid-token character.
+Traced on `3 4 +\0`: by index 2 ('4'), `prev_was_space` still held its value from index 0, so the boundary check silently failed and the "4" token was lost.
+
+Fix: moved the update to run unconditionally, once per iteration, as the last statement in the loop.
+
+**Bug 2 - missing mid-line terminator:**
+The only '\0' ever written was at the line's end, so the space in "ECHO hi" stayed a literal space - `token[0]` read straight through it into "hi", breaking every dispatch `strcmp`.
+
+Fix: wrote '\0' at every detected token boundary, not just the line's end.
+
+**Bug 3 - the vacuous-truth bug:**
+The original digit-validation loop scanned "positions 1 through length - 2" to confirm every character after a sign was a digit. 
+For a lone "-" token, that range is empty - the loop runs zero times, finds nothing wrong, and silently reports success.
+Caught by explicitly tracing the zero-iteration case rather than eyeballing the logic. 
+
+Fix: added an explicit length check before the scan: a bare digit at length 2 is complete and valid (empty scan correctly passes), but a bare `-` at length 2 has no digit at all (empty scan wrongly passes) - same zero-iteration condition, opposite correctl outcome depending on which character caused it.
+
+**Cleanup:**
+`token_count`, `prev_was_space`, and `write_idx` all needed unconditional resets after every line, success or failure, to stop state leaking into the next one.
 
 **Root cause at the register level:**
 -
@@ -79,8 +206,42 @@
 **Evening:**
 - Continued designing the tokenizer.
 
+**Debug console - design-phase decisions (framing, signedness, token storage, dispatch):**
+
+*1. Framing:*
+
+Newline-terminated fixed-size line buffer with reject-on-overflow, not the chunked bootloader protocol - a human typing can't compute a checksum or track a length the way a host tool can.
+
+*2. Signedness:*
+
+`Stack_t.data` stays uint32_t. Traced `3 - 4` in two's complement to confirm no information is lost on store, just reinterpreted (`0xFFFFFFFF` reads as -1 signed or `4294967295` unsigned) - an (int) cast at print time flips the interpretation. Verified `+ - *` produce identical bit patterns regardless of signed/unsigned typing (pure modular arithmetic), but `/` genuinely diverges - Cortex-M4 emits a different instruction (UDIV vs signed division) depending on operand type. Considered making the stack itself `int32_t`, rejected it: Stack_t is a generic, reusable container and shouldn't bake in a signedness policy. 
+Settled: pop stays `uint32_t`, cast to int32_t only at the division site and the final print.
+
+*3. Token storage:*
+
+Pointers into the line buffer (`char *tokens[16]`, boundaries null-terminated in place) over a copied 2D array - checked the actual hazard (pointer invalidation if the buffer mutates while pointers are still live) against the actual control flow (strictly sequential: read -> parse -> execute, no re-entry) and confirmed it can't occure here.
+
+*4. Dispatch:*
+
+Plain `if/else if` chain over a function-pointer table - a table only earns its complexity at a command count or turnover rate this project does not have. The final `else` is naturally the one place "unknown command" lives. 
+
+**Debug console - line assembly overflow-draining state machine:**
+
+Line assembly (byte-by-byte from the ring buffer, gated on terminator) and tokenizing (once per complete line) are separate stages - assembly has to reject an oversized write *before* it happens, not audit after.
+
+*Buffer sizing:* 32-byte buffer = 31 usable chars + 1 reserved terminator slot. Verified the boundary by hand: `write_idx == 30` passes, lands at `buffer[30]` (the 31st char), only then increments to 31, and the next byte's gate correctly fails before touching the terminator slot.
+
+
 **Problems encountered:**
-- (None today) etc
+
+**Bug 1:**
+
+Resetting `write_idx = 0` immediately on overflow detection would let the next arriving byte (still part of the same too-long line) get misread as character 0 of a brand-new line, since nothing distinguishes "true new line" from "leftover garbage from an abandoned one".
+
+*Fix:* an `is_overflow` flag. Once set, every subsequent byte is drained and discarded (read, never written) until the terminator finally arrives; `write_idx` stays frozen during the drain. Both the flag and `write_idx` reset together only at the terminator, never earlier - and the flag also gates whether the tokenizer runs on that line at all, so a truncated line never gets silently parsed as valid input.
+
+Also the overflow error message was originally printed mid-scan, the moment overflow triggered - moved it into the terminator-handling branch to match the pattern already used for token-count overflow (flag during the scan, message once, at completion).
+
 
 **Root cause at the register level:**
 -
