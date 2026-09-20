@@ -83,12 +83,13 @@ void main()
         case 0:
             if (usart2_rx_pop(&popped_byte))
             {
-                if (popped_byte == '\n')
+                if (popped_byte == '\r')
                 {
                     if (is_overflow)
                     {
                         write_idx = 0;
                         is_overflow = 0;
+                        printf("Line overflow!\n\r");
                     }
                     else
                     {
@@ -125,6 +126,11 @@ void main()
                 {
                     if (token_count >= 16)
                     {
+                        // unreachable with single-char tokens: 16 tokens tightly packed need
+                        // 2 * 16 - 1 = 31 chars minimum, which equals the line buffer's own cap -
+                        // LINE overflow (case 0, write_idx <= 30) always fires first. Kept as
+                        // defined behavior per spec; would only trigger if LINE_BUF_SIZE grew
+                        // relative to MAX_TOKENS.
                         is_tokenization_overflow = true;
                         break;
                     }
@@ -135,6 +141,10 @@ void main()
                     }
                 }
                 prev_was_space = (line_assembly_buf[i] == ' ');
+                if (prev_was_space)
+                {
+                    line_assembly_buf[i] = '\0';
+                }
             }
             if (is_tokenization_overflow)
             {

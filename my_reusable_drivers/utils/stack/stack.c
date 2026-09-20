@@ -16,7 +16,7 @@ bool Stack_init(Stack_t *stack, uint32_t *buf, uint32_t size)
 
 bool Stack_push(Stack_t *stack, uint32_t element)
 {
-    if (stack->top >= stack->size - 1)
+    if (stack->top >= (int)stack->size - 1)
     {
         return false; // overflow
     }

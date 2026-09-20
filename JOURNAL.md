@@ -33,6 +33,10 @@
 - Finished implementing the classificator function.
 - Implemented the EVAL branch and fixed bugs.
 
+**Afternoon:**
+- Tested the program on the breadboard circuit.
+- Debugged the program, fixed more bugs. Now it works.
+
 **Evening:**
 
 **Problems encountered:**
