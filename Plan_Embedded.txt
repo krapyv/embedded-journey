@@ -238,41 +238,41 @@ Done bar: stable temperature and pressure values broadcast on CAN bus every 500m
 
 Portfolio project extracted: stm32-bootloader-c repo
 
-Phase 4: Data Structures + Algorithms (C) (Weeks 20-27)
+Phase 4: Data Structures + Algorithms (C) (Weeks 20-28)
 Week	Topic	Morning Practice	Evening Theory	Project
 20	Circular buffer	Implement from scratch	Compare interrupt-safe versions	UART driver with ring buffer ✅
-21	Queue (FIFO)	RTOS-style queue	Lock-free vs. locked	Task communication ✅
-22	Stack + Linked list ✅	Expression evaluator	Memory analysis	Command parser ✅
-23	Binary search + Sorting	Lookup tables, median filter	Algorithm complexity	Sensor calibration
-24	CRC + Checksums	Implement CRC-16, CRC-32	Error detection theory	Reliable UART protocol
-25	PID controller	Temperature control (simulated)	Tuning methods	Motor speed control
-26	Digital filters (EMA, moving average)	Sensor smoothing	Filter design	Noise reduction
-27	Integration week	Combine all structures	Performance profiling	Multi-sensor data logger
+22	Queue (FIFO)	RTOS-style queue	Lock-free vs. locked	Task communication ✅
+23	Stack + Linked list ✅	Expression evaluator	Memory analysis	Command parser ✅
+24	Binary search + Sorting	Lookup tables, median filter	Algorithm complexity	Sensor calibration
+25	CRC + Checksums	Implement CRC-16, CRC-32	Error detection theory	Reliable UART protocol
+26	PID controller	Temperature control (simulated)	Tuning methods	Motor speed control
+27	Digital filters (EMA, moving average)	Sensor smoothing	Filter design	Noise reduction
+28	Integration week	Combine all structures	Performance profiling	Multi-sensor data logger
 By end of Phase 4: You can implement any common data structure in C, calculate CRC, tune a PID controller.
 
-Phase 5: FreeRTOS (C) (Weeks 28-35)
+Phase 5: FreeRTOS (C) (Weeks 29-37)
 Week	Topic	Morning Practice	Evening Theory	Project
-28	Tasks, scheduling	Create 3 tasks, observe	RTOS concepts	Multi-blink LED
-29	Queues, semaphores	Task-to-task communication	Priority inversion	Sensor reader task
-30	Mutexes, event groups	Shared resource protection	Deadlock detection	Printf mutex
-31	Task notifications	Faster than semaphores	Benchmark	Command processor
-32	Software timers	Periodic tasks	Timer accuracy	Watchdog timer
-33	Stack management	Measure stack usage	Stack overflow detection	Task monitor
-34	Low-power RTOS (tickless)	Sleep mode integration	Power optimization	Battery device
-34+ Add a dedicated LIN bus week. LIN is on every door module, seat controller, and body control module in a modern car. It is simpler than CAN and appears constantly in junior automotive job descriptions. One week is enough — polling driver, master task, slave response.
-35	Integration week	Multi-task sensor hub	Documentation	Complete RTOS project
+29	Tasks, scheduling	Create 3 tasks, observe	RTOS concepts	Multi-blink LED
+30	Queues, semaphores	Task-to-task communication	Priority inversion	Sensor reader task
+31	Mutexes, event groups	Shared resource protection	Deadlock detection	Printf mutex
+32	Task notifications	Faster than semaphores	Benchmark	Command processor
+33	Software timers	Periodic tasks	Timer accuracy	Watchdog timer
+34	Stack management	Measure stack usage	Stack overflow detection	Task monitor
+35	Low-power RTOS (tickless)	Sleep mode integration	Power optimization	Battery device
+36+ Add a dedicated LIN bus week. LIN is on every door module, seat controller, and body control module in a modern car. It is simpler than CAN and appears constantly in junior automotive job descriptions. One week is enough — polling driver, master task, slave response.
+37	Integration week	Multi-task sensor hub	Documentation	Complete RTOS project
 By end of Phase 5: You can design multi-task systems in C, debug priority inversion, implement power-efficient RTOS.
 
 Portfolio project extracted: rtos-task-monitor-c repo
 
-Phase 6: Design Patterns (C) (Weeks 36-38)
+Phase 6: Design Patterns (C) (Weeks 38-40)
 Week	Topic	Morning Practice	Evening Theory	Project
-36	HAL + Callback	Write portable GPIO HAL	Adapter pattern	Same code on STM32 + simulator
-37	Command + State	UART command parser	State pattern	Menu system with undo
-38	Double buffer + Observer	LCD frame buffer	Observer pattern	Sensor event system
+38	HAL + Callback	Write portable GPIO HAL	Adapter pattern	Same code on STM32 + simulator
+39	Command + State	UART command parser	State pattern	Menu system with undo
+40	Double buffer + Observer	LCD frame buffer	Observer pattern	Sensor event system
 By end of Phase 6: You can write maintainable, portable embedded code in C.
 
-Phase 7: RISC-V (C) (Weeks 39-46)
+Phase 7: RISC-V (C) ()
 Hardware: ESP32-C3
 !! Cut off, can be reduced to 2-3 weeks if needed.
 
@@ -287,7 +287,7 @@ xx	Low-power on RISC-V	Sleep modes, wakeup	Power comparison	Battery sensor
 xx	Integration week	Cross-architecture HAL	Documentation	Run same app on ARM + RISC-V
 By end of Phase 7: You can port C code between architectures.
 
-Phase 8: TinyML (C) (Weeks 47-54)
+Phase 8: TinyML (C) ()
 !!! Cut off for not being relevant for traditional automotive firmware junior roles.
 Week	Topic	Morning Practice	Evening Theory	Project
 xx	TensorFlow Lite Micro	Install, run example	ML basics	Keyword spotting
@@ -301,22 +301,22 @@ xx	Integration week	Complete TinyML system	Documentation	Predictive maintenance 
 
 55-65 UDS and OBD-II belong in your hands before you start applying for jobs, not in week 75. Bring them to roughly weeks 55-65 alongside the ISO 26262 material so your safety and protocol knowledge develop together.
 
-Phase 9: Safety-Critical + ISO 26262 (C) (Weeks 55-62)
+Phase 9: Safety-Critical + ISO 26262 (C) (Weeks 49-48)
 Week	Topic	Morning Practice	Evening Theory	Project
-55	MISRA C	Run static analyzer, fix violations	MISRA rules (mandatory)	Refactor old project
-56	Unit testing (Unity/CppUTest)	Write tests for drivers	Test coverage (MC/DC)	Test suite for HAL
-57	HIL (Hardware-in-Loop)	Simulate hardware	Testing strategies	Automated regression
-58	ISO 26262 basics	Read Part 6	ASIL levels (A, B, C, D)	Safety concept doc
-59	Fault injection	Cause failures, verify response	Failure modes (FMEA)	Watchdog FMEA
-60	Secure boot + CRC	Implement secure bootloader	Trust chain	Signed firmware
-61	Memory protection (MPU)	Task isolation	Privilege levels	RTOS + MPU
-62	Integration week	Safety-ready firmware	Documentation	ASIL-B ready module (C)
+41	MISRA C	Run static analyzer, fix violations	MISRA rules (mandatory)	Refactor old project
+42	Unit testing (Unity/CppUTest)	Write tests for drivers	Test coverage (MC/DC)	Test suite for HAL
+43	HIL (Hardware-in-Loop)	Simulate hardware	Testing strategies	Automated regression
+44	ISO 26262 basics	Read Part 6	ASIL levels (A, B, C, D)	Safety concept doc
+45	Fault injection	Cause failures, verify response	Failure modes (FMEA)	Watchdog FMEA
+46	Secure boot + CRC	Implement secure bootloader	Trust chain	Signed firmware
+47	Memory protection (MPU)	Task isolation	Privilege levels	RTOS + MPU
+48	Integration week	Safety-ready firmware	Documentation	ASIL-B ready module (C)
 By end of Phase 9: You understand safety standards, write MISRA-compliant C code.
 
-Phase 10: MODERN C++ FOR EMBEDDED (Weeks 63-70) ← NEW CRITICAL PHASE
+Phase 10: MODERN C++ FOR EMBEDDED (Weeks 49 - 56) ← NEW CRITICAL PHASE
 This is where you add the C++ that automotive employers demand.
 
-Week 63: C++ Basics for Embedded (No STL, No Exceptions, No RTTI)
+Week 49: C++ Basics for Embedded (No STL, No Exceptions, No RTTI)
 Day	Morning (Coding)	Evening (Theory)
 Mon	Classes vs structs in C++	Read "Effective Modern C++" Item 1-2
 Tue	Constructors, destructors, RAII	RAII for GPIO (resource acquisition is initialization)
@@ -326,7 +326,7 @@ Fri	Function overloading, default arguments	Overloading vs. macros
 Sat	4-hour: Refactor your C LED driver into a C++ class	Document differences
 Key concept: In embedded C++, you disable exceptions and RTTI (-fno-exceptions -fno-rtti). You use the same toolchain with arm-none-eabi-g++.
 
-Week 64: Templates (Zero-Cost Abstraction)
+Week 50: Templates (Zero-Cost Abstraction)
 Day	Morning	Evening
 Mon	Template functions (min, max, swap)	Compile-time polymorphism
 Tue	Template classes (RingBuffer<T>)	No virtual function overhead
@@ -334,7 +334,7 @@ Wed	Template specialization	Optimizing for types
 Thu	Non-type template parameters (RingBuffer<256>)	Size known at compile time
 Fri	Variadic templates (tuple-like)	C++14/17 features
 Sat	4-hour: Template-based circular buffer for any type	Benchmark vs. C version
-Week 65: RAII for Hardware Resources
+Week 51: RAII for Hardware Resources
 Day	Morning	Evening
 Mon	GPIO class (constructor enables clock, destructor disables)	Resource management patterns
 Tue	UART class with RAII	Automatic baud rate configuration
@@ -342,7 +342,7 @@ Wed	SPI transaction class (CS assertion in constructor, release in destructor)	E
 Thu	Lock guard for RTOS mutexes	std::lock_guard equivalent
 Fri	Scope guard pattern	defer-like functionality
 Sat	4-hour: Complete RAII hardware abstraction layer for STM32	Document all classes
-Week 66: constexpr, static_assert, and Compile-Time
+Week 52: constexpr, static_assert, and Compile-Time
 Day	Morning	Evening
 Mon	constexpr functions (CRC calculation)	Compile-time vs runtime
 Tue	constexpr constructors	Compile-time initialization
@@ -350,7 +350,7 @@ Wed	static_assert for compile-time checks	"Is this baud rate valid?"
 Thu	consteval, constinit (C++20)	Newer features
 Fri	Compile-time lookup tables (sine/cosine)	Zero runtime cost
 Sat	4-hour: Compile-time CRC table generator	No startup time overhead
-Week 67: Embedded-Specific C++ Patterns
+Week 53: Embedded-Specific C++ Patterns
 Day	Morning	Evening
 Mon	Type-safe bit manipulation (enum class)	Avoids accidental integer promotion
 Tue	Strong typedefs (Meters, Seconds, Volts)	Prevent unit confusion
@@ -358,7 +358,7 @@ Wed	Optional<T> for return values (no exceptions)	Error handling pattern
 Thu	Expected<T, E> for richer errors	C++23 style
 Fri	span<T> for array views (C++20)	Safe array passing
 Sat	4-hour: Type-safe sensor reading library	Document all patterns
-Week 68: Port Your Bootloader to C++
+Week 54: Port Your Bootloader to C++
 Day	Morning	Evening
 Mon	Convert bootloader from C to C++	Class-based flash driver
 Tue	RAII for flash operations	Automatic unlock/lock
@@ -366,7 +366,7 @@ Wed	Template-based CRC calculator	Compile-time polynomial
 Thu	constexpr jump table	Verified at compile time
 Fri	Testing both versions	Size comparison (C vs C++)
 Sat	4-hour: C++ bootloader complete	Document size overhead (should be zero)
-Week 69: C++ for AUTOSAR Classic (What's Allowed)
+Week 55: C++ for AUTOSAR Classic (What's Allowed)
 Day	Morning	Evening
 Mon	AUTOSAR C++14 coding guidelines	Read AUTOSAR C++14 document
 Tue	Restricted C++ subset (no heap, limited templates)	Safety-critical C++
@@ -374,7 +374,7 @@ Wed	MISRA C++ rules	Compare with MISRA C
 Thu	Real-world AUTOSAR C++ examples	Industry code walkthrough
 Fri	Write AUTOSAR-compliant C++ module	Static analysis check
 Sat	4-hour: AUTOSAR C++ watchdog module	Document compliance
-Week 70: Integration - Complete C++ HAL for STM32
+Week 56: Integration - Complete C++ HAL for STM32
 Day	Morning	Evening
 Mon	GPIO, UART, SPI in C++	Class hierarchy design
 Tue	Timer, PWM, ADC in C++	Template-based configuration
@@ -386,10 +386,10 @@ Portfolio project extracted: stm32-cpp-hal repo (flagship C++ project)
 
 By end of Phase 10: You can write modern C++ for embedded, use RAII, templates, constexpr, and understand AUTOSAR C++ restrictions. You have a complete C++ HAL that matches your C HAL.
 
-Phase 11: Automotive Deep Dive (C/C++ Mixed) (Weeks 71-86)
+Phase 11: Automotive Deep Dive (C/C++ Mixed) (Weeks 57-66)
 Now you apply both C and C++ to automotive-specific problems.
 
-Week 71-72: CAN Protocol (C++ Version)
+Week 57-58: CAN Protocol (C++ Version)
 Day	Morning	Evening
 Mon	CAN frame class (id, dlc, data, timestamp)	Object-oriented CAN
 Tue	CAN driver C++ wrapper	RAII for CAN controller
@@ -397,7 +397,7 @@ Wed	CAN message queue (template-based)	Type-safe CAN IDs (enum class)
 Thu	CAN filters as constexpr	Compile-time filter configuration
 Fri	CAN error handling with Optional<T>	No exceptions
 Sat	4-hour: C++ CAN analyzer	Compare with C version
-Week 73-74: OBD-II (C++)
+Week 59-60: OBD-II (C++)
 Day	Morning	Evening
 Mon	OBD-II PID enum class	Type-safe PID requests
 Tue	OBD-II request/response classes	RAII for diagnostic sessions
@@ -405,7 +405,7 @@ Wed	OBD-II data parser (templates for different types)	Compile-time PID table
 Thu	OBD-II data logger in C++	RAII for file/serial logging
 Fri	Real-time RPM reader with constexpr formulas	Zero-cost abstraction
 Sat	4-hour: C++ OBD-II library	Extract to portfolio repo
-Week 75-76: UDS (Unified Diagnostic Services) in C++
+Week 61-62: UDS (Unified Diagnostic Services) in C++
 Day	Morning	Evening
 Mon	UDS service enum class (0x10, 0x22, 0x2E, 0x19)	Type-safe diagnostics
 Tue	UDS request/response classes	RAII for diagnostic sessions
@@ -413,7 +413,7 @@ Wed	UDS router (polymorphic service handlers)	Virtual functions (allowed in non-
 Thu	UDS security access with RAII	Automatic locking
 Fri	UDS + CAN integration	Complete diagnostic stack
 Sat	4-hour: C++ UDS server	Extract to portfolio repo
-Week 77-78: AUTOSAR C++14 Compliance
+Week 63-64: AUTOSAR C++14 Compliance
 Day	Morning	Evening
 Mon	Review AUTOSAR C++14 rules	Identify allowed subset
 Tue	Refactor your C++ HAL to be AUTOSAR-compliant	Remove banned features (dynamic_cast, etc.)
@@ -421,7 +421,7 @@ Wed	Add AUTOSAR-compliant error handling	Custom error codes, not exceptions
 Thu	Add AUTOSAR-compliant memory management	Static allocation only
 Fri	Run static analysis (clang-tidy with AUTOSAR profile)	Fix violations
 Sat	4-hour: AUTOSAR C++14 compliant module	Document compliance checklist
-Week 79-80: Real Automotive Project - Virtual ECU in C++
+Week 65-66: Real Automotive Project - Virtual ECU in C++
 Build a complete virtual ECU using C++ that includes:
 
 Component	C++ Implementation
@@ -433,7 +433,7 @@ Bootloader	Template-based CRC, constexpr jump table
 RTOS tasks	C++ wrapper for FreeRTOS (Task class, Queue class, Mutex class)
 Extract to portfolio repo: virtual-ecu-cpp (flagship automotive C++ project)
 
-Week 81-82: ISO 26262 with C++
+Week 67-68: ISO 26262 with C++
 Day	Morning	Evening
 Mon	MISRA C++ rules for safety	Read MISRA C++ guide
 Tue	AUTOSAR C++14 for ISO 26262	Safety-critical subset
@@ -441,7 +441,7 @@ Wed	Safe C++ patterns (no undefined behavior)	Static analysis for safety
 Thu	C++ in ASIL-D contexts	What's allowed, what's not
 Fri	Write safety manual for your C++ ECU	Document safety case
 Sat	4-hour: ASIL-B ready C++ module	Extract to portfolio repo
-Week 83-84: QNX RTOS (Automotive Standard)
+Week 69-70: QNX RTOS (Automotive Standard)
 Day	Morning	Evening
 Mon	Install QNX SDP (free learning edition)	QNX architecture
 Tue	QNX message passing	Publish/subscribe
@@ -449,7 +449,7 @@ Wed	QNX threads, mutexes, condition variables	POSIX compatibility
 Thu	QNX resource managers	C++ wrappers
 Fri	Build QNX application in C++	Compare with FreeRTOS
 Sat	4-hour: QNX sensor reader	Document differences
-Week 85-86: Integration + Vector Tools
+Week 71-72: Integration + Vector Tools
 Day	Morning	Evening
 Mon	Install CANoe demo or Wireshark CAN plugin	CANoe training
 Tue	Capture your C++ ECU's CAN traffic	Analyze with CANoe
@@ -471,17 +471,17 @@ virtual-ecu-cpp (flagship)
 
 asilb-ready-module-cpp
 
-Phase 12: Job Preparation (Weeks 87-94)
+Phase 12: Job Preparation (Weeks 73-80)
 Week	Focus	Deliverable
-87	Resume rewrite	Automotive-focused resume with C++ emphasized
-88	LinkedIn optimization	C++ and AUTOSAR keywords, connect with recruiters
-89	Portfolio website	GitHub Pages with C++ projects featured
-90	Interview coding problems	Embedded C++ (RAII, templates, constexpr)
-91	System design practice	Design ECU with C++ architecture
-92	Mock interviews	With peers, focus on C++ questions
-93	Apply to 5-10 automotive companies	Bosch, GlobalLogic, Aptiv, Continental
-94	Negotiation prep	Salary research for C++ embedded roles
-Phase 13: Buffer + Specialization (Weeks 95-104)
+73	Resume rewrite	Automotive-focused resume with C++ emphasized
+74	LinkedIn optimization	C++ and AUTOSAR keywords, connect with recruiters
+75	Portfolio website	GitHub Pages with C++ projects featured
+76	Interview coding problems	Embedded C++ (RAII, templates, constexpr)
+77	System design practice	Design ECU with C++ architecture
+78	Mock interviews	With peers, focus on C++ questions
+79	Apply to 5-10 automotive companies	Bosch, GlobalLogic, Aptiv, Continental
+80	Negotiation prep	Salary research for C++ embedded roles
+Phase 13: Buffer + Specialization (Weeks 81-90)
 Months 23-24 are flexible. Based on your interests:
 
 If you want to...	Focus on...
