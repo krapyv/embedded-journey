@@ -36,6 +36,9 @@
 - Learned about the array or pointers (In-Place Tokenization) vs the fixed 2D grid (Copied Tokenization).
 - Learned about the APB (Advanced Peripheral Bus) and the AHB (Advanced High-Performance Bus).
 
+**Afternoon:**
+- Learned about the Binary Searching and its usage in the embedded work.
+
 **Evening:**
 
 **Problems encountered:**
