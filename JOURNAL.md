@@ -31,6 +31,7 @@
 
 **Morning:**
 - Wrote a README.md for the Debug console project.
+- Wrote a LinkedIn post about the Debug console project and that signed/unsigned top >= size - 1 bug.
 
 **Evening:**
 
