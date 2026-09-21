@@ -32,6 +32,9 @@
 **Morning:**
 - Wrote a README.md for the Debug console project.
 - Wrote a LinkedIn post about the Debug console project and that signed/unsigned top >= size - 1 bug.
+- Learned about arithmetic operations results (`+, -, *, /`) stored into uint32_t and int32_t slots.
+- Learned about the array or pointers (In-Place Tokenization) vs the fixed 2D grid (Copied Tokenization).
+- Learned about the APB (Advanced Peripheral Bus) and the AHB (Advanced High-Performance Bus).
 
 **Evening:**
 
