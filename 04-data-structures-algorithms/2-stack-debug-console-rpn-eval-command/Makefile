@@ -6,14 +6,14 @@ OBJCOPY = $(PREFIX)objcopy
 # --- Centralized Driver Path ---
 DRIVERS = ../../my_reusable_drivers
 
-INCLUDES = -I. -I${DRIVERS}/core -I${DRIVERS}/periph/systick -I${DRIVERS}/periph/uart -I${DRIVERS}/utils/ring_buffer -I${DRIVERS}/utils/stack
+INCLUDES = -I. -I${DRIVERS}/core -I${DRIVERS}/periph/uart -I${DRIVERS}/utils/ring_buffer -I${DRIVERS}/utils/stack
 
 # Compiler flags (same for all STM32F411 projects)
 CFLAGS = -mcpu=cortex-m4 -mthumb -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
-SRC = startup_stm32f411ceux.s ${DRIVERS}/periph/uart/uart.c ${DRIVERS}/utils/ring_buffer/ring_buffer.c ${DRIVERS}/periph/systick/systick.c ${DRIVERS}/utils/stack/stack.c main.c
+SRC = startup_stm32f411ceux.s ${DRIVERS}/periph/uart/uart.c ${DRIVERS}/utils/ring_buffer/ring_buffer.c ${DRIVERS}/utils/stack/stack.c main.c
 ELF = program.elf
 BIN = program.bin
 

@@ -18,7 +18,7 @@ reusable_drivers/
 │    ├── spi.c       # Register-level SPI peripheral driver: initialization and transfer functions
 │    ├── spi.h       # SPI_Channel_t enum for future multi-channel expansion and function headers
 │    ├── uart.c      # USART2 register configuration and DMA1 Stream 6 transfer invocation
-│    ├── uart.h      # USART2 bit definitions, control macros, and function
+│    ├── uart.h      # USART2 bit definitions, control macros, and function declarations
 │    ├── systick.c   # SysTick initialization, counter variable and functions
 │    └── systick.h   # SysTick mode, BRR, clock and register configuration and function headers
 │

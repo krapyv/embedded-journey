@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-21
+
+**Morning:**
+- Wrote a README.md for the Debug console project.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-20
 
 **Morning:**
