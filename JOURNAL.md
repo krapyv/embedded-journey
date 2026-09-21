@@ -38,6 +38,7 @@
 
 **Afternoon:**
 - Learned about the Binary Searching and its usage in the embedded work.
+- Learned the Bubble sort, Selection sort and Insertion sort.
 
 **Evening:**
 
