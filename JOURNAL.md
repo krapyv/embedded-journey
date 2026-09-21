@@ -41,6 +41,7 @@
 - Learned the Bubble sort, Selection sort and Insertion sort.
 
 **Evening:**
+- Learned the Merge Sort.
 
 **Problems encountered:**
 - (None today) etc
