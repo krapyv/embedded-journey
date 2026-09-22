@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-22
+
+**Morning:**
+- Learned the Quick Sort and Heap Sort.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-21
 
 **Morning:**
