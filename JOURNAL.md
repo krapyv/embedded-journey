@@ -33,6 +33,8 @@
 - Learned the Quick Sort and Heap Sort.
 
 **Evening:**
+- Finished the Sorting methods algorithms theory. 
+- Started thinking about the task "Windowed Median Filter -> Binary-Search Calibration".
 
 **Problems encountered:**
 - (None today) etc
