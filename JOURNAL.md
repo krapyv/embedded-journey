@@ -33,6 +33,7 @@
 - Started designing the "Windowed Median Filter -> Binary-Search Calibration" with BMP280 and UART.
 
 **Evening:**
+- Continued to design the project. Had hard time grasping what the hell am I doing. Derived how two channels: temperature and pressure - should be calculated and their values put into the 7-element windows.
 
 **Problems encountered:**
 - (None today) etc
