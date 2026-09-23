@@ -243,7 +243,7 @@ Week	Topic	Morning Practice	Evening Theory	Project
 20	Circular buffer	Implement from scratch	Compare interrupt-safe versions	UART driver with ring buffer ✅
 22	Queue (FIFO)	RTOS-style queue	Lock-free vs. locked	Task communication ✅
 23	Stack + Linked list ✅	Expression evaluator	Memory analysis	Command parser ✅
-24	Binary search ✅ + Sorting	Lookup tables, median filter	Algorithm complexity	Sensor calibration
+24	Binary search ✅ + Sorting ✅	Lookup tables, median filter	Algorithm complexity	Sensor calibration
 25	CRC + Checksums	Implement CRC-16, CRC-32	Error detection theory	Reliable UART protocol
 26	PID controller	Temperature control (simulated)	Tuning methods	Motor speed control
 27	Digital filters (EMA, moving average)	Sensor smoothing	Filter design	Noise reduction

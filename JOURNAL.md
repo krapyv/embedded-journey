@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-23
+
+**Morning:**
+- Started designing the "Windowed Median Filter -> Binary-Search Calibration" with BMP280 and UART.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-22
 
 **Morning:**
