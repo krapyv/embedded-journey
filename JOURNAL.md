@@ -27,6 +27,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-24
+
+**Morning:**
+- Finished developing (designing) the Windowed Median Filter -> Lookup tables project.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+
 # 2026-09-23
 
 **Morning:**
