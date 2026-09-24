@@ -33,6 +33,7 @@
 - Finished developing (designing) the Windowed Median Filter -> Lookup tables project.
 
 **Evening:**
+- Started implementing the Windowed Median Filter and Lookup table project.
 
 **Problems encountered:**
 - (None today) etc
