@@ -33,6 +33,7 @@
 - Continued implementing the project. Implemented the host-side Python script to generate the pressure-altitude dictionary.
 
 **Evening:**
+- Fixed some bugs. The program is done, the next is testing.
 
 **Problems encountered:**
 - (None today) etc

@@ -13,11 +13,11 @@ int32_t temperature_window[7];
 uint32_t pressure_window[7];
 
 // void InsertionSort(void *ptr, DataType type)
-void InsertionSort(uint32_t *arr, int n)
+void InsertionSort(int32_t *arr, int n)
 {
     for (int i = 1; i < n; i++)
     {
-        uint8_t key = arr[i];
+        int32_t key = arr[i];
         int j = i - 1;
         while (j >= 0 && arr[j] > key)
         {
@@ -161,41 +161,46 @@ void main(void)
             // from idx 0 to 6 are legic, idx 7 is the signal that 7 samples are in the arrays
             if (window_entries_counter >= 7)
             {
-                // select the median elements of the temperature and pressure windows
+                // sort the windows
+                InsertionSort(temperature_window, 7);
+                InsertionSort((int32_t *)pressure_window, 7);
 
+                // select the median elements of the temperature and pressure windows
                 // temperature in DegC, resolution is 0.01 DegC (5123 equals 51.23 Degrees)
-                uint32_t temp_median = temperature_window[3]; // 0, 1, 2 - left part; 4, 5, 6 - right side
+                int32_t temp_median = temperature_window[3]; // 0, 1, 2 - left part; 4, 5, 6 - right side
                 // pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits)
                 uint32_t press_median = pressure_window[3];
 
                 float found_altitude = 0;
-                int *press_range_start, *press_range_end;
+                int press_range_start, press_range_end;
 
-                int binary_res = BinarySearch(lut_array, 4, press_median, press_range_start, press_range_end);
+                int binary_res = BinarySearch(lut_array, 4, press_median, &press_range_start, &press_range_end);
 
-                if (binary_res)
+                if (binary_res == 1)
                 {
                     // the press_mediat landed in the lookup table element
                     // so we are using the lookup table altitude
-                    if (*press_range_start == *press_range_end)
+                    if (press_range_start == press_range_end)
                     {
-                        found_altitude = lut_array[*press_range_start].altitude;
+                        found_altitude = lut_array[press_range_start].altitude;
+                    }
+                    else
+                    {
+                        // we need to find where the target sits in the range
+                        // for that we are using the linear interpolation
+                        // A = C + (fraction * (D - C))
+
+                        float fraction = (float)(press_median - lut_array[press_range_start].pressure) / (float)(lut_array[press_range_end].pressure - lut_array[press_range_start].pressure);
+
+                        found_altitude = lut_array[press_range_start].altitude + fraction * (lut_array[press_range_end].altitude - lut_array[press_range_start].altitude);
                     }
 
-                    // we need to find where the target sits in the range
-                    // for that we are using the linear interpolation
-                    // A = C + (fraction * (D - C))
-
-                    float fraction = (press_median - lut_array[*press_range_start].pressure) / (lut_array[*press_range_end].pressure - lut_array[*press_range_start].pressure);
-
-                    found_altitude = lut_array[*press_range_start].altitude + fraction * (lut_array[*press_range_end].altitude - lut_array[*press_range_start].altitude);
-
-                    printf("Temp: %f degC | Press: %f hPa | Altitude: %f m\r\n", temp_median / 100, press_median / 256 / 100, found_altitude);
+                    printf("Temp: %" PRId32 " degC | Press: %" PRIu32 " hPa | Altitude: %f m\r\n", temp_median / 100, press_median / 256 / 100, found_altitude);
                 }
                 else
                 {
                     // target is out of bound for the lookup table
-                    printf("Temp: %f degC | Press: %f hPa | Unkhown altitude\r\n", temp_median / 100, press_median / 256 / 100);
+                    printf("Temp: %" PRId32 " degC | Press: %" PRIu32 " hPa | Unkhown altitude\r\n", temp_median / 100, press_median / 256 / 100);
                 }
 
                 window_entries_counter = 0;
