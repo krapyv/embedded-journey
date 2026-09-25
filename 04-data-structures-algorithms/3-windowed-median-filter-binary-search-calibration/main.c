@@ -7,10 +7,26 @@
 // globally declared vaiable with physically allocated memory in RAM
 I2C_HandleTypeDef hi2c;
 
-const LUT_Pressure_Altitude_t lut_array[4];
+const LUT_Pressure_Altitude_t lut_array[4] = {{25909299, 10}, {25921255, 6}, {25930226, 3}, {25939200, 0}};
 
 int32_t temperature_window[7];
 uint32_t pressure_window[7];
+
+// void InsertionSort(void *ptr, DataType type)
+void InsertionSort(uint32_t *arr, int n)
+{
+    for (int i = 1; i < n; i++)
+    {
+        uint8_t key = arr[i];
+        int j = i - 1;
+        while (j >= 0 && arr[j] > key)
+        {
+            arr[j + 1] = arr[j]; // shift right
+            j--;
+        }
+        arr[j + 1] = key; // insert
+    }
+}
 
 int BinarySearch(const LUT_Pressure_Altitude_t *arr, int size, uint32_t press_target, int *range_start, int *range_end)
 {
@@ -148,9 +164,9 @@ void main(void)
                 // select the median elements of the temperature and pressure windows
 
                 // temperature in DegC, resolution is 0.01 DegC (5123 equals 51.23 Degrees)
-                float temp_median = temperature_window[3] / 100; // 0, 1, 2 - left part; 4, 5, 6 - right side
+                uint32_t temp_median = temperature_window[3]; // 0, 1, 2 - left part; 4, 5, 6 - right side
                 // pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits)
-                float press_median = pressure_window[3] / 256 / 100;
+                uint32_t press_median = pressure_window[3];
 
                 float found_altitude = 0;
                 int *press_range_start, *press_range_end;
@@ -174,12 +190,12 @@ void main(void)
 
                     found_altitude = lut_array[*press_range_start].altitude + fraction * (lut_array[*press_range_end].altitude - lut_array[*press_range_start].altitude);
 
-                    printf("Temp: %f degC | Press: %f hPa | Altitude: %u m\r\n", temp_median, press_median, found_altitude);
+                    printf("Temp: %f degC | Press: %f hPa | Altitude: %f m\r\n", temp_median / 100, press_median / 256 / 100, found_altitude);
                 }
                 else
                 {
                     // target is out of bound for the lookup table
-                    printf("Temp: %f degC | Press: %f hPa | Unkhown altitude\r\n", temp_median, press_median);
+                    printf("Temp: %f degC | Press: %f hPa | Unkhown altitude\r\n", temp_median / 100, press_median / 256 / 100);
                 }
 
                 window_entries_counter = 0;

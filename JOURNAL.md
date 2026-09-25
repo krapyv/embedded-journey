@@ -27,6 +27,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-25
+
+**Morning:**
+- Continued implementing the project. Implemented the host-side Python script to generate the pressure-altitude dictionary.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+
 # 2026-09-24
 
 **Morning:**
