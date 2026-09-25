@@ -34,6 +34,7 @@
 
 **Evening:**
 - Fixed some bugs. The program is done, the next is testing.
+- Built the breadboard circuit.
 
 **Problems encountered:**
 - (None today) etc
