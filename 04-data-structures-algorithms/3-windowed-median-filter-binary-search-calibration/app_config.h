@@ -18,7 +18,7 @@ typedef enum
 typedef struct
 {
     uint32_t pressure;
-    uint32_t altitude;
+    int32_t altitude;
 } LUT_Pressure_Altitude_t;
 
 #endif

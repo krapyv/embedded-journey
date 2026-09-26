@@ -1,4 +1,5 @@
 #include <inttypes.h>
+#include <stdio.h>
 #include "i2c.h"
 #include "systick.h"
 #include "bmp280.h"
@@ -7,7 +8,11 @@
 // globally declared vaiable with physically allocated memory in RAM
 I2C_HandleTypeDef hi2c;
 
-const LUT_Pressure_Altitude_t lut_array[4] = {{25909299, 10}, {25921255, 6}, {25930226, 3}, {25939200, 0}};
+// a real barometric altimeter needs a live, current QNH/sea-level-reference pressure as an input, updated periodically - that's not something that can be baked once in .rodata and forgotten about, because by definition it changes with the weather, hour to hour
+// a P0 - pressure at sea level reference (h = 0) in this implementation is static, standard 1013.25 hPa.
+// the precomputed fixed input -> output mapping is not the best tool since P0 should be taken live, not be constant
+// TODO: make the recompution of the ratio between measured pressure and current P0 at runtime instead of a static bracket-and-interpolate.
+const LUT_Pressure_Altitude_t lut_array[7] = {{25909299, 10}, {25921255, 6}, {25930226, 3}, {25939200, 0}, {25954163, -5}, {25969135, -10}, {25984115, -15}};
 
 int32_t temperature_window[7];
 uint32_t pressure_window[7];
@@ -174,7 +179,7 @@ void main(void)
                 float found_altitude = 0;
                 int press_range_start, press_range_end;
 
-                int binary_res = BinarySearch(lut_array, 4, press_median, &press_range_start, &press_range_end);
+                int binary_res = BinarySearch(lut_array, 7, press_median, &press_range_start, &press_range_end);
 
                 if (binary_res == 1)
                 {
@@ -195,7 +200,10 @@ void main(void)
                         found_altitude = lut_array[press_range_start].altitude + fraction * (lut_array[press_range_end].altitude - lut_array[press_range_start].altitude);
                     }
 
-                    printf("Temp: %" PRId32 " degC | Press: %" PRIu32 " hPa | Altitude: %f m\r\n", temp_median / 100, press_median / 256 / 100, found_altitude);
+                    int32_t alt_int = (int32_t)found_altitude;
+                    uint32_t alt_frac = (uint32_t)(fabs(found_altitude - alt_int) * 100);
+
+                    printf("Temp: %" PRId32 " degC | Press: %" PRIu32 " hPa | Altitude: %" PRId32 ".%02" PRIu32 " m\r\n", temp_median / 100, press_median / 256 / 100, alt_int, alt_frac);
                 }
                 else
                 {

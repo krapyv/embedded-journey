@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-26
+
+**Morning:**
+- Tested the program. Debugged the program. Fixed bugs and deffered the change from fixed input->output mapping of the pressure to altitude to live computation since the project's goal was to teach me lookup tables, binary search and sorting.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-25
 
 **Morning:**

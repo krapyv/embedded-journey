@@ -5,7 +5,7 @@ import math
 def main():
     output = {}
 
-    altitudes = [10, 6, 3, 0]
+    altitudes = [10, 6, 3, 0, -5, -10, -15]
 
     # Temperature in Kelvin
     temp = 23 + 273.15 
