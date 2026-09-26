@@ -31,11 +31,23 @@
 
 **Morning:**
 - Tested the program. Debugged the program. Fixed bugs and deffered the change from fixed input->output mapping of the pressure to altitude to live computation since the project's goal was to teach me lookup tables, binary search and sorting.
+- Completed the JOURNAL logs for 23.09, 24.09, 25.09 and 26.09.
 
 **Evening:**
 
 **Problems encountered:**
-- (None today) etc
+**Sensor pipeline - the fixed-P0 altitude bug:**
+On real hardware, the binary search returned "out of range" for a live pressure reading (1014.68 hPa) that should have bracketed cleanly. 
+First decision was to "enhance the const array" - widen its range.
+Caught that this treats it as a table-sizing problem when it is not one: the table's 0m entry is a fixed constant (`scipy.constants.atm`, standard atmosphere, 1013.25 hPa), but real atmospheric pressure at a fixed location drifts with weather day to day, independent of altitude entirely - a static table anchored to one hardcoded `P0` has no way of being correct on more than a lucky day.
+Confirmed this is exactly why real barometric altimeters require a live, current local sea-level reference pressure (QNH) as an input, not a baked-in-constant.
+
+Decided not to rebuild the pipeline around a live-P0 recalculation, even though that's the technically correct fix - reasoned explicitly that doing so would replace the sort/LUT/binary-search mechanism this project exists to teach with a different algorithm entirely, which is not the point of the exercise. Instead: widened the table's altitude range to include realistic negative values (since local pressure now regularly exceeds the fixed 0m reference), fixed a follow-on bug this surfaced (the LUT's altitude field was still unsigned, so a negative bracket would have wrapped to a huge positive number), and documented the fixed-P0 assumption explicitly as a stated scope boundary - a TODO at the point of use plus a journal/README note.
+
+**Sensor pipeline - printf float support silently disabled at the linker:**
+`%f` for altitude produced no output at all, with no compiler warning and a successful link.
+Root cause: the default (smaller) `printf` variant this toolchain links against silently drops `%f`/`%e`/`%g` support entirely rather than erroring - confirmed by testing `-u _printf_float`, which forces the linker to pull in the floating-point-capable variant, after which output appeared correctly. 
+Ultimately abandoned float display entirely in favor of splitting the value into integer and fractional parts manually (with `fabs()` on the fractional part specifically so a negatie altitude like `-12.87` doesn't print as `-12.-87`), then removed the now-unneeded linker flag.
 
 **Root cause at the register level:**
 -
@@ -49,11 +61,48 @@
 - Fixed some bugs. The program is done, the next is testing.
 - Built the breadboard circuit.
 
+
+**Sensor pipeline - table sizing, units, and Q24.8 conversion:**
+*Point count derived:* First reached for "32 points" as a round number. Forced to actually justify it: computed the true barometric midpoint over a 10m indoor test range against the perfectly linear midpoint between endpoints - deviation came out to 0.0001 hPa, far below the sensor's own +-0.16 hPa noise floor. Mathematically, 2 points already suffice for this range; settled on 4 anyway as a deliberate, stated choice to actually exercise the LUT/binary-search topic, not an unnoticed inefficiency.
+
+*Spacing:* initially reasoned "should be evenly spaced in pressure, since that's the search key" - then checked that against the same linearity result and found it didn't matter in this specifi case (both spacings produce nearly identical tables over a range this flat). Kept the general principle but recognized it wasn't doing any real work here.
+
+*Generation:* computed the four `{pressure, altitude}` pairs offline in Python (never runs `exp()` on the MCU - that's the entire point of the table), hand-typed into the `.c` source. Caught two bugs in the first script draft: calling bare `exp()` after `import math` instead of `math.exp()` (module import doesn't dump names into global scope), and an altitude list ordered backwards relative to the already-decided ascending-pressure array layout.
+
 **Problems encountered:**
-- (None today) etc
+**Bug 1: Units mismatch:**
+The script printed plain float Pascals, but `BMP280_Pressure_Compensate()` actually returns Q24.8 fixed-point (pressure * 256, packed into a `uint32_t`) - two different units that would have compared cleanly, returned a bracket, interpolated, and produced a confidently wrong altitude with nothing to flag it. 
+Chose to convert the table itself into Q24.8 at generation time (cheap, done once, ever) rather than converting the sensor's median value every batch - checked that the float -> Q24.8 truncation this introduces (~0.2 raw units = approximately 0.0000078 hPa) is negligible against the noise floor before committing to it, and separately noted `int()` truncates toward zero rather than rounding, a distinction worth being precise about even though it did not change the conclusion here.
+
+**Bug 2: Median does not equal "pick the index 3":**
+Initially assumed the median of the 7-element window was just the 4th element by arrival order. Caught the error explicitly: arrival order and magnitude order have nothing to do with each other - index 3 only means "the median" after the array has actually been sorted by value. Without the sort step, "index 3" is meaningless; it's the sort that makes that equivalence true.
+
+**Bug 3: InsertionSort key truncation:**
+`int8_t key = arr[i]` on an array of ~26-million-magnitude Q24.8 pressure values - silently kept only the low byte of every comparison. 
+Fixed to `int32_t`.
+Separately reasoned through calling the same `int32_t*`-typed sort function on the `uint32_t*` pressure window: verified real pressure values (~26M) sit far below the `int32_t` sign-big threshold (~2.1B), so reinterpreting the bit pattern produces identical ordering either way. This is technically a strict-aliasing violation that would only actually bite if the same memory were accesses through both types somewhere the optimizer could see across.
+
+**Bug 4: Uninitialized output pointers:**
+`int *press_range_start, *press_range_end;` declared as pointers but never pointed at real storage - `BinarySearch` writing through them would write to whatever garbage address happened to be on the stack. 
+Fixed by using plain local `int`s and passing their addresses in the first place, only somewhere for the callee to write results back into.
+
+**Bug 5: if (binary_res) never false:**
+The function only ever returns 1 or -1 - both nonzero, both "true" to an `if` - so the check tested nothing regardless of outcome.
+Fix: `binary_res == 1`.
+
+**Bug 6: Integer division inside the interpolation fraction and a live division-by-zero path:**
+All operands in the fraction expression were `uint32_t`, so the division ran as integer division and only converted to float after truncating - and the exact-match branch (`start == end`) didn't stop the fraction line from running unconditionally right after it, meaning an exact table hit would divide by zero.
+Fix: explicit float casts on both operands and moving the interpolation into the `else` branch, making the zero-denominator case structurally unreachable rather than merely unlikely.
+
+**Bug 7: printf/register-convention mismatch:**
+Passed `uint32_t` fixed-point values to `%f` specifiers, which expect arguments in the floating-point register bank under the calling convention - a type mismatch invisible to a casual read but wrong at the API level.
+Fix: switched those specifiers to `PRId32`/`PRIu32` to match the actual argument types.
+
+**Bug 8: Signedness issue:**
+Changed `temp_median` from `uint32_t` to `int32_t` because the sensor's real spec range (-40°C to +85°C) makes negative readings plausible, and an unsigned type would have silently reinterpreted a genuinely cold reading as a huge positive number.
 
 **Root cause at the register level:**
--
+- 
 
 
 # 2026-09-24
@@ -63,6 +112,11 @@
 
 **Evening:**
 - Started implementing the Windowed Median Filter and Lookup table project.
+
+**Sensor pipeline - flash placement mental model correction:**
+Got confused mid-design about whether the calibration LUT needed to be written using my custom flash driver (`flash_erase`/`flash_program`/BSY-poll/unlock sequence, built earlier for the bootloader).
+Worked through the actual distinction: that driver exists for data unknown at compile time that has to change at runtime - an application image arriving over UART at some unpredictable moment. The calibration table is the opposite: every value is known and fixed the moment the source file is written, so it needs no runtime driver at all. Declaring it `const` is was tells the compiler to place it in `.rodata`, and the existing linker script already routes `.rodata` into the FLASH region - it becomes part of the `.bin` image and gets written by whatever tool flashes the firmware itself, the same act that writes the program code.
+Confirmed directly against the actual linker script (`.rodata : { * (.rodata*) } > FLASH`).
 
 **Problems encountered:**
 - (None today) etc
@@ -78,6 +132,18 @@
 
 **Evening:**
 - Continued to design the project. Had hard time grasping what the hell am I doing. Derived how two channels: temperature and pressure - should be calculated and their values put into the 7-element windows.
+
+**Sensor pipeline: median filter + binary-search altitude LUT - design phase:**
+Task: combine two Data structures and Algorithms topics (sorting, binary search) into one real pipeline on top of the existing BMP280 driver - a windowed median filter feeding a binary-search calibration loopup table, deliberately avoiding "textbook" fast algorithms (quicksort, hash maps) in favor of bounded, deterministic, non-recursive ones, since that's what automotive requirements actually demand.
+
+*Batching vs. sliding window:* BMP280 runs in forced mode (5.5-6.4ms conversion time per trigger, both OSRS_T/OSRS_P at x1). Chose batching (collect 7 fresh samples, sort once, emit one median) over sliding (resort on every new sample) - the physical quantities being sampled (room temp/pressure) don't move fast enough for continuous resorting to buy anything real.
+Computed the real worst-case batch cost by hand rather than assuming it: 7 triggers * 6.4ms + I2C bus overhead (derived from 100kHz clock period * ~39 bits per transaction = approximately 0.5ms * 7) = 48.3ms total. 
+Checked this against the rest of the main loop (UART is TX-only, no inbound stream to starve) and confirmed no volatile is needed on the raw window, since nothing in this project runs from an ISR - the whole hazard category the loop's own rules exist to guard against just doesn't apply here.
+
+*The design gap - compensate-then-filter, not filter-then-compensate:* Original assumption was to median-filter raw `adc_T`/`adc_P` first and run Bosch's compensation formula once on the resulting median (to avoid running the compensation math 7 times). Chased this down properly: median-of-transform equals transform-of-median only if the transform is strictly monotonic. Verified temperature's compensation formula actually is monotonic across the sensor's real -40°C to +85°C range by finding the quadratic's vertex (`-C1/C2`) and showing the large linear coefficient (`dig_T2`-driven) keeps it far outside the physical domain, dominating the tiny quadratic term (`dig_T3`-driven). But then found the real blocker: pressure's compensation formula needs its own `t_fine` - a value computed fresh per-sample from that instant's own `adc_T` - so `t_fine` must be computed for all 7 samples regardless, which means the "expensive" compensation math (the actual `var1`/`var2` work building `t_fine`) can never be deffered to
+"once, after filtering" - only one trivial final shift-and-scale line was ever avoidable, and that saving didn't survive once `t_fine`'s mandatory per-sample cost was accounted for. 
+Separately confirmed a second reason raw values couldn't sit in the windows at all: filtering `adc_T` and `adc_P` independently could return medians from two different original samples, destroying the physical pairing pressure's formula depends on.
+Final pipeline: each of the 7 triggers runs full temperature-then-pressure compensation immediately, and only the resulting physically-meaningful T and P values populate the two windows.
 
 **Problems encountered:**
 - (None today) etc
