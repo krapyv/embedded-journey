@@ -35,6 +35,7 @@
 
 **Evening:**
 - Wrote a README.md for the "Median filter + binary-search altitude LUT" project.
+- Wrote a Linkedin post about the finished project.
 
 **Problems encountered:**
 **Sensor pipeline - the fixed-P0 altitude bug:**
