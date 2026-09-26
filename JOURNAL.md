@@ -34,6 +34,7 @@
 - Completed the JOURNAL logs for 23.09, 24.09, 25.09 and 26.09.
 
 **Evening:**
+- Wrote a README.md for the "Median filter + binary-search altitude LUT" project.
 
 **Problems encountered:**
 **Sensor pipeline - the fixed-P0 altitude bug:**

@@ -11,7 +11,7 @@ I2C_HandleTypeDef hi2c;
 // a real barometric altimeter needs a live, current QNH/sea-level-reference pressure as an input, updated periodically - that's not something that can be baked once in .rodata and forgotten about, because by definition it changes with the weather, hour to hour
 // a P0 - pressure at sea level reference (h = 0) in this implementation is static, standard 1013.25 hPa.
 // the precomputed fixed input -> output mapping is not the best tool since P0 should be taken live, not be constant
-// TODO: make the recompution of the ratio between measured pressure and current P0 at runtime instead of a static bracket-and-interpolate.
+// TODO: recompute the ratio between measured pressure and current P0 at runtime instead of a static bracket-and-interpolate. As written, altitude readings drift by roughly 8m of error per 1 hPa of deviation between actual local sea-level pressure and the hardcoded 1013.25 hPa - accurate only on days when local pressure happens to sit near standard.
 const LUT_Pressure_Altitude_t lut_array[7] = {{25909299, 10}, {25921255, 6}, {25930226, 3}, {25939200, 0}, {25954163, -5}, {25969135, -10}, {25984115, -15}};
 
 int32_t temperature_window[7];

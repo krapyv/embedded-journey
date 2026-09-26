@@ -9,12 +9,6 @@
 // select active mode for the project
 #define TARGET_UART_MODE UART_MODE_TX_ONLY
 
-typedef enum
-{
-    TYPE_INT32,
-    TYPE_UINT32
-} DataType;
-
 typedef struct
 {
     uint32_t pressure;
