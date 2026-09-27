@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-27
+
+**Morning:**
+- Finished miscellaneous theory topics of the last project.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-26
 
 **Morning:**
