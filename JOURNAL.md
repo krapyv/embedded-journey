@@ -32,6 +32,9 @@
 **Morning:**
 - Finished miscellaneous theory topics of the last project.
 
+**Afternoon:**
+- Repeated the SPI and CAN theory.
+
 **Evening:**
 
 **Problems encountered:**
