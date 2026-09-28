@@ -33,6 +33,7 @@
 - Learned about checksums and CRC.
 
 **Evening:**
+- Started designing the "CRC-hardened chunk protocol (bootloader v1.1)".
 
 **Problems encountered:**
 - (None today) etc
