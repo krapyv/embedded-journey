@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-28
+
+**Morning:**
+- Learned about checksums and CRC.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-27
 
 **Morning:**
