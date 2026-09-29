@@ -33,6 +33,7 @@
 - Continued designing the CRC for the chunk-receive mechanism for the bootloader. Honestly, I do not understand what I am doing :D It is hard as hell
 
 **Evening:**
+- Finished the Derivation Stage 0 for the project.
 
 **Problems encountered:**
 - (None today) etc
