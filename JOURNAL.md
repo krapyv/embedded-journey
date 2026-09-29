@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-29
+
+**Morning:**
+- Continued designing the CRC for the chunk-receive mechanism for the bootloader. Honestly, I do not understand what I am doing :D It is hard as hell
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-28
 
 **Morning:**
