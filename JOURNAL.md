@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-09-30
+
+**Morning:**
+- Started implementing the host-side CRC16 oracle and fault injection.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-09-29
 
 **Morning:**
