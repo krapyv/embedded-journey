@@ -33,6 +33,7 @@
 - Started implementing the host-side CRC16 oracle and fault injection.
 
 **Evening:**
+- Continued implementing the Python script.
 
 **Problems encountered:**
 - (None today) etc
