@@ -64,10 +64,19 @@ def bit_flips_corrupt(data: bytes, index1: int, index2: int, bit_position: int):
 
     return data_int.to_bytes(len(data), 'little')
 
-def burst_corrupt(data: bytes, length: int) -> bytes:
-    offset = 0
+def burst_corrupt(data: bytes, length: int, offset:int) -> bytes:
     data_int = int.from_bytes(data, 'big')
-    mask = ((1 << length) - 1) << offset
+
+    # calculate middle random bit width
+    mid_length = length - 2
+
+    lowest_bit = 1
+    middle_bits = random.randint(0, (1 << mid_length) - 1) << 1
+    highest_bit = 1 << (length - 1)
+
+    constructed_pattern = highest_bit | middle_bits | lowest_bit
+
+    mask = constructed_pattern << offset
     data_int ^= mask
 
     return data_int.to_bytes(len(data), 'big')
@@ -96,28 +105,62 @@ def random_corrupt(data: bytes, k: int) -> bytes:
 def main():
     test_chunk = bytes(range(128))
     print(f"Basic CRC: {crc16(test_chunk)}\n\r")
+    offset = 0
 
-    swapped = swap_corrupt(test_chunk, 5)
-    swapped_arr = bytearray(swapped)
-    print(f"Swapped at i=5 CRC: {crc16(swapped)}\n")
-    print(f"i=5 {swapped_arr[5]} and i=6 {swapped_arr[6]}\n\r")
+    burst_misses = 0
+    random_misses = 0
+    trials = 0
 
-    bits_flipped = bit_flips_corrupt(test_chunk, 5, 10, 2)
-    bits_flipped_arr = bytearray(bits_flipped)
-    print(f"Bit 2 in bytes 5 and 10 flipped CRC: {crc16(bit_flips_corrupt(test_chunk, 5, 10, 2))}\n")
-    print(f"i=5 {bits_flipped_arr[5]} and i=10 {bits_flipped_arr[10]}\n\r")
+    normal_crc = crc16(test_chunk)
 
-    burst_16 = burst_corrupt(test_chunk, 16)
-    burst_16_arr = bytearray(burst_16)
-    print(f"Burst 16 CRC: {crc16(burst_corrupt(test_chunk, 16))}\n")
-    print(f"i=0 {burst_16_arr[0]}, i=1 {burst_16_arr[1]} and i=2 {burst_16_arr[2]}\n\r")
+    total_bits = len(test_chunk) * 8
+    max_valid_offset = total_bits - 17
 
-    burst_17 = burst_corrupt(test_chunk, 17)
-    burst_17_arr = bytearray(burst_17)
-    print(f"Burst 17 CRC: {crc16(burst_corrupt(test_chunk, 17))}\n")
-    print(f"i=0 {burst_17_arr[0]}, i=1 {burst_17_arr[1]}, i=2 {burst_17_arr[2]} and i=3 {burst_17_arr[3]}\n\r")
+    for i in range(1000000):
+        offset = random.randint(0, max_valid_offset)
+        corrupted_burst = burst_corrupt(test_chunk, 17, offset)
+        burst_crc = crc16(corrupted_burst)
 
-    print(f"Random 5 corrupted bits CRC: {crc16(random_corrupt(test_chunk, 5))}\n\r")
+        random_crc = crc16(random_corrupt(test_chunk, 6))
+
+        trials += 1
+
+        if burst_crc == normal_crc:
+            burst_misses += 1
+        
+        if random_crc == normal_crc:
+            random_misses += 1
+
+    burst_coef_missed = burst_misses / trials
+    random_coef_missed = random_misses / trials
+
+    print(f"Normal CRC: {normal_crc}\n\r")
+    print(f"Burst misses: {burst_misses} | Total trials {trials} | Misses/trials {burst_coef_missed}\n")
+    print(f"Random misses: {random_misses} | Total trials {trials} | Misses/trials {random_coef_missed}\n")
+
+
+
+    # swapped = swap_corrupt(test_chunk, 5)
+    # swapped_arr = bytearray(swapped)
+    # print(f"Swapped at i=5 CRC: {crc16(swapped)}\n")
+    # print(f"i=5 {swapped_arr[5]} and i=6 {swapped_arr[6]}\n\r")
+
+    # bits_flipped = bit_flips_corrupt(test_chunk, 5, 10, 2)
+    # bits_flipped_arr = bytearray(bits_flipped)
+    # print(f"Bit 2 in bytes 5 and 10 flipped CRC: {crc16(bit_flips_corrupt(test_chunk, 5, 10, 2))}\n")
+    # print(f"i=5 {bits_flipped_arr[5]} and i=10 {bits_flipped_arr[10]}\n\r")
+
+    # burst_16 = burst_corrupt(test_chunk, 16)
+    # burst_16_arr = bytearray(burst_16)
+    # print(f"Burst 16 CRC: {crc16(burst_corrupt(test_chunk, 16))}\n")
+    # print(f"i=127 {burst_16_arr[127]}, i=126 {burst_16_arr[126]} and i=125 {burst_16_arr[125]}\n\r")
+
+    # burst_17 = burst_corrupt(test_chunk, 17)
+    # burst_17_arr = bytearray(burst_17)
+    # print(f"Burst 17 CRC: {crc16(burst_corrupt(test_chunk, 17))}\n")
+    # print(f"i=127 {burst_17_arr[127]}, i=126 {burst_17_arr[126]}, i=125 {burst_17_arr[125]} and i=124 {burst_17_arr[124]}\n\r")
+
+    # print(f"Random 5 corrupted bits CRC: {crc16(random_corrupt(test_chunk, 5))}\n\r")
 
 
 if __name__ == '__main__':
