@@ -34,6 +34,7 @@
 - Implemented the Bitwise CRC implementation in C.
 
 **Evening:**
+- Implemented the Table-Driven CRC Implementation in C.
 
 **Problems encountered:**
 - (None today) etc
