@@ -31,6 +31,7 @@
 
 **Morning:**
 - Finished implementing the Python host CRC16 oracle.
+- Implemented the Bitwise CRC implementation in C.
 
 **Evening:**
 

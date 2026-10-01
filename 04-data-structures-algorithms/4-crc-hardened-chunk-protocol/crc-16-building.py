@@ -105,6 +105,7 @@ def random_corrupt(data: bytes, k: int) -> bytes:
 def main():
     test_chunk = bytes(range(128))
     print(f"Basic CRC: {crc16(test_chunk)}\n\r")
+    print(f"Reflected poly: {reflected_poly}\n\r")
     offset = 0
 
     burst_misses = 0
