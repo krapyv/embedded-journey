@@ -36,6 +36,7 @@
 - Debugged the program and the script. Now everything works as expected.
 
 **Evening:**
+- Wrote a Linkedin post about the 7-to-1 optimization in the previous project that was not possible since the pressure requires the t_fine of that measurement.
 
 **Problems encountered:**
 - (None today) etc
