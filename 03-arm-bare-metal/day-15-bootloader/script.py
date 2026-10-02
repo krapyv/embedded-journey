@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import serial
 
 def retry():
@@ -83,6 +85,8 @@ with open("file.bin", "rb") as file:
 
     ser.timeout = 0.03
 
+    is_abort = 0
+
     if not start_signal:
         print("The start timeout has elapsed! No response!") 
     else:
@@ -110,19 +114,23 @@ with open("file.bin", "rb") as file:
                         action_result = action()
 
                         if action_result == "abort":
+                            is_abort = 1
                             break
 
-            last_sentinel = bytes([0xAA, 0])
-            ser.write(last_sentinel)
+            if is_abort == 0:
+                last_sentinel = bytes([0xAA, 0])
+                ser.write(last_sentinel)
 
-            sentinel_response = ser.read(1)
+                sentinel_response = ser.read(1)
 
-            if not sentinel_response:
-                print("The device failed to ACK/NACK the sentinel with length = 0")
-            else:
-                numerical_sentinel_response = int.from_bytes(sentinel_response, "little")
-
-                if numerical_sentinel_response != 0:
-                    print(f"The device sent data {sentinel_response} that is not what was expected")
+                if not sentinel_response:
+                    print("The device failed to ACK/NACK the sentinel with length = 0")
                 else:
-                    print("The device has successfully ACKed the last sentinel")
+                    numerical_sentinel_response = int.from_bytes(sentinel_response, "little")
+
+                    if numerical_sentinel_response != 0:
+                        print(f"The device sent data {sentinel_response} that is not what was expected")
+                    else:
+                        print("The device has successfully ACKed the last sentinel")
+            else: 
+                print("Abort!")

@@ -31,6 +31,9 @@
 
 **Morning:**
 - Integrated the CRC-16 to the bootloader project: both C project as well as Python host script. 
+- Built the breadboard circuit, tested it.
+- Tested the updated bootloader. Manually corrupted the host-side Python script to text 3 failure routes.
+- Debugged the program and the script. Now everything works as expected.
 
 **Evening:**
 
