@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-10-02
+
+**Morning:**
+- Integrated the CRC-16 to the bootloader project: both C project as well as Python host script. 
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-01
 
 **Morning:**

@@ -6,6 +6,45 @@ def retry():
 def abort():
     return "abort"
 
+def reflect(byte, size=8):
+    reversed_byte = 0
+
+    for _ in range(size):
+        # Peeling off the lowest bit of the number
+        bit = byte & 1
+
+        reversed_byte = (reversed_byte << 1) | bit
+
+        # Shifting right by 1 bit
+        byte = (byte >> 1)
+    
+    return reversed_byte
+
+init = 0xFFFF
+xorout = 0xFFFF
+poly = 0x1021
+reflected_poly = reflect(poly, size=16)
+
+def crc16(data: bytes) -> int:
+    register = init
+    
+    byte_len = len(data)
+
+    for i in range(byte_len):
+        register ^= data[i]
+
+        for _ in range(0, 8):
+            bit = register & 1
+
+            if bit == 1:
+                register = (register >> 1) ^ reflected_poly
+            else:
+                register = (register >> 1)
+    
+    register ^= xorout
+
+    return register
+
 NACK_ACTIONS = {
     1: retry,
     2: abort,
@@ -30,12 +69,12 @@ with open("file.bin", "rb") as file:
         if len(new_chunk) != 128:
             new_chunk = new_chunk + ((128 - len(new_chunk) % 128) * b'\xff')
 
-        covered_sum = (0xAA + 128 + sum(new_chunk)) & 0xFFFF
+        covered_crc = crc16(new_chunk) & 0xFFFF
 
-        high_sum = (covered_sum >> 8) & 0xFF;
-        low_sum = covered_sum & 0xFF;
+        high_crc = (covered_crc >> 8) & 0xFF;
+        low_crc = covered_crc & 0xFF;
         
-        packet = bytes([0xAA, 128]) + new_chunk + bytes([high_sum, low_sum, 0xBB])
+        packet = bytes([0xAA, 128]) + new_chunk + bytes([high_crc, low_crc, 0xBB])
         packets.append(packet)
 
     # 500 ms timeout

@@ -23,7 +23,7 @@ typedef struct
     uint8_t start_byte;
     uint8_t payload_len;
     uint8_t payload[128];
-    uint16_t checksum;
+    uint16_t crc16;
     uint8_t end_byte;
 } UART_ChunkReceive_Layout_t;
 
@@ -33,7 +33,7 @@ typedef enum
     UART_START_BYTE,
     UART_PAYLOAD_LEN,
     UART_PAYLOAD,
-    UART_CHECKSUM,
+    UART_CRC16,
     UART_END_BYTE,
 } UART_Chunks_States_t;
 
