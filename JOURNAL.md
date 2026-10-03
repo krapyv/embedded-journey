@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-10-03
+
+**Morning:**
+- Completed the JOURNAL logs for 28.09, 30.09, 01.10 and 02.10.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-02
 
 **Morning:**
@@ -38,8 +51,39 @@
 **Evening:**
 - Wrote a Linkedin post about the 7-to-1 optimization in the previous project that was not possible since the pressure requires the t_fine of that measurement.
 
+**CRC + Checksums - Scope Decisions: Skipping CRC-32 and Deferring Hardware CRC:**
+*Decision point:* after CRC-16 was derived, built, and cross-validated two ways, the next plan items were CRC-32 and the F411's hardware CRC peripheral. Both were deliberately descoped for now.
+
+*Reasoning:* CRC-32 at a wider register width is the same algorithm with a different polynomial - re-deriving the bitwise loop, table generation, and combine logic a second time by hand would be repetition, not new learning, once the mechanism is fully internalized from CRC-16. 
+The hardware CRC peripheral was a separate, even more interesting case: RM0383 describes it as a fixed, non-configurable 32-bit engine (one polynomial, no init/xorout/reflect options), which makes it structurally unsuitable as a drop-in replacement for the CRC-16/X-25 protocol checksum already built - different width, different polynomial, no way to match it. Its actual intended use (verifying a flashed image's integrity independent of how the bytes arrived) has no real problem to solve yet at this point in the project, and the plan already schedules it for Week 46 alongside secure boot / signed firmware, where it will have an actual job to do. 
+Standing it up now would be "enable a peripheral, write words, read a register" with no real purpose behind it.
+
+**CRC + Checksums - End-to-End verification of All three failure modes:**
+*Verified:* after fixing the escalation and sentinel bugs, each of the bootloader protocol's three defined failure conditions needed to be forced and observed on real hardware,
+since none of them would occur naturally on a working setup.
+1. CRC mismatch was forced by permanently corrupting the computed checksum before packing each packet'
+(`covered_crc + 1`), which correctly drove `corrupted_counter` to its third strike and produced a clean "Abort!" from the host instead of a crash or stale read. 
+2. Byte-timeout exhaustion was forced simply by not writing a packet at al (commenting out `ser.write`), relying on the device's own 2ms inter-byte timeout to fire three times on its own - no careful host-side timing needed, since the retry counter only resets when a byte actually arrives in time.
+3. Flash-error injection (write-protecting a sector via option bytes, or a software fault-injection stub) was considered but not required in practice, since its escalation structure is identical to the already-verified corrupted-chunk path.
+
+*Outcome:* both tested failure paths (CRC mismatch, byte-timeout) produced the correct sequence of two non-terminal NACKs after that aborted, with the host correctly distinguishing a real success from an abort and never crashing on an unmapped response code.
+
+
 **Problems encountered:**
-- (None today) etc
+**CRC + Checksums - Wiring CRC-16 into the Bootloader's UART Protocol:**
+Replacing the bootloader's 16-bit additive checksum with the verified CRC-16 required the host (Python) and device (C) to compute byte-for-byte identical results, which surfaced a cross-language masking question and, separately, exposed a protocol-level desync bug in the existing retry logic.
+
+1. On the masking side, the question was whether every line of the Python port needed explicit `&` masking the way C's `uint16_t`/`uint8_t` types get truncation for free. On the protocol side, the three-strike escalation logic for `corrupted_counter` and `error_counter` sent the same NACK code (`UART_NACK_CORRUPTED`/`UART_NACK_FLASH`) regardless of whether it was strike 1 or strike 3 - only the byte-timeout path already sent a distinct terminal code (`UART_NACK_ABORT`). On strike 3, this meant the device would give up internally and loop back into `uart_chunk_receive_protocol()`, immediately re-erasing flash and firing an unsolicited UART_ACK_START (value 6) - a code the host's NACK_ACTIONS dispatch table had no entry for, causing `.get(6)` to return None and crash on the next line calling it. 
+2. A related bug in the host script ran the closing sentinel exchange unconditionally after the main transfer loop, even when the loop had exited via abort rather than success - which meant the sentinel write and read happened while the device was mid-reset and not expecing it, producing a spurious timeout rather than a clean abort message.
+
+*Root cause:*
+1. For the masking question, the real distinction wasn't "C truncates, Python doesn't" in general - it was whether a specific line's result could ever exceed the target width in the first place. `reg ^= data[i]` can't overflow past 16 bits because XOR has no carry and can't exceed the wider operand's width; `index = rag ^ data[i]` doesn't overflow either, but its result is being forced into something that only haas room for 8 bits (a 256-entry table), so only that line needed an explicit mask in Python. 
+2. For the protocol bug, the escalation logic picked which NACK code to send before checking whether the strike counter had just hit its limit, rather than checking the limit first - so the terminal strike reused the same "you still have retries" code as ever prior strike.
+
+*Fix:*
+1. Masking was applied only where a 16-bit (or wider) value was being narrowed into an 8-bit slot, not reflexively on every line.
+2. The escalation logic in both the `corrupted_counter` and `error_counter` branches was restructured to check the strike count first: strikes 1-2 send the specific non-terminal code, strike 3 sends `UART_NACK_ABORT` instead, matching the pattern the byte-timeout path already used.
+On the host side, an `is_abort` flag was introduced to track why the main loop exited, so the sentinel exchange only runs on genuine success, and an abort path prints a clean "Abort!" instead of attempting a handshake the device is no longer participating in.
 
 **Root cause at the register level:**
 -
@@ -54,7 +98,34 @@
 - Implemented the Table-Driven CRC Implementation in C.
 
 **Problems encountered:**
-- (None today) etc
+**CRC + Checksums - Statistical Sweep: the Fixed-Pattern Bug:**
+1. Running the fault-injection statistical sweep over 1 0000 000 trials each, both `burst_corrupt(17)` (the m=r+1 boundary case) and `random_corrupt(5)` returned exactly zero misses - a result flagged as suspicious rather than lucky, since the boundary case has a real, nonzero predicted miss rate of ~1/2^15.
+
+*Root cause:* 
+1. `burst_corrupt`'s mask was always a fixed all-ones bit pattern of the given length - only its position (offset) was randomized per trial, never its interior bit content.
+A 17-bit burst can only slip past CRC-16 when its specific interior pattern exactly matches G(x)'s own bit pattern - which is not all-ones - so a fixed all-ones mask could mathematically never produce a miss, regardless of how many trials ran or how the offset was randomized.
+2. `random_corrupt(5)`'s zero-miss result was initially miscategorized as "probabilistic, should show some misses" - but 5 is an odd-weight error, and the polynomial's G(1) = 0 parity guarantee (established back in Stage 0) means every odd-weight error is caught with 100% certainty, independent of length or position. The zero misses weren't a coincidence, they were the parity theorem holding exactly as derived.
+
+*Fix:*
+1. `burst_corrupt` was rewritten to randomize the burst's interior bits (keeping only the two endpoint bits forced to 1, so it's still genuinely a ran of the stated length) while leaving the two forced-1 end bits fixed - after the fix, 1 000 000 trials produced 32 misses against a predicted ~30.5, a tight match.
+2. The classification of `random_corrupt(5)` was corrected from "probabilistic, ~1/2^16" to "100%-guaranteed by parity", and a follow-up run with an even-weight error (`random_corrupt(6)`) was used to actually observe the probabilistic regime, landing at 30/1 000 000 - roughly double the naive ~1/2^16 estimate, which is expected near the HD=4 boundary rather than far out in the asymptotic region.
+
+**CRC + Checksums - Bitwise CRC-16 Port to C (Stage 2):**
+1. Porting the verified Python bit-loop to C on the F411 was mechanically direct (same init, same reflected-poly constant, same bit0-test-then-shift-right structure), but the task's actual requirement was proving correctness a specific way: a register value read in GDB, diffed against the Python oracle's output for the same fixed input - not a desktop recompile,, not a UART printout, not an LED.
+
+*Root cause/point of friction:* an initial misunderstanding that the comparison needed to accound for the fault injector's random corruption state, confusing "the corruption functions are random" with "the CRC function itself is random". `crc16()` is a pure function - same bytes in, same checksum out, deterministically, in both languages - so there was never any random state to keep in sync.
+
+*Fix:* hardcoded a fixed 128-byte test array (`bytes(range(128))`) with a known Python-side answer (61881), ran the same array through the C port, halted right after the function call, and read the register directly in GDB - getting an exact match (61881) on real silicon.
+
+**CRC + Checksums - Table-Driven CRC-16 (Stage 2):**
+1. Deriving the 256-entry lookup table and the index/combine logic that replaces the bitwise inner loop took several wrong turns. The first table-generation attempt tried to reuse the real message buffer (`data[i]`) inside the generator loop, which doesn't make sense - the generator answers a standalone question per byte value, not a message-processing question. The corrected version still carried over leftover `reg` state between iterations (`reg ^= i` instead of `reg = i`), contaminating each table entry with the previous entry's result instead of treating each byte value independently. 
+2. Once table generation was fixed, the combine logic in the real `crc16()` function used `index = data[i]` (discarding `reg`'s accumulated history entirely) and `reg ^= table[index]` (ignoring that 8 real shift iterations relocate the old high byte down into the low-byte position, which a plain XOR doesn't do). 
+3. After correcting both of those to `index = reg ^ data[i]` and `reg = (reg >> 8) ^ table[index]`, a final bug remained: the table itself was declared `uint8_t`, silently truncating every 16-bit post-iteration result to its low byte (confirmed by spot-checking `table[1]` - the real value is 0x1189, but the truncated table held 0x89).
+
+*Root cause:* each bug traced back to not fully accounting for all the information the full 8-shift bitwise loop carries forward - either the accumulated register history (lost by indexing on `data[i]` alone), the repositioning effect of 8 right-shifts on the high byte (lost by a plain XOR instead of a pre-shift), or the full 16-bit width of the table entry (lost by declaring the table as `uint8_t`).
+
+*Fix:* generator loop corrected to `reg = i` (clean per-entry state) with `table[]` declared `uint16_t` to hold the full result; combine logic corrected to compute the index as a pure expression (`index = reg ^ data[i]`, truncated to `uint8_t` by C's implicit narrowing conversion - verified to be safe and well-defined, not an accident) before overwriting `reg`, then `reg = (reg >> 8) ^ table[index]`.
+Cross-validated by running the bitwise and table-driven implementations over the same fixed test packet and getting identical results (61881) from both, independently confirming the table, the generator, and the combine logic all agree with an already-trusted reference.
 
 **Root cause at the register level:**
 -
@@ -68,7 +139,30 @@
 - Continued implementing the Python script.
 
 **Problems encountered:**
-- (None today) etc
+**CRC + Checksums - Building and Debugging the Python Oracle:**
+Porting the derived parameters into a working `crc16()` function and `reflec()` bit-reversal helper surfaced two conceptual bugs before the oracle mathced the standard check value (0x906E for "123456789"). 
+1. `reflect()` was run on only the 13 significant bits of 0x1021, dropping its leading zeros, producing a wrong reflected constant (0x1081) instead of the correct 0x8408. 
+2. "0x8810" - a Koopman-notation catalogue encoding, which compresses a polynomial by assuming its leading bit - was mistaken for the bit-reversed polynomial value.
+
+*Root cause:* both bugs came from treating "reflect" as a notational trick rather than a literal bit-count-sensitive operation. Reflecting 0x1021 only makes sense over its full declared width (16 bits); dropping leading zeros silently reflects a different (shorter) number. Koopman notation is an unrelated compression scheme, not a reversal.
+
+*Fix:* ran the actual `reflect()` function against the full 16-bit value of the polynomial to get the correct 0x8408, and discarded the Koopman-notation detour entirely.
+
+**CRC + Checksums - Fault Injector Bugs:**
+Building the four corruption functions (`swap_corrupt`, `bit_flips_corrupt`, `burst_corrupt`, `random_corrupt`) hit a cluster of small but instructive bugs.
+
+1. `swap_corrupt` first tried item-assignment on an immutable `bytes` object, then - after converting to an int - tried subscript-assignment on an `int`, which also isn't a sequence.
+2. `bit_flips_corrupt` referenced `mask` in a `|=` before it was ever assigned, and separately computed bit positions with a little-endian formula (`index*8+bit_position`) while converting with `big` endianness, silently targeting the wrong bytes. 
+3. `random_corrupt` had a plain naming bug - assigned to `data_init` but XORed `data_int`.
+4. `burst_corrupt`'s first verification pass checked the wrong byte indices, because offset = 0 in a big-endian integer representation actually targets the chunk's last byte, not its first.
+
+*Root cause:* for the swap bug, converting to a big integer was unnecessary complexity for what's fundamentally a whole-byte-aligned operation - a mutable byte sequence was the right tool all along. For the bit-flip and burst bugs, the recurring theme was endianess: which byte of a bytes object maps to which bit-range of an `int.from_bytes()` result depends entirely on the declared byte order, and a formula written assuming one order silently produces nonsense (not a crash) under the other.
+
+*Fix:* 
+- `swap_corrupt` was rewritten using a `bytearray` as the mutable copy with a straightforward temp-variable swap.
+- `bit_flips_corrupt` was fixed by initializing `mask = 0` and switching both `from_bytes`/`to_bytes` calls to `little` to match the index formula.
+- `random_corrupt` was fixed by making the variable name consistent.
+- `burst_corrupt`'s indexing was corrected by checking the actual last three bytes of the chunk instead of the first three.
 
 **Root cause at the register level:**
 -
@@ -96,7 +190,13 @@
 - Started designing the "CRC-hardened chunk protocol (bootloader v1.1)".
 
 **Problems encountered:**
-- (None today) etc
+**CRC + Checksum - Parameter Derivation (Stage 0):**
+**Problem 1:** Starting from additive-checksum-is-weak premise, the first task was to actually quantify why, then derive a CRC-16 parameter set from first principles instead of copying a named standard. Early reasoning had real gaps: the initial "bit flip-flop" example for checksum blindness was too vague (it needs two corrupted bits at the exact same bit-column position across their bytes to cancel, not just "two flips somewhere"); the burst-length derivation briefly treated "5 digits long" and "degree = 5" as two different thigs when they're the same quantityl a candidate polynomial x^16 + 1 was picked without checking it against the double-error-immunity test; and a G(1) = 0 parity check was used to conclude two candidate polynomials had the same Hamming Distance, when G(1) = 0 only proves odd-weight-error detection and says nothing about HD specifically.
+
+*Root cause:* conflating a necessary condition with a sufficient one - G(1) = 0 guarantees one detection property, not a full HD characterization, and a polynomial's constant term / self-divisibility properties had to be checked explicitly, not assumed from a plausible looking candidate.
+
+*Fix:* rebuilt the derivation properly - m <= r guarantees 100% burst detection, m = r+1 gives a 1/2^(r-1) miss fraction, m > r+1 falls into the generic ~1/2^width heuristic; x^16 + 1 was rejected because it divides itself at d = 16, with sits inside the message's bit range; the HR question was resolved by actually consulting Koopman's published polynomial tables instead of re-deriving it from a single test, confirming 0x1021 and 0x8005 tie at HD=4 up to 32751 bits. 
+Init/xorout were pinned down the same way: only a nonzero init (0xFFFF) catches a corrupted run of leading 0x00 bytes - an init of 0x0000 is blind to that case. refin/refout were derived by tracing a 10-bit physical burst through byte-sequential (MSB-first) processing against an LSB-first wire order and showing the effective burst span ballons to 24 bits - past r=16, outside the 100%-detection guarantee - which justified refin=true. refout was not just asserted; it was proven empirically by building the actual right-shifting register loop and getting the correct check value without any separate final-reversal step, showing the shift-right structure already produces the refout=true behavior inherently.
 
 **Root cause at the register level:**
 -
