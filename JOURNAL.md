@@ -37,6 +37,7 @@
 - Almost finished the theory of the CRC. The GF(2) and Rocksoft model are the last things to cover.
 
 **Evening:**
+- Learnt the GF(2) and Rocksoft model.
 
 **Problems encountered:**
 - (None today) etc
