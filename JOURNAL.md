@@ -33,6 +33,9 @@
 - Completed the JOURNAL logs for 28.09, 30.09, 01.10 and 02.10.
 - Added the CRC-16 part to the bootloader README.md, removed the checksum entries.
 
+**Afternoon:**
+- Almost finished the theory of the CRC. The GF(2) and Rocksoft model are the last things to cover.
+
 **Evening:**
 
 **Problems encountered:**
