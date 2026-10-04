@@ -32,6 +32,9 @@
 **Morning:**
 - Learned the theory about PID controller.
 
+**Afternoon:**
+- Ordered all parts I needed for the Closed-loop motor speed controller: XL4015, DFRobot motor, TB6612FNG, 12 V adapter, DC socket.
+
 **Evening:**
 
 **Problems encountered:**
