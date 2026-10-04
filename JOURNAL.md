@@ -37,7 +37,7 @@
 - Started designing the Closed-loop motor speed controller, Stage 0 (software plant). For now I am totally lost.
 
 **Evening:**
-
+- Continued designing the project. Finally grasped the PID mechanics and reminded myself the PWM.
 
 **Problems encountered:**
 - (None today) etc

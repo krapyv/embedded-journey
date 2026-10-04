@@ -245,7 +245,7 @@ Week	Topic	Morning Practice	Evening Theory	Project
 23	Stack + Linked list ✅	Expression evaluator	Memory analysis	Command parser ✅
 24	Binary search ✅ + Sorting ✅	Lookup tables, median filter	Algorithm complexity	Sensor calibration ✅
 25	CRC + Checksums ✅	Implement CRC-16, CRC-32	Error detection theory	Reliable UART protocol ✅
-26	PID controller	Temperature control (simulated)	Tuning methods	Motor speed control
+26	PID controller ✅	Temperature control (simulated)	Tuning methods	Motor speed control
 27	Digital filters (EMA, moving average)	Sensor smoothing	Filter design	Noise reduction
 28	Integration week	Combine all structures	Performance profiling	Multi-sensor data logger
 By end of Phase 4: You can implement any common data structure in C, calculate CRC, tune a PID controller.
