@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-10-04
+
+**Morning:**
+- Learned the theory about PID controller.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-03
 
 **Morning:**
