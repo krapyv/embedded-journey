@@ -34,8 +34,10 @@
 
 **Afternoon:**
 - Ordered all parts I needed for the Closed-loop motor speed controller: XL4015, DFRobot motor, TB6612FNG, 12 V adapter, DC socket.
+- Started designing the Closed-loop motor speed controller, Stage 0 (software plant). For now I am totally lost.
 
 **Evening:**
+
 
 **Problems encountered:**
 - (None today) etc
