@@ -35,6 +35,7 @@
 
 **Evening:**
 - Finished implementing the Stage 0: TIM2 init, SysTick priorities, TIM2_IRQHandler, 15ms counter.
+- Continued implementing the project: started adding the stand-in plant.
 
 **Problems encountered:**
 - (None today) etc

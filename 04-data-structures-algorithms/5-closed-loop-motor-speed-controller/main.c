@@ -11,19 +11,21 @@ I2C_HandleTypeDef hi2c;
 volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;
 volatile uint32_t elapsed_ms;
+volatile float speed;
+float target = 100.0;
 
 void TIM2_IRQHandler(void)
 {
     // clear an update interrupt flag, so the ISR won't re-enter forever
     TIM2->SR &= ~(1 << 0U);
 
-    // increment the counter
-    TIM2_counter++;
+    // NOTE: 15ms testing
+    // TIM2_counter++;
 
-        if (TIM2_counter == 67U)
-    {
-        elapsed_ms = SysTick_GetTick() - SYSTICK_start;
-    }
+    // if (TIM2_counter == 67U)
+    // {
+    //     elapsed_ms = SysTick_GetTick() - SYSTICK_start;
+    // }
 }
 
 void TIM2_Init(void)
