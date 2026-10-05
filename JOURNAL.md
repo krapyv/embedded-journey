@@ -27,6 +27,20 @@
 **Root cause at the register level:**
 -
 
+# 2026-10-05
+
+**Morning:**
+- Finished designing the Stage 0 (Software Plant).
+- Started implementing.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-04
 
 **Morning:**
