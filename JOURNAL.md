@@ -34,6 +34,7 @@
 - Started implementing.
 
 **Evening:**
+- Finished implementing the Stage 0: TIM2 init, SysTick priorities, TIM2_IRQHandler, 15ms counter.
 
 **Problems encountered:**
 - (None today) etc
