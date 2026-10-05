@@ -20,7 +20,7 @@ void TIM2_IRQHandler(void)
     // increment the counter
     TIM2_counter++;
 
-    if (TIM2_counter == 67U)
+        if (TIM2_counter == 67U)
     {
         elapsed_ms = SysTick_GetTick() - SYSTICK_start;
     }

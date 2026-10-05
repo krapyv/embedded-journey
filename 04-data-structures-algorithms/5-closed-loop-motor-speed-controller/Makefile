@@ -9,7 +9,7 @@ DRIVERS = ../../my_reusable_drivers
 INCLUDES = -I. -I${DRIVERS}/core -I${DRIVERS}/periph/uart -I${DRIVERS}/periph/i2c -I${DRIVERS}/periph/systick
 
 # Compiler flags (same for all STM32F411 projects)
-CFLAGS = -mcpu=cortex-m4 -mthumb -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
