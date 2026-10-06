@@ -34,6 +34,7 @@
 - Derived the PID for the Step 3.
 
 **Evening:**
+- Implemented the PID in the project. Grasped what is all about, since my mind did not understand what I am doing.
 
 **Problems encountered:**
 - (None today) etc

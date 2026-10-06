@@ -1,10 +1,12 @@
+#include <stdbool.h>
 #include "i2c.h"
 #include "core_cm4.h"
 #include "stm32f411.h"
 #include "systick.h"
-#include <stdbool.h>
+#include "app_config.h"
 
 I2C_HandleTypeDef hi2c;
+PID_t pid;
 
 #define TIME_CONSTANT 150U                                // 150 ms
 #define CONTROL_TICK_MS 15U                               // 15 ms
@@ -14,19 +16,68 @@ volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;
 volatile uint32_t elapsed_ms;
 volatile float speed;
-volatile float target = 100.0;
+volatile float K = 160;
+volatile float u = 0;
+volatile float target = 80;
+
+float PID_Update(PID_t *pid, float measured_speed)
+{
+    float error = target - measured_speed;
+
+    float P = pid->Kp * error;
+
+    float I = pid->Ki * pid->integral;
+
+    float derivative = (measured_speed - pid->prevMeasured) / CONTROL_TICK_S;
+    float D = -pid->Kd * derivative;
+
+    pid->prevMeasured = measured_speed;
+
+    float output = P + I + D;
+    bool pushingFurther = (output > pid->outMax && error > 0) || (output < pid->outMin && error < 0);
+
+    if (!pushingFurther)
+    {
+        pid->integral += error * CONTROL_TICK_S;
+    }
+
+    // clamp the output
+    if (output < pid->outMin)
+    {
+        output = pid->outMin;
+    }
+    if (output > pid->outMax)
+    {
+        output = pid->outMax;
+    }
+
+    return output;
+}
+
+void PID_Init()
+{
+    pid.integral = 0.0f;
+    pid.prevMeasured = 0.0f;
+    pid.outMin = 0.0f;
+    pid.outMax = 1.0f;
+
+    pid.Ki = 0.0f;
+    pid.Kd = 0.0f;
+
+    pid.Kp = 0.1f;
+}
 
 void TIM2_IRQHandler(void)
 {
     // clear an update interrupt flag, so the ISR won't re-enter forever
     TIM2->SR &= ~(1 << 0U);
 
-    // read the target into a local variable
-    float local_target = target;
-
-    speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (local_target - speed);
-
     TIM2_counter++;
+
+    speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (K * u - speed);
+
+    u = PID_Update(&pid, speed);
+
     // NOTE: 15ms testing
 
     // if (TIM2_counter == 67U)
@@ -98,6 +149,7 @@ void main(void)
     __ISB();
 
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
+    PID_Init();
     TIM2_Init();
 
     while (1)

@@ -7,6 +7,14 @@
 #define UART_MODE_TX_RX 2U
 
 // select active mode for the project
-#define TARGET_UART_MODE UART_MODE_TX_ONLY
+// #define TARGET_UART_MODE UART_MODE_TX_ONLY
+
+typedef struct
+{
+    float Kp, Ki, Kd;
+    float integral;
+    float prevMeasured;
+    float outMin, outMax; // for clamping
+} PID_t;
 
 #endif
