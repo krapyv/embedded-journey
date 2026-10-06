@@ -2,11 +2,13 @@
 #include "core_cm4.h"
 #include "stm32f411.h"
 #include "systick.h"
+#include <stdbool.h>
 
 I2C_HandleTypeDef hi2c;
 
-#define TIME_CONSTANT 150U  // 150 ms
-#define CONTROL_TICK_MS 15U // 15 ms
+#define TIME_CONSTANT 150U                                // 150 ms
+#define CONTROL_TICK_MS 15U                               // 15 ms
+#define CONTROL_TICK_S ((float)CONTROL_TICK_MS / 1000.0f) // 15 ms
 
 volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;

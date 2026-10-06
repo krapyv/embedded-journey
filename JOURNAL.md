@@ -31,6 +31,7 @@
 
 **Morning:**
 - Finished the Step 2: the stand-in plant.
+- Derived the PID for the Step 3.
 
 **Evening:**
 
