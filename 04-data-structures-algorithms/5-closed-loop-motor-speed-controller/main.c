@@ -12,7 +12,7 @@ volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;
 volatile uint32_t elapsed_ms;
 volatile float speed;
-float target = 100.0;
+volatile float target = 100.0;
 
 void TIM2_IRQHandler(void)
 {
@@ -22,7 +22,7 @@ void TIM2_IRQHandler(void)
     // read the target into a local variable
     float local_target = target;
 
-    speed += (CONTROL_TICK_MS / TIME_CONSTANT) * (local_target - speed);
+    speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (local_target - speed);
 
     TIM2_counter++;
     // NOTE: 15ms testing

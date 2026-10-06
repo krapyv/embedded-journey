@@ -27,14 +27,28 @@
 **Root cause at the register level:**
 -
 
+# 2026-10-06
+
+**Morning:**
+- Finished the Step 2: the stand-in plant.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+
 # 2026-10-05
 
 **Morning:**
-- Finished designing the Stage 0 (Software Plant).
+- Finished designing the Step 0 (Software Plant).
 - Started implementing.
 
 **Evening:**
-- Finished implementing the Stage 0: TIM2 init, SysTick priorities, TIM2_IRQHandler, 15ms counter.
+- Finished implementing the Step 0: TIM2 init, SysTick priorities, TIM2_IRQHandler, 15ms counter.
 - Continued implementing the project: started adding the stand-in plant.
 
 **Problems encountered:**
