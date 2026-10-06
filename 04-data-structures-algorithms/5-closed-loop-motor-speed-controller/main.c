@@ -92,8 +92,9 @@ void main(void)
 {
     SCB->CPACR = (0xFU << 20U);
 
-    ___DSB();
+    __DSB();
     __ISB();
+
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     TIM2_Init();
 
