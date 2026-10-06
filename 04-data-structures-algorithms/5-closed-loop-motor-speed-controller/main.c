@@ -19,8 +19,13 @@ void TIM2_IRQHandler(void)
     // clear an update interrupt flag, so the ISR won't re-enter forever
     TIM2->SR &= ~(1 << 0U);
 
+    // read the target into a local variable
+    float local_target = target;
+
+    speed += (CONTROL_TICK_MS / TIME_CONSTANT) * (local_target - speed);
+
+    TIM2_counter++;
     // NOTE: 15ms testing
-    // TIM2_counter++;
 
     // if (TIM2_counter == 67U)
     // {
@@ -85,6 +90,10 @@ void TIM2_Init(void)
 
 void main(void)
 {
+    SCB->CPACR = (0xFU << 20U);
+
+    ___DSB();
+    __ISB();
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     TIM2_Init();
 
