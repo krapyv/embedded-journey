@@ -7,7 +7,7 @@
 #define UART_MODE_TX_RX 2U
 
 // select active mode for the project
-// #define TARGET_UART_MODE UART_MODE_TX_ONLY
+#define TARGET_UART_MODE UART_MODE_TX_ONLY
 
 typedef struct
 {

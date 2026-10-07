@@ -27,6 +27,19 @@
 **Root cause at the register level:**
 -
 
+# 2026-10-07
+
+**Morning:**
+- Tested P-only run, PI runs, windup test.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-06
 
 **Morning:**
