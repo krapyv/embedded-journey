@@ -22,6 +22,7 @@
 - Wrote a Linkedin post about CRC-16 Python fault injector test for 17-bit burst.
 
 **Evening:**
+- Continued designing the project's Stage 1: started learning what is it a motor and how to use it.
 
 **Problems encountered:**
 - (None today) etc
