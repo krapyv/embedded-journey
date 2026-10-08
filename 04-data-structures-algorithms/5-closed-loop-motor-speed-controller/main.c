@@ -14,6 +14,7 @@ PID_t pid;
 
 #define KP 0.1f
 #define KI 0.5f // tuned on τ = 150 ms placeholder plant, retune on real motor
+#define KD 0.0f
 
 volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;
@@ -21,7 +22,7 @@ volatile uint32_t elapsed_ms;
 volatile float speed;
 volatile float K = 160;
 volatile float u = 0;
-volatile float target = 200;
+volatile float target = 80;
 
 float PID_Update(PID_t *pid, float measured_speed)
 {
@@ -64,10 +65,9 @@ void PID_Init()
     pid.outMin = 0.0f;
     pid.outMax = 1.0f;
 
-    pid.Kd = 0.0f;
-
     pid.Kp = KP;
     pid.Ki = KI;
+    pid.Kd = KD;
 }
 
 void TIM2_IRQHandler(void)

@@ -15,6 +15,19 @@
 
 ## Daily Log
 
+# 2026-10-08
+
+**Morning:**
+- Made the disturbance test and setpoint kick test. Stage 0 is done. Next is real motor integration.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 202x-xx-xx
 
 **Morning:**
