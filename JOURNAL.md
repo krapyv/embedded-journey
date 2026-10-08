@@ -19,6 +19,7 @@
 
 **Morning:**
 - Made the disturbance test and setpoint kick test. Stage 0 is done. Next is real motor integration.
+- Wrote a Linkedin post about CRC-16 Python fault injector test for 17-bit burst.
 
 **Evening:**
 
