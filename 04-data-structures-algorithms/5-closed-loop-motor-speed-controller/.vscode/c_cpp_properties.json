@@ -7,7 +7,8 @@
       "compilerPath": "/usr/bin/arm-none-eabi-gcc", // Path to your arm-none-eabi-gcc executable
       "cStandard": "c11",
       "cppStandard": "c++17",
-      "intelliSenseMode": "gcc-arm"
+      "intelliSenseMode": "gcc-arm",
+      "compileCommands": "${workspaceFolder}/compile_commands.json"
     }
   ],
   "version": 4

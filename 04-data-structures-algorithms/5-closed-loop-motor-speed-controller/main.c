@@ -144,8 +144,23 @@ void TIM2_Init(void)
     TIM2->CR1 |= (1 << 0U);
 }
 
-void TIM2_Init(void)
+void TIM1_Init(void)
 {
+    // TIM2: CH1 - PA8 and CH2 - PA9
+    // enable GPIOA clock
+    RCC->AHB1ENR |= (1 << 0UL);
+
+    // enable TIM1 clock
+    RCC->APB2ENR |= (1 << 0UL);
+
+    // ----- CONFIGURE GPIOA PA8 and PA9 -----
+    // change MODER to Alternate Function
+    // 10: Alternate function mode -> 10 = 0x2
+
+    // clear the bits
+    // PA8 takes bits 17:16 and PA9 takes bits 19:18
+    // 0b1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 0xF
+    GPIOA->MODER &= ~(0xF << 16U);
 
     // enable counter
     TIM1->CR1 |= (1 << 0U);
