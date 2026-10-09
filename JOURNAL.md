@@ -36,6 +36,9 @@
 - Derived the TIM1 init function, started the implementation.
 
 **Evening:**
+- Implemented the TIM1 init.
+- Changed the software plant to the motor RPM.
+- Finished the Stage 1: measured the speed from an encoder.
 
 **Problems encountered:**
 - (None today) etc
