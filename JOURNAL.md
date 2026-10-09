@@ -15,6 +15,34 @@
 
 ## Daily Log
 
+# 202x-xx-xx
+
+**Morning:**
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+----------------------------------------------
+
+# 2026-10-09
+
+**Morning:**
+- Tested the the encoder's wires, measured their voltages.
+- Derived the TIM1 init function, started the implementation.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-08
 
 **Morning:**
@@ -23,18 +51,6 @@
 
 **Evening:**
 - Continued designing the project's Stage 1: started learning what is it a motor and how to use it.
-
-**Problems encountered:**
-- (None today) etc
-
-**Root cause at the register level:**
--
-
-# 202x-xx-xx
-
-**Morning:**
-
-**Evening:**
 
 **Problems encountered:**
 - (None today) etc

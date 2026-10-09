@@ -144,6 +144,13 @@ void TIM2_Init(void)
     TIM2->CR1 |= (1 << 0U);
 }
 
+void TIM2_Init(void)
+{
+
+    // enable counter
+    TIM1->CR1 |= (1 << 0U);
+}
+
 void main(void)
 {
     SCB->CPACR = (0xFU << 20U);
