@@ -36,6 +36,7 @@
 - Started deriving and designing the Stage 2: PWM and the Motor Driver Carrier.
 
 **Evening:**
+- Finished deriving the init and the signed-duty function for the Stage 2.
 
 **Problems encountered:**
 - (None today) etc
