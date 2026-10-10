@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-10
+
+**Morning:**
+- Soldered the wires and the TB6612 Dual Motor Driver Carrier.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-09
 
 **Morning:**
