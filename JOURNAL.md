@@ -33,6 +33,7 @@
 
 **Morning:**
 - Soldered the wires and the TB6612 Dual Motor Driver Carrier.
+- Started deriving and designing the Stage 2: PWM and the Motor Driver Carrier.
 
 **Evening:**
 
