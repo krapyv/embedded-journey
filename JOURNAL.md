@@ -37,6 +37,7 @@
 **Evening:**
 - Implemented the `motor_carrier_duty_direction` function.
 - Brought up the supply, tested it with the adapter 12V.
+- Almost finished the breadboard setup.
 
 **Problems encountered:**
 - (None today) etc
