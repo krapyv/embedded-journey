@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-11
+
+**Morning:**
+- Implemented the `motor_carrier_init` function and tested it on the hardware.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-10
 
 **Morning:**

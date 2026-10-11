@@ -14,6 +14,10 @@ PID_t pid;
 #define CONTROL_TICK_S ((float)CONTROL_TICK_MS / 1000.0f) // 15 ms
 #define COUNTS_PER_REV 3840U                              // measured over 10 revolutions, matching 16 poles * 4 edges * 120
 
+#define TIMER_CLOCK 16000000U
+#define PWM_FREQ 2000U
+#define TIM4_ARR ((TIMER_CLOCK / PWM_FREQ) - 1)
+
 #define KP 0.1f
 #define KI 0.5f // tuned on τ = 150 ms placeholder plant, retune on real motor
 #define KD 0.0f
@@ -26,6 +30,8 @@ volatile float K = 160;
 volatile float u = 0;
 volatile float target = 80;
 volatile uint16_t prev_count;
+
+bool open_loop_duty = false;
 
 float PID_Update(PID_t *pid, float measured_speed)
 {
@@ -86,8 +92,10 @@ void TIM2_IRQHandler(void)
     // speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (K * u - speed);
     speed = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
 
-    u = PID_Update(&pid, speed);
-
+    if (!open_loop_duty)
+    {
+        u = PID_Update(&pid, speed);
+    }
     prev_count = current_cnt;
 
     // NOTE: 15ms testing
@@ -243,6 +251,122 @@ void TIM1_Init(void)
     TIM1->CR1 |= (1 << 0U);
 }
 
+void motor_carrier_init(void)
+{
+    // PB12, PB13, PB14
+
+    // enable GPIOB clock
+    RCC->AHB1ENR |= (1 << 1U);
+
+    // set the PB12 and PB13 pins high
+    // 0b11 = 2^1 + 2^0 = 2 + 1 = 3 = 0x3
+    // set the PB14 (STBY) pin low
+    // 0b1 = 0x1
+    GPIOB->BSRR = ((0x1 << 30U) | (0x3 << 12U));
+
+    // set the pins as outputs
+    // MODER as 01 - General purpose output mode
+    // 0b01 = 0x1
+    // for PB12 - bits 25:24, PB13 - bits 27:26, PB14 - 29:28
+
+    // clear the bits
+    // 0b11 = 0x3
+    GPIOB->MODER &= ~((0x3 << 28U) | (0x3 << 26U) | (0x3 << 24U));
+
+    // set the bits
+    GPIOB->MODER |= ((0x1 << 28U) | (0x1 << 26U) | (0x1 << 24U));
+
+    // make sure the pins are set to Output push-pull output type
+    // OTYPER = 0
+
+    // clear the bits 14:12
+    // 0b111 = 0x7
+    GPIOB->OTYPER &= ~(0x7 << 12U);
+
+    // configure PB8 for the TIM4
+
+    // set its MODER to the Alternate Function (10)
+    // 0b10 = 0x2
+
+    // clear the bits 17:16 (the MODER gives pin two bits)
+    // 0b11 = 0x3
+    GPIOB->MODER &= ~(0x3 << 16U);
+
+    // set the bits
+    GPIOB->MODER |= (0x2 << 16U);
+
+    // set PB8 to AF2 (TIM4 uses AF2)
+    // AF2 = 0010 = 0x2
+
+    // 8 > 7, then use GPIOB->AFRH
+
+    // clear the bits 3:0
+    // 0x1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 0xF
+    GPIOB->AFRH &= ~(0xF << 0U);
+
+    // set the bits
+    GPIOB->AFRH |= (0x2 << 0U);
+
+    // ----- TIM4 Configuration -----
+
+    // enable TIM4 clock
+    RCC->APB1ENR |= (1 << 2U);
+
+    // reset the CNT
+    TIM4->CNT = 0;
+
+    // make sure the PSC is 0
+    TIM4->PSC = 0;
+
+    // set the auto-reload (ARR) value
+    TIM4->ARR = TIM4_ARR;
+
+    // clear the ARPE (bit 7) in CR1
+    TIM4->CR1 &= ~(1 << 7U);
+
+    // set the initial value of CCR3
+    TIM4->CCR[2] = 0;
+
+    // configure CCMR2
+
+    // set CC3S (bits 1:0) to 00 (output)
+
+    // clear the bits
+    // 11 = 2^1 + 2^0 = 2 + 1 = 0x3
+    TIM4->CCMR2 &= ~(0x3 << 0U);
+
+    // set OC3PE (bit 3) to 1 - enable preload
+    TIM4->CCMR2 |= (1 << 3U);
+
+    // set 0C3M (bits 6:4) to PWM Mode 1 - 110
+    // 0b110 = 2^2 + 2^1 = 4 + 2 = 0x6
+
+    // clear the bits
+    // 0b111 = 0x7
+    TIM4->CCMR2 &= ~(0x7 << 4U);
+
+    // set the bits
+    TIM4->CCMR2 |= (0x6 << 4U);
+
+    // configure CCER
+
+    // set CC3E (bit 8) to 1 to enable the output for channel 3
+    TIM4->CCER |= (1 << 8U);
+
+    // clear CC3P (bit 9) and CC3NP (bit 11) to set the polarity
+    // 101 = 2^2 + 2^0 = 5 = 0x5
+    TIM4->CCER &= ~(0x5 << 9U);
+
+    // force the update
+    TIM4->EGR = (1 << 0U);
+
+    // enable the counter
+    TIM4->CR1 |= (1 << 0U);
+
+    // raise the STBY to high to turn the driver ON
+    // GPIOB->ODR |= (1 << 14U);
+}
+
 void main(void)
 {
     SCB->CPACR = (0xFU << 20U);
@@ -252,8 +376,13 @@ void main(void)
 
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     PID_Init();
+
+    open_loop_duty = true;
+    u = 0.2;
+
     TIM1_Init();
     TIM2_Init();
+    motor_carrier_init();
 
     while (1)
     {
