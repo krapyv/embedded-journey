@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <math.h>
 #include "stm32f411.h"
 #include "core_cm4.h"
 #include "systick.h"
@@ -31,7 +32,7 @@ volatile float u = 0;
 volatile float target = 80;
 volatile uint16_t prev_count;
 
-bool open_loop_duty = false;
+volatile bool open_loop_duty = false;
 
 float PID_Update(PID_t *pid, float measured_speed)
 {
@@ -97,6 +98,8 @@ void TIM2_IRQHandler(void)
         u = PID_Update(&pid, speed);
     }
     prev_count = current_cnt;
+
+    motor_carrier_duty_direction();
 
     // NOTE: 15ms testing
 
@@ -364,7 +367,50 @@ void motor_carrier_init(void)
     TIM4->CR1 |= (1 << 0U);
 
     // raise the STBY to high to turn the driver ON
-    // GPIOB->ODR |= (1 << 14U);
+    GPIOB->BSRR = (1 << 14U);
+}
+
+// The PID output is clamped to [0,1], so reverse only exists for open-loop tests
+void motor_carrier_duty_direction(void)
+{
+    // Clamp
+
+    if (u > 1.0f)
+    {
+        u = 1.0;
+    }
+    else if (u < -1.0f)
+    {
+        u = -1;
+    }
+
+    // Direction
+
+    if (u > 0)
+    {
+        // v > 0 - forward
+        // IN1 = 1 (H), IN2 = 0 (L)
+        GPIOB->BSRR = ((1 << 29U) | (1 << 12U));
+    }
+    else if (u < 0)
+    {
+        // v < 0 - reverse
+        // IN1 = 0 (L), IN2 = 1 (H)
+        GPIOB->BSRR = ((1 << 28U) | (1 << 13U));
+    }
+    else
+    {
+        // u = 0 - brake
+        // IN1 = 1 (H), IN2 = 1 (H)
+        GPIOB->BSRR = (0x3 << 12U);
+    }
+
+    float abs_u = fabsf(u);
+
+    // Magnitude
+    // CCR[2] = (ARR + 1) * u
+
+    TIM4->CCR[2] = (TIM4_ARR + 1) * abs_u + 0.5f;
 }
 
 void main(void)
@@ -381,8 +427,8 @@ void main(void)
     u = 0.2;
 
     TIM1_Init();
-    TIM2_Init();
     motor_carrier_init();
+    TIM2_Init();
 
     while (1)
     {

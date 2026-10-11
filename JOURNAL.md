@@ -35,6 +35,8 @@
 - Implemented the `motor_carrier_init` function and tested it on the hardware.
 
 **Evening:**
+- Implemented the `motor_carrier_duty_direction` function.
+- Brought up the supply, tested it with the adapter 12V.
 
 **Problems encountered:**
 - (None today) etc
