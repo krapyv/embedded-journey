@@ -29,6 +29,22 @@
 
 ----------------------------------------------
 
+# 2026-10-12
+
+**Morning:**
+- Finished the breadboard circuit.
+- Tested the breadboard circuit.
+- Ran and tested the open loop plant.
+- Started doing characterization.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-11
 
 **Morning:**

@@ -16,7 +16,7 @@ PID_t pid;
 #define COUNTS_PER_REV 3840U                              // measured over 10 revolutions, matching 16 poles * 4 edges * 120
 
 #define TIMER_CLOCK 16000000U
-#define PWM_FREQ 2000U
+#define PWM_FREQ 25000U // 25 kHz - silent, 640 steps of about 0.16%
 #define TIM4_ARR ((TIMER_CLOCK / PWM_FREQ) - 1)
 
 #define KP 0.1f
@@ -78,6 +78,49 @@ void PID_Init()
     pid.Kp = KP;
     pid.Ki = KI;
     pid.Kd = KD;
+}
+
+// The PID output is clamped to [0,1], so reverse only exists for open-loop tests
+void motor_carrier_duty_direction(void)
+{
+    // Clamp
+
+    if (u > 1.0f)
+    {
+        u = 1.0;
+    }
+    else if (u < -1.0f)
+    {
+        u = -1;
+    }
+
+    // Direction
+
+    if (u > 0)
+    {
+        // v > 0 - forward
+        // IN1 = 1 (H), IN2 = 0 (L)
+        GPIOB->BSRR = ((1 << 29U) | (1 << 12U));
+    }
+    else if (u < 0)
+    {
+        // v < 0 - reverse
+        // IN1 = 0 (L), IN2 = 1 (H)
+        GPIOB->BSRR = ((1 << 28U) | (1 << 13U));
+    }
+    else
+    {
+        // u = 0 - brake
+        // IN1 = 1 (H), IN2 = 1 (H)
+        GPIOB->BSRR = (0x3 << 12U);
+    }
+
+    float abs_u = fabsf(u);
+
+    // Magnitude
+    // CCR[2] = (ARR + 1) * u
+
+    TIM4->CCR[2] = (TIM4_ARR + 1) * abs_u + 0.5f;
 }
 
 void TIM2_IRQHandler(void)
@@ -370,49 +413,6 @@ void motor_carrier_init(void)
     GPIOB->BSRR = (1 << 14U);
 }
 
-// The PID output is clamped to [0,1], so reverse only exists for open-loop tests
-void motor_carrier_duty_direction(void)
-{
-    // Clamp
-
-    if (u > 1.0f)
-    {
-        u = 1.0;
-    }
-    else if (u < -1.0f)
-    {
-        u = -1;
-    }
-
-    // Direction
-
-    if (u > 0)
-    {
-        // v > 0 - forward
-        // IN1 = 1 (H), IN2 = 0 (L)
-        GPIOB->BSRR = ((1 << 29U) | (1 << 12U));
-    }
-    else if (u < 0)
-    {
-        // v < 0 - reverse
-        // IN1 = 0 (L), IN2 = 1 (H)
-        GPIOB->BSRR = ((1 << 28U) | (1 << 13U));
-    }
-    else
-    {
-        // u = 0 - brake
-        // IN1 = 1 (H), IN2 = 1 (H)
-        GPIOB->BSRR = (0x3 << 12U);
-    }
-
-    float abs_u = fabsf(u);
-
-    // Magnitude
-    // CCR[2] = (ARR + 1) * u
-
-    TIM4->CCR[2] = (TIM4_ARR + 1) * abs_u + 0.5f;
-}
-
 void main(void)
 {
     SCB->CPACR = (0xFU << 20U);
@@ -424,7 +424,7 @@ void main(void)
     PID_Init();
 
     open_loop_duty = true;
-    u = 0.2;
+    u = 0;
 
     TIM1_Init();
     motor_carrier_init();
