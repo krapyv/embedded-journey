@@ -27,12 +27,16 @@ volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;
 volatile uint32_t elapsed_ms;
 volatile float speed;
-volatile float K = 160;
+volatile float K = 160; // measured at 6 V
 volatile float u = 0;
 volatile float target = 80;
 volatile uint16_t prev_count;
 
 volatile bool open_loop_duty = false;
+
+volatile float step_log[100];
+volatile uint8_t step_log_index; // 256 samples max
+volatile bool step_log_recording = false;
 
 float PID_Update(PID_t *pid, float measured_speed)
 {
@@ -135,6 +139,20 @@ void TIM2_IRQHandler(void)
 
     // speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (K * u - speed);
     speed = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+
+    if (step_log_recording)
+    {
+
+        if (step_log_index < 100)
+        {
+            step_log[step_log_index] = speed;
+            step_log_index++;
+        }
+        else
+        {
+            step_log_recording = false;
+        }
+    }
 
     if (!open_loop_duty)
     {

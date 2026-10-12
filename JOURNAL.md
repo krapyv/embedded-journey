@@ -38,6 +38,7 @@
 - Started doing characterization.
 
 **Evening:**
+- Finished the Stage 2.
 
 **Problems encountered:**
 - (None today) etc
