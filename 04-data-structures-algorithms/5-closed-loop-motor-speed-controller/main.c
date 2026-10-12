@@ -19,7 +19,7 @@ PID_t pid;
 #define PWM_FREQ 25000U // 25 kHz - silent, 640 steps of about 0.16%
 #define TIM4_ARR ((TIMER_CLOCK / PWM_FREQ) - 1)
 
-#define KP 0.1f
+#define KP 0.03f
 #define KI 0.5f // tuned on τ = 150 ms placeholder plant, retune on real motor
 #define KD 0.0f
 
@@ -441,7 +441,8 @@ void main(void)
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     PID_Init();
 
-    open_loop_duty = true;
+    // the open-loop legacy code
+    // open_loop_duty = true;
     u = 0;
 
     TIM1_Init();

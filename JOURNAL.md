@@ -39,6 +39,7 @@
 
 **Evening:**
 - Finished the Stage 2.
+- Derived the Stage 3: the closed-loop on the real motor.
 
 **Problems encountered:**
 - (None today) etc
