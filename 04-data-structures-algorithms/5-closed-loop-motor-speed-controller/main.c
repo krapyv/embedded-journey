@@ -20,8 +20,8 @@ PID_t pid;
 #define TIM4_ARR ((TIMER_CLOCK / PWM_FREQ) - 1)
 
 #define KP 0.03f
-#define KI 0.5f // tuned on τ = 150 ms placeholder plant, retune on real motor
-#define KD 0.0f
+#define KI 0.0f // tuned on τ = 150 ms placeholder plant, retune on real motor
+#define KD 0.0f // TODO: Kd and the setpoint-kic on the real-motor
 
 volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;
@@ -38,6 +38,8 @@ volatile float step_log[100];
 volatile uint8_t step_log_index; // 256 samples max
 volatile bool step_log_recording = false;
 
+// TODO: no-guard comparison on the real motor
+// TODO: encoder-loss or stall detection (if the encoder cable falls off, the loop reads 0 RPM and drives u to 1.0)
 float PID_Update(PID_t *pid, float measured_speed)
 {
     float error = target - measured_speed;

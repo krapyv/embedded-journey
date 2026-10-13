@@ -29,6 +29,21 @@
 
 ----------------------------------------------
 
+# 2026-10-13
+
+**Morning:**
+- Tested P-only and PI tests, adjusted them. Debugged and fixed mistakes.
+- Made the windup test. Made the disturbance test.
+- Finished the Stage 3: the closed-loop on the real motor. The PID week is finished.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-12
 
 **Morning:**
