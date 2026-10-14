@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-14
+
+**Morning:**
+- Completed the JOURNAL logs for 04.10, 05.10, 06.10, 07.10 and 08.10.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-13
 
 **Morning:**
@@ -105,7 +118,7 @@
 - Finished the Stage 1: measured the speed from an encoder.
 
 **Problems encountered:**
-- (None today) etc
+**Motor Speed Control - Stage 1: Speed from counts and the counts-per-revolution measurement:**
 
 **Root cause at the register level:**
 -
@@ -120,7 +133,17 @@
 - Continued designing the project's Stage 1: started learning what is it a motor and how to use it.
 
 **Problems encountered:**
-- (None today) etc
+**Motor Speed Control - Stage 1: Encoder Timer, Pins and TIM1 Configuration:**
+I first picked PB8/PB9, but encoder mode only works on CH1/CH2 (TI1/TI2), and those pins are TIM4_CH3/CH4, so they cannot carry an encoder.
+The TIM1 init had two bugs:
+1. SMS = 001 and called it encoder mode 3, but 001 is mode 1 and mode 3 is 011. 
+2. CCER masks `~(0x3 << 1)` and `~(0x3 << 5)` cleared CC1P together with the adjacent CC1NE bit and missed CC1NP (bit 3) and CC2NP (bit 7). That only worked because the reset value is 0.
+
+*Root cause:* the polarity bits aren't contiguous (CC1P = 1, CC1NP = 3, CC2P = 5, CC2NP = 7), so a two-bit mask doesn't cover them.
+
+*Fix:* TIM1 on PA8 (CH1) and PA9 (CH2), AF1, both 5 V tolerant per the datasheet. 
+PUPDR = no pull. Config: `RCC_AHB1ENR` bit 0 (GPIOA) and `RCC_APB2ENR` bit 0 (TIM1EN); MODER = 10 and AFRH set to AF1 for both pins; SMCR.SMS = 011; CCMR1.CC1S = CC2S = 01; ARR = 0xFFFF; PSC = 0, CNT = 0; polarity masks `~((1 << 3) | (1 << 1))` amd `~((1 << 7) | (1 << 5))`; CEN last. CC1E/CC2E are not needed in encoder mode.
+Before connecting anything I tested the wires with the multimeter: encoder supply from the Black Pill 5 V and GND, with A and B reading about 2.5 V while turning (the average of a square wave) and 4.8 V or about 8 mV at rest.
 
 **Root cause at the register level:**
 -
@@ -133,7 +156,31 @@
 **Evening:**
 
 **Problems encountered:**
-- (None today) etc
+**Motor Speed Control - Stage 0: P-only offset and KI:**
+With Kp = 0.1, Ki = Kd = 0, target 80, the loop settled near 75 RPM and not 80. My first estimate of how long Ki would take to remove the offset was off as well.
+
+*Root cause:* at steady state `K*u = speed` and `u = Kp*(target - speed)`, so `speed = K*Kp*target/(1 + K*Kp) = 16*80/17 = 75.29 RPM` at u = approx. 0.47 P needs a leftover error of about 4.7 RPM to keep producing the duty that holds the speed, which is the steady-state error of P alone. The tick table showed why the start looks the way it does: P asks for more than 100% duty for the first six ticks, so `u` is clamped at 1.0, then drops to about 0.5 at tick 7. The small ripple afterwards is a per-tick factor of about -0.7 decaying. My Ki estimate assumed the error stays at 4.7 RPM while the integral accumulates, but the error stays at 4.7 RPM while the integral accumulates, but the error shrinks as the integral works, so the closed-loop time constant is closer to 2.5 s.
+
+*Fix:* turn on Ki. A small Ki = approximatelly 0.043 reached 78.1 at tick 160 (2.4 s) and 79.86 at tick 580 (8.7), monotonic with no overshoot. Ki = 0.2 was faster, and Ki = 0.5 had 79.98 at tick 80 and exactly 80 by tick 240, with integral = u/Ki = 1.0 at steady state.
+Ki = 2.0 settles in about 0.3s, but I kept 0.5, because the real motor adds encoder quantization, deadband and driver lag, and a gain that passes the simulation isn't automatically the one to keep. The from-rest start is also a weak test of the guard, because `u` is pinned at 1.0 for six ticks and the integral stays exactly 0 until tick 5.
+
+**Motor Speed Control - Stage 0: Anti-Windup and LOad Disturbance, Measured:**
+The conditional-integration guard (`pushingFurther`) had to be shown to do something, and the controller had to be shown to hold a setpoint under a plant change. A first comparison also mixed two things at once, because changing the target and the load together would confuse cause and effect.
+
+
+*Root cause:* with the target at 200 (unreachable, since `K*u` maxes out at 160), the error stays positive and `u` stays pinned at 1.0. Without the guard the integral keeps growing, and after the target drops it takes many ticks to unwind. With the guard, the integral only grows when `u` isn't pushed further into a limit, and the check on both the saturation side and the error sign is what makes it correct.
+
+*Fix:* run 1 had the guard on. At tick 100 speed was 159.995 with u = 1 and integral = 0. After `set var target = 80`, speed was 104.97 at tick 105 (u = 0) and 76.31 at tick 110 (u = 0.436), recovering in about 9 ticks.
+Run 2 had the guard off and the integral reached about 84 by tick 100. It then fell by exactly 1.2 per tick (80 x 0.015), so the output stayed pinned and the motor stayed at about 160 RPM for roughly 55 ticks (0.8s). Speed was 141 at tick 160 and still 81.3 at tick 210, which is about 13x slower than with the guard. The load-change test held the target at 80 and changed only K from 160 to 120 in GDB. The settled `u` moved from 0.5 to 0.667 and the integral from 1.0 to 1.333, which is u/Ki. Speed returned to 79.99999 by tick 240. The extra duty came from the integral, where P-only would have left a permanent offset, and the controller never sees K, only the error.
+
+**Motor Speed Control - Stage 0: Derivative Sign and a Period-2 Limit Cycle:**
+A derivative-kicj test (a small setpoint step, 80 to 82, with Kd = 0.002) produced large swings in speed. After I fixed the sign, a run with Kd = 0.0003 produced breakpoint values that had no explanation.
+
+*Root cause:* with `error = target - measured`, delta error = -delta speed. Derivative on error needs +Kd, and derivative on measurement needs -Kd. The code computed the derivative on error but used -Kd, so D pushed with the motion instead of against it. 
+The second issue was a period-2 oscillation. `u` alternated between 0 and 1 every tick, and speed alternated between 75.8 and 84.2 (average 80), with the integral frozen at 0.8796 because the guard was active every tick. All the breakpoints (tick 50, 60, 80, 100, 120, 160) were even ticks, which all read 75.79. The odd ticks read `u = 0` at speeds 81.8 and 83.0. Without D the per-tick factor is -0.7 and the swings decay. At Kd = 0.0003 the factor passes -1, so the swings grow until the clamp stops them.
+
+*Fix:* I found the sign, and then dropped D entirely (KD 0.0f), because a first-order plant can't overshoot (Ki = 0.5 and 2.0 both reached 80 with no overshoot). A first test step of 40 RPM was also too large, since Kp * 40 = 4.0 clamps `u` at 1.0 and hides the kick.
+A TODO was left to retest the kick and tune Kd on the real motor with encoder noise.
 
 **Root cause at the register level:**
 -
@@ -148,7 +195,19 @@
 - Implemented the PID in the project. Grasped what is all about, since my mind did not understand what I am doing.
 
 **Problems encountered:**
-- (None today) etc
+**Motor Speed Control - Stage 0: PID:**
+The first PID_Update had four bugs at once.
+
+1. It was never called, so u stayed 0. 
+2. The error was computed from the plant input (`K*u - measured_speed`) instead of `target - measured_speed`. 
+3. The integral was updated unconditionally above the guard, which made the guard useless. It returned the unclamped value.
+4. `#define CONTROL_TICK_S CONTROL_TICK_MS / 1000.0f` without parentheses expands `(measured - prev) / CONTROL_TICK_S` to `.../15U/1000.0f`, dividing by 15000 instead of 0.015.
+
+*Root cause:* `u = target / K` is open loop. It uses the plant's gain, takes no measurement, and bypasses the PID, so it only hits 80 if the real K is exactly 160. Multiplying by 1000 goes the wrong way: an error of 10 RPM held for 1 s (about 67 ticks) must give an integral of 10 RPM * s, which needs dt in seconds. The macro bug is plain operator precedence.
+
+*Fixes:* `u` is a duty fraction 0.0-1.0, `K = 160 RPM per unit duty` taken from the datasheet (full duty = approx. 6 V no-load), to be measured open-loop in Stage 2. 
+dt is converted to seconds once, as ((float)CONTROL_TICK_MS/1000.0f). The PID state lives in a `PID_t` (Kp, Ki, Kd, integral, prevMeasured, outMin, outMax). The ISR order is clear flag, count, plant update using the previous `u`, then `u = PID_Update(&pid, speed)`, so the controller acts one tick late as a real one does.
+`PID_Update` computes P, I (from the old integral), and D on the measurement, forms the unclamped output, runs the windup guard, then adds `error * CONTROL_TICK_S`. The clamp uses `outMin`/`outMax`. The fake motor line exists only in Stage 0, and PID_Update is the part that survives. With the real motor, `speed` comes from the encoder and `u` goes to the PWM register.
 
 **Root cause at the register level:**
 -
@@ -163,6 +222,30 @@
 **Evening:**
 - Finished implementing the Step 0: TIM2 init, SysTick priorities, TIM2_IRQHandler, 15ms counter.
 - Continued implementing the project: started adding the stand-in plant.
+
+**Motor Speed Control - Stage 0: Interrupt Priorities and the 67-Tick Proof:**
+*Problems encountered:* I thought the SysTick by default is more urgent than other interrupts. But I did not assume that all priorities are 0 at reset and equal priorities never preempt. I then gave the two ISRs priorities that contradicted my own premise.
+I believed the control tick matters more, yet gave SysTick the smaller (more urgent) number.
+The first timing ISR was buggy: it freezes the counter at 67, so `elapsed_ms` is first written on tick 68 (68 * 15 = 1020 ms) and then overwritten on every later tick.
+
+*Root cause:* A late control tick costs more than a late millisecond count, and a pending SysTick is help until TIM2 returns, so one is only lost if TIM2 runs longer than about 1 ms. 
+My own estimate of the PID ISR was 150-300 cycles, about 19 microseconds at 16 MHz (under 2% of the SysTick period). So TIM2 gets the smaller priority number.
+For the read, `SysTick_GetTick()` is a read-only accessor to a file-static `ms_passed`, and TIM2 only reads it. An aligned 32-bit load is a single instruction on the M4, so it returns the old or the new value, never a mix.
+
+*Fix:* TIM2 priority 1 and SysTick priority 2. The F411 implements only the top 4 bits of the priority byte, so priority 1 is `0x1 << 4`. TIM2 is IRQ 28.
+SysTick is a system exception with no NVIC slot, so its priority lives in `SCB->SHPR3` bits [31:28]. The init order is clock gate (`RCC->APB1ENR` bit 0), then PSC/ARR/CNT with ARPE cleared, then clear UIF before enabling UIE and the NVIC line, then CEN last. No forced update if needed because ARPE = 0 at reset, so an ARR write takes effect immediately. The ISR was fixed to increment unconditionally and snapshot once at `== 67`, with SYSTICK_start captured just before CEN, and the snapshot is taken in the ISR.
+Measuring 67 ticks makes the +-1ms resolution only 0.1% where a single tick would be +-6.67%. A reading near 502 ms would have meant a 32 MHz timer clock.
+
+**Motor Speed Control - Stage 0: FPU and Silent integer division:**
+*Problems encountered:* after the plant line was added, a conditional breakpoint on `TIM2_counter == 1` never fired, and stepping landed in `WWDG_IRQHandler` at `b Infinite_Loop`. Once that was fixed, speed still never moved.
+
+*Root cause:* two independent issues. 
+1) The FPU was never actually enabled: `SCB->CPACR = 0xFU << 20U` plus DSB/ISB was correct, but the `SCB_RegDef_t` struct declared a single `uint32_t RESERVED2` for the gap its comment described as 0xE000ED40 to 0xE000ED88 and the write never reached the real register.
+The first float instruction raised a UsageFault (NOCP), which escalated to HardFault because UsageFault is not enabled in SHCSR, and the default handler is `b Infinite_Loop`.
+2) `CONTROL_TICK_MS / TIME_CONSTANT` with both operands `U` constants is 15U/150U, evaluated at compile time to integer 0.
+
+*Fix:* `RESERVED2[18]`, which puts CPACR at 0xE00ED88, and explicit float casts ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT).
+
 
 **Problems encountered:**
 - (None today) etc
@@ -181,6 +264,23 @@
 
 **Evening:**
 - Continued designing the project. Finally grasped the PID mechanics and reminded myself the PWM.
+
+**Motor Speed Control - Project Scoping and Hardware Selection:**
+*Problems encountered:* there was no motor at the start, only the PID theory. My first option was a hobby servo, but a servo already has its own position loop inside, so from the outside it is open loop and there is nothing left to tune. While picking replacement parts, several assumption turned out wrong.
+TB6612FNG is 1 A continuous and 3 A peak, below the candidate motot's 2.8 A stall current. ONe supply module was called "CC/CV" but had only a voltage pot and no currect limit. The motor listing's "16 pulses per motor revolution" was ambiguous, and the two readings differ by 4x (1920 versus 7680 counts per output revolution).
+
+*Root cause:* the loop needs an encoder for feedback. A driver rated below the motor's stall current means any firmware bug (wrong feedback sign, PWM stuck at 100%, a direction pin held wrong) can destroy hardware, so the supply's current limit is the real protection against firmware bugs.
+
+*Fix*: I chose a DFRobot 6 V 120:1 gearmotor with a quadrature encoder (160 RPM no-load, 0.17 A no-load, 2.8 A stall) nd a Pololu TB6612FNG carrier. For power I used an XL4015 CC/CV step-down modile from a 12V 5 A adapter. 
+A 30 RPM N20E motor was rejected as too slow, because friction and backlash would dominate at 15-20 RPM setpoints. Setpoints were planned at 50-70% of no-load speed (about 80-110 RPM) so the output doesn't saturate. The encoder needs 4.5-7.5 V, so it runs from the Black Pill's 5 V pin, and 5 V tolerance only holds for digital input or alternate-function mode with VDD present. The counts-per-revolution question was deferred to a hand measurement on the real motor.
+
+**Motor Speed Control - Stage 0: Sizing the Control Tick and the Simulated Plant:**
+*Problems encountered:* Stage 0 needed a fixed control tick and a software plant before the hardware arrived. My first reasoning about dt was circular. I re-derived dt from the new τ (dt - 50/10 = 5 ms) and concluded "proportions still stand", but dt is a timer reload fixed before the real τ is known. I also wanted to change the plants multiplier from 0.9 to 0.368 after comparing 0.9^10 = 0.3487 against e^(-1) = 0.368. The Stage 0 was reset into four small steps: the tick, a one-line plant, the PID, and a step test.
+
+*Root cause:* forward Euler and the exact exponential are two models of the same plant, not a choice of constant. Euler leaves 0.9^10 = 0.3487 of the gap after one τ, against 0.368 for the exact solution. That is an effective τ of about 142 ms, a 5% error, negligible next to the uncertainty about the real motor. The simulation stays lag-like for dt/τ <= 1, rings for 1 < dt/τ < 2, and diverges above 2.
+
+*Fix:* I used a placeholder τ = 150 ms and dt = 15 ms, but as named macros. The argument for dt is to bias toward the fast end of the plausible τ range. A slow tick adds loop delay and risks oscillation, while a fast tick only costs CPU time and encoder resolution (each count is worth more RPM). TIM2 is 32-bit, so the encoder could use TIM3/4/5 later. I computed the period as I did for SysTick: 15 ms = 16 000 * 15 - 1 = 239 999 at 16 MHz with PSC = 0. The timer clock equals the APB1 clock only when the PPRE1 prescaler is 1, so I cleared RCC->CFGR bits 12:10 and verified the assumption instead of trusting it. The plant line is `speed += (dt/τ) * (target - speed)`. The plant is driver + motor + wheel, the control output is PWM duty, the measured output is RPM from encoder counts, and the encoder is the sensor in the feedback path, not part of the plant.
+In order to better my understanding, I used the cruise-control analogy: the setpoint is speed and the controller output is throttle (duty), and a hill changes the torque needed.
 
 **Problems encountered:**
 - (None today) etc
