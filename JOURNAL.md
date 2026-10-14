@@ -35,6 +35,7 @@
 - Completed the JOURNAL logs for 04.10, 05.10, 06.10, 07.10 and 08.10.
 
 **Evening:**
+- Completed the JOURNAL logs for 09.10, 10.10, 11.10, 12.10, 13.10.
 
 **Problems encountered:**
 - (None today) etc
@@ -52,7 +53,20 @@
 **Evening:**
 
 **Problems encountered:**
-- (None today) etc
+**Motor Speed Control - Stage 3: Windup, Load Disturbance and Final verification:**
+I had to show the close loop survives saturation and a real load on the real motor. I first clained the integral "stays near 0" while `u` is pinned, which is only true when starting from rest. The startup ramp was also slower than a first-order model predicts.
+
+*Root cause:* the guard blocks integration only when the output pinned and the error pushes the same way, so the integral stays frozen at the value it held when saturation began (about 1.1 here). Pinned at 1.0 with a negative error, it can unwind. For the slow ramp, the first three ticks read 3.1, 10.4, and 16.7 RPM, against a predicted 8, 24 and 39. My hypothesis was that the XL4015's 1 A limit clamps the start-up current (the motor stalls at about 2.8 A). The red CC LED blinked at the moment of the step.
+
+*All the tests passed.*
+
+*Windup (target 200, then back to 80):* u left 1.0 immediately. Speed fell from about 134, bottomed at 66.7 RPM around samples 9-10 (a 13 RPM undershoot from the motor braking down from 156 and lagging, not windup), was within 2 RPM at sample 15 (0.23 s) and settled by sample 17. Without the guard, a 44 RPM error adds about 0.66 per tick to the integral, and the Stage 0 simulation took 55 ticks to unwind.
+
+*Disturbance (finger on the wheel rim, target 80):* unloaded 80.2 RPM, u = 0.512, integral = 1.034. Under load 79.2 RPM, u = 0.697, integral = 1.356. After release 79.2, u = 0.547, integral = 1.056. The extra 0.18 duty is the integral (0.5 * 0.32 = 0.16) plus a small P share. Load onset recovered to 80 in 10 ticks (0.15 s) with a 3.3 RPM overshoot, and release jumped to 100 RPM, was back at 80 by sample 4, dipped to 75, and settled by sample 12.
+
+**Verification:**
+The step to 80 RPM settles with no steady-state error, the guard works, and the loop recovers from a load. The loop state is ISR-owned, with GDB the only other writer of `target`, and the motor is off at boot.
+Deferred as TODOs: Kd and the setpoint-kick test on the real motor, a no-guard comparison on the real motor, and encoder-loss or stall detection (if the encoder cable falls off, the load reads 0 RPM and drives u to 1.0).
 
 **Root cause at the register level:**
 -
@@ -70,7 +84,29 @@
 - Derived the Stage 3: the closed-loop on the real motor.
 
 **Problems encountered:**
-- (None today) etc
+**Motor Speed Control - Stage 2: The Half-Seated Wheel and Plant Characterization:**
+At u = 1.0 the encoder read about 37.5 RPM against the datasheet's 160. At 25 kHz, u = 0.2 gave 6.25 RPM and 0.12 A, while at 2 kHz it gave 25 RPM and 0.03 A, which looked like a PWM-frequency effect.
+
+*Root cause:* the wheel was not fully pushed onto the shaft. It rubbed against the gearbox housing and cost a factor of four in speed, and it also faked the frequency dependence. 
+A ten-turn counter test (65 535 - 28 368 + 3 475 = 40 642 against 38 400 expected) kept `COUNTS_PER_REV = 3840` standing. With the wheel removed the speed that was 148.96 RPM at u = 1.0, and with it reseated it read 150 and then 158.33.
+
+*Fix:* reseat the wheel and repeat the table at 25 kHz. 
+Speed vs duty: u = 0.1 -> 9.4 RPM, 0.2 -> 26.0, 0.3 -> 41.7, 0.4 -> 58.3, 0.5 -> 75.0, 0.6 -> 91.7, 0.7 -> 109.4, 0.8 -> 122.9, 0.9 -> 138.5, 1.0 -> 156.25 RPM, with current rising from 0.02 A to about 0.20 A.
+The line fit gives K = approx. 160-163 RPM per unit duty with an intercept near u = 0.045.
+The deadband is about 0.05 (the motor starts at 0.06 and not at 0.04).
+PWM frequency does not change the plant (42.7 RPM at u = 0.3 at both 2 kHz and 25 kHz), so I kept 25 kHz, which is silent (ARR + 1 = 640 steps at a 16 MHz timer clock). For τ I captured a 100-sample float log (400 bytes, 1.5 s). The ISR takes each sample after `speed` is computed and before the PID and duty write, so sample k reflects the duty from tick k-1. The final speed was about 67 RPM, flickering between 66.7 and 67.7 (one count). The 63.2% level of about 42.5 RPM is crossed near sample 9, which gives about 130 ms, and 95% at sample 28 gives about 140 ms, so τ = approx. 135 ms and dt/τ = approx. 0.11.
+
+**Motor Speed Control - Stage 3: Choosing Gains and the Step response:**
+Choosing starting gains for a real plant with measured K, τ and deadband. 
+
+*Root cause:* the first reading was an artifact of halting in GDB.
+The motor keeps spinning while the core is halted and TIM1 keeps counting, so the first `delta` after a resume covers the whole halt. That is why the first sample of each log is garbage (values like 12826 etc), and that tick also drives the PID output to 0 for one tick, so the next two samples can dip. For Ki, a too-large value shows up in the log as overshoot above the setpoint and a slow swing with many ticks per cycle, while fast jitter points to Kp.
+
+*Fix:* I chose Kp = 0.03, Ki = 0.5, Kd = 0. The ringing factor is `1 - (dt/τ)*(1 + K * Kp)`. With Kp = 0.1 and τ = 135 ms that is about -0.89, close to sustained ringing, and with Kp = 0.03 it is about +0.36 (`K*Kp = 4.8`). Kd stays 0 because the 1-count flicker (1.04 RPM) is the noise floor.
+Results at target 80 with the wheel in the air:
+
+- P-only: predicted 384/5.8 = 66.2 RPM (65.2 when the deadband line is included), measured about 65.1, about 15 RPM short, with no overshoot or ringing.
+- PI-step: peak 84.4 RPM (4.4 RPM, 5.5% overshoot), within 2 RPM from sample 22, settled in about 0.33 s, steady 80.2 RPM (within one count). Settled `u = 0.5765` and integral = 1.1156, so the real plant needs about 7% more duty than the speed line predicted (0.536).
 
 **Root cause at the register level:**
 -
@@ -86,7 +122,38 @@
 - Almost finished the breadboard setup.
 
 **Problems encountered:**
-- (None today) etc
+**Motor Speed Control - Stage 2: TIM4 PWM Init and the Signed-Duty Function:**
+Several register and logic bugs came up.
+
+1. For forced update that loads the preload registers, I used EGR bit 3 (CC3G, a capture/compare event) when the update event is bit 0 (UG).
+2. I used `|=` on EGR, which is write-only.
+3. `motor_carrier_init()` was never called in `main()`.
+4. After that, the sighed-duty function was correct, but nothing called it, so after reset STBY was high, IN1 and IN2 were high and CCR was 0, and the motor sat in short brake. 
+5. My clamp `if (u > 1.0) u = 1.0; else if (u < 0) u = 0;` would have killed every negative value, so reverse could never reach the function.
+6. I WROTE `1.0` and `-1` double literals in float code.
+
+*Root cause:*
+OC3PE means CCR3 is copied into the active register only on an update event, so a forced update is needed. ARR resets to 0xFFFF on the 16-bit TIM4, so doing the forced update before the ARR write wouldn't break anything, only leave the wrong period, but ARR first is the right habit.
+On the single-precision FPU, mixing double literals pulls software double-precision routines into the ISR.
+Two separate GPIO writes can also create a transient IN1/IN2 combination I never chose.
+
+*Fix:* write ARR and CCR3 first, force the update with `TIM4->EGR = (1 << 0)`, then CEN last. ARPE and CNT are set explicitly, for the same bootloader-handoff reason as on the other timers, and `CCER` has CC3E (bit 8) set with CCP3 (bit 9) and CC3NP (bit 11) cleared. 
+TIM4 needs no main output enable. The pins are set via BSRR before MODER switches them to output, so the driver never sees a glitch. One BSRR write sets both direction pins: IN1 = L and IN2 = H is `(1 << 28) | (1 << 13)`, IN1 = H and IN2 = L is `(1 << 29) | (1 << 12)`, and brake (both H) is `0x3 << 12`, with PB14 untouched in all three.
+The function takes a signed float, clamps a local copy to [-1, +1] with `1.0f`/`-1.0f`, splits sign from magnitude, and sets `CCR[2] = (ARR + 1) * fabsf(v) + 0.5f` (the +0.5 gives rounding, since float-to-int truncates). 
+At 2 kHz, v = 0.2 gives 1600, v = -0.5 gives 4000, and v = 1.7 clamps to 8000 (unclamped it would be 13 600). The ISR calls it every tick after `u` is computed, and `open_loop_duty` is `volatile` and skips `PID_Update` when it is nonzero.
+The motor-unpowered check passed: PB8 read 0.2 mV at CCR 0, 826.7 mV at 2000, 1.655 V at 4000 and 3.307 V at 8000, `TIM4->CNT` changed between samples, and `GPIOB->ODR` had bits 12 and 13 set and bit 14 clear.
+
+**Motor Speed Control - Stage 2: Supply Bring-Up and First Spin:**
+Some basics were unclear to me at first. 
+I was not sure what "mains" was or whether the XL4015's terminals were safe, and a -5.995 V reading only meant the probes were swapped
+My first capacitor layout put the 470 microF cap on the supply rails before the wires to the driver. The first spin read - 24.958 RPM.
+
+*Root cause:* the wall outlet is 230 V AC, and the 12 V DC side is safe to touch. A capacitor placed before the supply wires leaves their resistance and inductance between the capacitor and the driver, which defeats its purpose. The negative speed just meant the motor wires were the wrong way round for my forward convention.
+
+*Fix:* the XL4015 was set to 6.0 V (5.995 V on the multimeter) with nothing connected. The limit started near 5 A, so I turned it down counter-clockwise, briefly shorted the output, and trimmed it to 0.98 A.
+The limit is a ceiling, not a measure of draw, and the motor draws about 170 mA free-running. The layout became rails, then wires, then the 470 microF capacitor (stripe on GND, legs trimmed to about 8-10 mm), then the driver.
+Logic and motor returns use separate GND pins. Driver VCC comes from the Black Pill 3.3 V (a different pin from VM), and continuity was checked through the breadboard rows before power. 
+The first spin was wheel in the air at u = 0.2, with reverse always going through duty 0 first, since a hard reversal draws a current spike that trips the 1 A limit. Swapping the motor wires gave +25.0 RPM.
 
 **Root cause at the register level:**
 -
@@ -101,7 +168,20 @@
 - Finished deriving the init and the signed-duty function for the Stage 2.
 
 **Problems encountered:**
-- (None today) etc
+**Motor Speed Control - Stage 2: Driver Truth Table, PWM Frequency and Pin Choices:**
+Four of my answers needed correction.
+1. The truth-table mapping was incomplete, and I had treated forward = counter-clockwise as fixed by the driver.
+2. I wrote that at duty 0 the driver should be in standby. 
+3. The PWM-frequency reasoning was partly backwards.
+4. I wrote that STBY high holds the driver off until everything is configured, which is also backwards.
+
+*Root cause:* on the TB6612FNG, IN1 = L with IN2 = H gives CCW and IN1 = H with IN2 = L gives CW with PWM high, but which physical direction that is depends on which motor wire goes to OUT1 and which to OUT2. Brake is IN1 = H with IN2 = H. Stop (coast) is L, L with PWM H. Standby switches the outputs off completely and the motor coasts, so it isn't "duty 0". STBY = H enables the driver, so holding it off needs STBY low until the end.
+The frequency point: a higher PWM frequency makes the current smoother, which is good, and the costs are switching loss and edge quality (the TB6612FNG is fine up to 100 kHz). The real problem at 2 kHz is that it's audible.
+
+*Fix:* duty 0 means short brake (IN1 = IN2 = H), chosen because short brake is also what the driver does inside every PWM cycle with PWM low, so between 0 and 100% the motor alternates driver and brake and speed rises roughly in proportion to duty. The frequency is a macro with `ARR = timer_clock / pwm_freq - 1`. At 2 kHz ARR = 7999 gives 8000 steps of 0.0125%, and at 20 kHz ARR = 799 gives 800 steps of 0.125% (about 0.2 RPM per step at 160 RPM, finer than the 1.04 RPM encoder count). I started at 2kHz to hear the whine. 
+Pins: PWM on PB8 (TIM4_CH3), IN1 = PB12, IN2 = PB13, STBY = PB14, avoiding the encoder pins, SWD/JTAG, PB2 (BOOT1), PA0 (KEY button), PC13 (LED) and PA11/PA12 (USB). 
+The datasheet screenshot showed 200 kOhms internal pull-downs on STBY, IN and PWM, so the driver sits in standby after reset, and the init order is IN1, IN2, PWM at 0, then STBY last. 
+In PWM mode 1 the output is high while CNT < CCR, so CCR = 0 gives 0% and CCR = ARR + 1 gives 100% (a compare value about ARR holds the pin high).
 
 **Root cause at the register level:**
 -
@@ -119,6 +199,15 @@
 
 **Problems encountered:**
 **Motor Speed Control - Stage 1: Speed from counts and the counts-per-revolution measurement:**
+The first ISR never updated `prev_count`, so `delta` was the total count since start-up, not the count per tick. 
+The subtraction itself was also wrong. Two `uint16_t` operands are promoted to `int` before subtracting, so 16-bit wraparound doesn't happen unless the whole subtraction is cast, and I had only cast `TIM1->CNT`. 
+
+*Root cause:* the integer promotion rules, plus a missing store of the previous reading. Converting a wider unsigned value to `int16_t` is implementation-defined in the standard, though GCC does it modulo 2^16 as expected.
+
+*Fix:* read `TIM1->CNT` once into `current_cnt`, compute `delta = (int16_t)(uint16_t)(current_cnt - prev_count)`, then store `prev_count = current_cnt`. `prev_count` is initialized at the end of the TIM1 init, just before the control timer starts, so `TIM1_Init()` runs before `TIM2_Init()`. Speed is `(float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60`. For counts per revolution, one hand turn gave 3985 and about ten turns gave 38 891 (a slight overshoot from my side). 
+That agrees with 3840, which is 32 counts per motor revolution in 4x mode times the 120:1 gearbox, so neither of the two listing-based guesses was right. I put `COUNTS_PER_REV = 3840` in a named macro with a comment on where the number came from. That gives 60/(3840 * 0.015) = 1.04 RPM per count at the 15 ms tick, about 77 counts per tick at 80 RPM and about 154 at 160 RPM, so `int16_t` has roughtly 100x margin. The hand test read exactly 0 at rest (twice), and the sign flipped with direction. 
+Counter-clockwise was noted as positive, with the viewing end still to be written down.
+
 
 **Root cause at the register level:**
 -
