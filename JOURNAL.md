@@ -32,6 +32,19 @@
 # 2026-10-14
 
 **Morning:**
+- Wrote a Linkedin post about the PID Closed-loop speed controller.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+# 2026-10-14
+
+**Morning:**
 - Completed the JOURNAL logs for 04.10, 05.10, 06.10, 07.10 and 08.10.
 
 **Evening:**
