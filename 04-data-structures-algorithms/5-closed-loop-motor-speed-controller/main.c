@@ -10,14 +10,14 @@ PID_t pid;
 #define TIME_CONSTANT 150U                                // 150 ms
 #define CONTROL_TICK_MS 15U                               // 15 ms
 #define CONTROL_TICK_S ((float)CONTROL_TICK_MS / 1000.0f) // 15 ms
-#define COUNTS_PER_REV 3840U                              // measured over 10 revolutions, matching 16 poles * 4 edges * 120
+#define COUNTS_PER_REV 3840U                              // measured over 10 revolutions, matching 3840 counts/rev
 
 #define TIMER_CLOCK 16000000U
 #define PWM_FREQ 25000U // 25 kHz - silent, 640 steps of about 0.16%
 #define TIM4_ARR ((TIMER_CLOCK / PWM_FREQ) - 1)
 
 #define KP 0.03f
-#define KI 0.5f // tuned on τ = 150 ms placeholder plant, retune on real motor
+#define KI 0.5f // tuned on τ = 135 ms placeholder plant, retune on real motor
 #define KD 0.0f // TODO: Kd and the setpoint-kic on the real-motor
 
 volatile uint32_t TIM2_counter;

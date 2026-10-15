@@ -36,6 +36,7 @@
 - Halfway into writing the README.md for the PID Closed-loop speed controller.
 
 **Evening:**
+- Finished the README.md (it was hard and miserable).
 
 **Problems encountered:**
 - (None today) etc
