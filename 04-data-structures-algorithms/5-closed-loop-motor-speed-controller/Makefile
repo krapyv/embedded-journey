@@ -6,14 +6,14 @@ OBJCOPY = $(PREFIX)objcopy
 # --- Centralized Driver Path ---
 DRIVERS = ../../my_reusable_drivers
 
-INCLUDES = -I. -I${DRIVERS}/core -I${DRIVERS}/periph/uart -I${DRIVERS}/periph/i2c -I${DRIVERS}/periph/systick
+INCLUDES = -I. -I${DRIVERS}/core -I${DRIVERS}/periph/systick
 
 # Compiler flags (same for all STM32F411 projects)
 CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
-SRC = startup_stm32f411ceux.s ${DRIVERS}/periph/uart/uart.c ${DRIVERS}/periph/i2c/i2c.c ${DRIVERS}/periph/systick/systick.c main.c
+SRC = startup_stm32f411ceux.s ${DRIVERS}/periph/systick/systick.c main.c
 ELF = program.elf
 BIN = program.bin
 

@@ -3,10 +3,7 @@
 #include "stm32f411.h"
 #include "core_cm4.h"
 #include "systick.h"
-#include "i2c.h"
 #include "app_config.h"
-
-I2C_HandleTypeDef hi2c;
 
 PID_t pid;
 
@@ -20,8 +17,8 @@ PID_t pid;
 #define TIM4_ARR ((TIMER_CLOCK / PWM_FREQ) - 1)
 
 #define KP 0.03f
-#define KI 0.05f // tuned on τ = 150 ms placeholder plant, retune on real motor
-#define KD 0.0f  // TODO: Kd and the setpoint-kic on the real-motor
+#define KI 0.5f // tuned on τ = 150 ms placeholder plant, retune on real motor
+#define KD 0.0f // TODO: Kd and the setpoint-kic on the real-motor
 
 volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;

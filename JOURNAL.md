@@ -33,6 +33,7 @@
 
 **Morning:**
 - Wrote a Linkedin post about the PID Closed-loop speed controller.
+- Halfway into writing the README.md for the PID Closed-loop speed controller.
 
 **Evening:**
 
