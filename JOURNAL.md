@@ -35,6 +35,7 @@
 - Finished learning theory of the PID and related (actuators, torque, motors, AC/DC etc).
 
 **Evening:**
+- Learned the theory about Digital filters (EMA, moving average).
 
 **Problems encountered:**
 - (None today) etc
