@@ -29,7 +29,20 @@
 
 ----------------------------------------------
 
-# 2026-10-14
+# 2026-10-16
+
+**Morning:**
+- Finished learning theory of the PID and related (actuators, torque, motors, AC/DC etc).
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+# 2026-10-15
 
 **Morning:**
 - Wrote a Linkedin post about the PID Closed-loop speed controller.
