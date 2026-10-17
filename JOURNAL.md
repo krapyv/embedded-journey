@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-17
+
+**Morning:**
+- Designed the filter lab on the motor speed loop. The implementation is next.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-16
 
 **Morning:**
