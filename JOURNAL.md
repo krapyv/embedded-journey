@@ -34,6 +34,9 @@
 **Morning:**
 - Designed the filter lab on the motor speed loop. The implementation is next.
 
+**Afternoon:**
+- Started implementing: wrote EMA updater and the ISR tick write sequence.
+
 **Evening:**
 
 **Problems encountered:**

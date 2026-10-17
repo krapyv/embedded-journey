@@ -20,6 +20,22 @@ PID_t pid;
 #define KI 0.5f // tuned on τ = 135 ms placeholder plant, retune on real motor
 #define KD 0.0f // TODO: Kd and the setpoint-kic on the real-motor
 
+// digital filter
+
+/* the filter's own gain
+the update is acc += (x << FRAC) - (acc >> K)
+it settles when the two terms cancel:
+acc >> K = x << FRAC
+acc = x << (FRAC + K)
+
+so in steady state acc is x scaled by 2^(K + FRAC), not just 2^FRAC
+the >> K in the update divides by 2^K, so acc has to be 2^K times larger to balance it
+*/
+#define EMA_K 1 // alpha = 2^(-K) = 0.5
+// acc keeps 4 bits below the integer point, so the filter tracks differences down to 1/16 of a count instead of stalling
+#define EMA_FRAC 4
+#define EMA_SHIFT (EMA_K + EMA_FRAC) // EMA_K + EMA_FRAC = 5, total number of extra bits acc carries
+
 volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;
 volatile uint32_t elapsed_ms;
@@ -34,6 +50,9 @@ volatile bool open_loop_duty = false;
 volatile float step_log[100];
 volatile uint8_t step_log_index; // 256 samples max
 volatile bool step_log_recording = false;
+
+volatile EMA_t ema_filt;
+volatile Logger_t logger;
 
 // TODO: no-guard comparison on the real motor
 // TODO: encoder-loss or stall detection (if the encoder cable falls off, the loop reads 0 RPM and drives u to 1.0)
@@ -135,9 +154,11 @@ void TIM2_IRQHandler(void)
     uint16_t current_cnt = TIM1->CNT;
 
     int16_t delta = (uint16_t)(current_cnt - prev_count);
+    int32_t delta_filt = EMA_Update(&ema_filt, delta);
 
     // speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (K * u - speed);
-    speed = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+    // speed = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+    speed = (float)delta_filt / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
 
     if (step_log_recording)
     {
@@ -158,6 +179,12 @@ void TIM2_IRQHandler(void)
         u = PID_Update(&pid, speed);
     }
     prev_count = current_cnt;
+
+    logger.raw = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+    logger.filtered = speed;
+    logger.PID_output = u;
+    logger.setpoint = target;
+    logger.tick++;
 
     motor_carrier_duty_direction();
 
@@ -428,6 +455,51 @@ void motor_carrier_init(void)
 
     // raise the STBY to high to turn the driver ON
     GPIOB->BSRR = (1 << 14U);
+}
+
+void EMA_Reset(EMA_t *ema)
+{
+    ema->acc = 0;
+    ema->primed = false;
+}
+
+int32_t EMA_Update(EMA_t *ema, int32_t x)
+{
+    if (!ema->primed)
+    {
+        /* acc is not the filtered value, it is the filtered value times 2^EMA_SHIFT,
+        so to make the filter start at "the output equals x",
+        we need to store x in the scaled form */
+
+        /*
+        ema->acc = (x << EMA_SHIFT), but if the speed delta x is negative, left-shifting a negative signed number is undefined behavior in C
+        */
+        ema->acc = x * (1 << EMA_SHIFT);
+        ema->primed = true;
+    }
+    else
+    {
+
+        /* ema->acc += (x << EMA_FRAC) - (ema->acc >> EMA_K);
+
+        x << EMA_FRAC - left-shifting a negative signed number is undefined behavior in C.
+        The multiplication is well-defined for negative x, and the compiler still generates a shift.
+
+        So ema->acc += (x << EMA_FRAC) - (ema->acc >> EMA_K) => ema->acc += x * (1 << EMA_FRAC) - (ema->acc >> EMA_K)
+        */
+        ema->acc += x * (1 << EMA_FRAC) - (ema->acc >> EMA_K);
+    }
+
+    return (ema->acc + (1 << (EMA_SHIFT - 1))) >> EMA_SHIFT; // converts acc back to a plain count and rounds to the nearest integer instead of truncating
+    /*
+    >> EMA_SHIFT undoes the scaling (the inverse of the seeding)
+    1 << (EMA_SHIFT - 1) produces the rounding
+    */
+}
+
+void logger_snapshot()
+{
+    uint32_t last_seen = TIM2_counter;
 }
 
 void main(void)
