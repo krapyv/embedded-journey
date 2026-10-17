@@ -21,10 +21,10 @@ typedef struct
 
 typedef struct
 {
-    float raw;
-    float filtered;
+    int32_t raw;
+    int32_t filtered;
     int32_t setpoint;
-    float PID_output;
+    int32_t PID_output;
     uint32_t tick;
 } Logger_t;
 

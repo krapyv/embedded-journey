@@ -36,6 +36,8 @@ the >> K in the update divides by 2^K, so acc has to be 2^K times larger to bala
 #define EMA_FRAC 4
 #define EMA_SHIFT (EMA_K + EMA_FRAC) // EMA_K + EMA_FRAC = 5, total number of extra bits acc carries
 
+#define EMA_SCALE (1 << EMA_SHIFT)
+
 volatile uint32_t TIM2_counter;
 uint32_t SYSTICK_start;
 volatile uint32_t elapsed_ms;
@@ -142,7 +144,11 @@ void motor_carrier_duty_direction(void)
     // Magnitude
     // CCR[2] = (ARR + 1) * u
 
-    TIM4->CCR[2] = (TIM4_ARR + 1) * abs_u + 0.5f;
+    uint32_t CCR2 = (TIM4_ARR + 1) * abs_u + 0.5f;
+
+    TIM4->CCR[2] = CCR2;
+
+    logger.PID_output = CCR2;
 }
 
 void TIM2_IRQHandler(void)
@@ -182,7 +188,6 @@ void TIM2_IRQHandler(void)
 
     logger.raw = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
     logger.filtered = speed;
-    logger.PID_output = u;
     logger.setpoint = target;
     logger.tick++;
 

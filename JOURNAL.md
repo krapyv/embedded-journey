@@ -38,6 +38,7 @@
 - Started implementing: wrote EMA updater and the ISR tick write sequence.
 
 **Evening:**
+- Continued implementation: the ISR lines, start of the filter switch.
 
 **Problems encountered:**
 - (None today) etc
