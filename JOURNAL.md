@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-18
+
+**Morning:**
+- Implemented the filter switch, logger snapshot, finished the C implementation.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-17
 
 **Morning:**

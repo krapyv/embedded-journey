@@ -1,7 +1,9 @@
+#include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
 #include "stm32f411.h"
 #include "core_cm4.h"
+#include "uart.h"
 #include "systick.h"
 #include "app_config.h"
 
@@ -53,8 +55,48 @@ volatile float step_log[100];
 volatile uint8_t step_log_index; // 256 samples max
 volatile bool step_log_recording = false;
 
-volatile EMA_t ema_filt;
+EMA_t ema_filt;
 volatile Logger_t logger;
+
+uint32_t last_seen = 0;
+bool logger_primed = false;
+
+void EMA_Reset(EMA_t *ema)
+{
+    ema->acc = 0;
+    ema->primed = false;
+}
+
+// returns the value scaled by EMA_SCALE
+int32_t EMA_Update(EMA_t *ema, int32_t x)
+{
+    if (!ema->primed)
+    {
+        /* acc is not the filtered value, it is the filtered value times 2^EMA_SHIFT,
+        so to make the filter start at "the output equals x",
+        we need to store x in the scaled form */
+
+        /*
+        ema->acc = (x << EMA_SHIFT), but if the speed delta x is negative, left-shifting a negative signed number is undefined behavior in C
+        */
+        ema->acc = x * (1 << EMA_SHIFT);
+        ema->primed = true;
+    }
+    else
+    {
+
+        /* ema->acc += (x << EMA_FRAC) - (ema->acc >> EMA_K);
+
+        x << EMA_FRAC - left-shifting a negative signed number is undefined behavior in C.
+        The multiplication is well-defined for negative x, and the compiler still generates a shift.
+
+        So ema->acc += (x << EMA_FRAC) - (ema->acc >> EMA_K) => ema->acc += x * (1 << EMA_FRAC) - (ema->acc >> EMA_K)
+        */
+        ema->acc += x * (1 << EMA_FRAC) - (ema->acc >> EMA_K);
+    }
+
+    return ema->acc;
+}
 
 // TODO: no-guard comparison on the real motor
 // TODO: encoder-loss or stall detection (if the encoder cable falls off, the loop reads 0 RPM and drives u to 1.0)
@@ -111,11 +153,11 @@ void motor_carrier_duty_direction(void)
 
     if (u > 1.0f)
     {
-        u = 1.0;
+        u = 1.0f;
     }
     else if (u < -1.0f)
     {
-        u = -1;
+        u = -1.0f;
     }
 
     // Direction
@@ -156,15 +198,27 @@ void TIM2_IRQHandler(void)
     // clear an update interrupt flag, so the ISR won't re-enter forever
     TIM2->SR &= ~(1 << 0U);
 
-    TIM2_counter++;
+    // TIM2_counter++;
     uint16_t current_cnt = TIM1->CNT;
 
     int16_t delta = (uint16_t)(current_cnt - prev_count);
-    int32_t delta_filt = EMA_Update(&ema_filt, delta);
+    int32_t acc = EMA_Update(&ema_filt, delta);
 
-    // speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (K * u - speed);
-    // speed = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
-    speed = (float)delta_filt / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+    (void)acc;
+// speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (K * u - speed);
+#if (FILTER_MODE == UNFILTERED_BASELINE)
+    speed = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+    logger.filtered = delta * EMA_SCALE;
+#elif (FILTER_MODE == EMA_IN_LOOP_FILTER_MODE)
+    speed = (float)acc / EMA_SCALE / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+    logger.filtered = acc;
+#elif (FILTER_MODE == MEDIAN_EMA_IN_LOOP_FILTER_MODE)
+#error "Unimplemented MEDIAN_EMA_IN_LOOP_FILTER_MODE"
+#elif (FILTER_MODE == EMA_OUTSIDE_LOOP_FILTER_MODE)
+#error "Unimplemented EMA_OUTSIDE_LOOP_FILTER_MODE"
+#else
+#error "Unknown filter mode"
+#endif
 
     if (step_log_recording)
     {
@@ -186,9 +240,8 @@ void TIM2_IRQHandler(void)
     }
     prev_count = current_cnt;
 
-    logger.raw = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
-    logger.filtered = speed;
-    logger.setpoint = target;
+    logger.raw = delta;
+    logger.setpoint = (int32_t)target;
     logger.tick++;
 
     motor_carrier_duty_direction();
@@ -462,49 +515,36 @@ void motor_carrier_init(void)
     GPIOB->BSRR = (1 << 14U);
 }
 
-void EMA_Reset(EMA_t *ema)
-{
-    ema->acc = 0;
-    ema->primed = false;
-}
-
-int32_t EMA_Update(EMA_t *ema, int32_t x)
-{
-    if (!ema->primed)
-    {
-        /* acc is not the filtered value, it is the filtered value times 2^EMA_SHIFT,
-        so to make the filter start at "the output equals x",
-        we need to store x in the scaled form */
-
-        /*
-        ema->acc = (x << EMA_SHIFT), but if the speed delta x is negative, left-shifting a negative signed number is undefined behavior in C
-        */
-        ema->acc = x * (1 << EMA_SHIFT);
-        ema->primed = true;
-    }
-    else
-    {
-
-        /* ema->acc += (x << EMA_FRAC) - (ema->acc >> EMA_K);
-
-        x << EMA_FRAC - left-shifting a negative signed number is undefined behavior in C.
-        The multiplication is well-defined for negative x, and the compiler still generates a shift.
-
-        So ema->acc += (x << EMA_FRAC) - (ema->acc >> EMA_K) => ema->acc += x * (1 << EMA_FRAC) - (ema->acc >> EMA_K)
-        */
-        ema->acc += x * (1 << EMA_FRAC) - (ema->acc >> EMA_K);
-    }
-
-    return (ema->acc + (1 << (EMA_SHIFT - 1))) >> EMA_SHIFT; // converts acc back to a plain count and rounds to the nearest integer instead of truncating
-    /*
-    >> EMA_SHIFT undoes the scaling (the inverse of the seeding)
-    1 << (EMA_SHIFT - 1) produces the rounding
-    */
-}
-
 void logger_snapshot()
 {
-    uint32_t last_seen = TIM2_counter;
+    if (logger_primed && logger.tick == last_seen)
+    {
+        return; // discard duplicates
+    }
+    uint32_t seqlock_start;
+    Logger_t local_logger;
+    uint32_t tick_after_copy;
+
+    do
+    {
+        seqlock_start = logger.tick;
+
+        __COMPILER_BARRIER();
+        local_logger.raw = logger.raw;
+        local_logger.filtered = logger.filtered;
+        local_logger.setpoint = logger.setpoint;
+        local_logger.PID_output = logger.PID_output;
+        local_logger.tick = seqlock_start;
+        __COMPILER_BARRIER();
+
+        tick_after_copy = logger.tick;
+    } while (tick_after_copy != seqlock_start);
+
+    last_seen = tick_after_copy;
+
+    printf("%ld,%ld,%ld,%ld,%lu\n", local_logger.raw, local_logger.filtered, local_logger.setpoint, local_logger.PID_output, local_logger.tick);
+
+    logger_primed = true;
 }
 
 void main(void)
@@ -521,11 +561,14 @@ void main(void)
     // open_loop_duty = true;
     u = 0;
 
+    usart2_init();
+
     TIM1_Init();
     motor_carrier_init();
     TIM2_Init();
 
     while (1)
     {
+        logger_snapshot();
     }
 }

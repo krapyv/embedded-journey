@@ -11,6 +11,15 @@
 // select active mode for the project
 #define TARGET_UART_MODE UART_MODE_TX_ONLY
 
+/* FILTER MODES */
+#define UNFILTERED_BASELINE 0U
+#define EMA_IN_LOOP_FILTER_MODE 1U
+#define MEDIAN_EMA_IN_LOOP_FILTER_MODE 2U
+#define EMA_OUTSIDE_LOOP_FILTER_MODE 3U
+
+// select active filter mode for the project
+#define FILTER_MODE EMA_IN_LOOP_FILTER_MODE
+
 typedef struct
 {
     float Kp, Ki, Kd;
