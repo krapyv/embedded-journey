@@ -39,6 +39,7 @@
 - Made a stall exercise, peak-to-peak.
 
 **Evening:**
+- Finished the Digital filters project: baseline and in-loop. Redefined the plan of learning since the scope was too senior.
 
 **Problems encountered:**
 - (None today) etc

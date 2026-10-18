@@ -563,7 +563,7 @@ void main(void)
     u = 0;
 
     usart2_init();
-
+    printf("# mode=%u,scale=%d,cpr=%u,tick_ms=%u,ccr_full=%u\n", FILTER_MODE, EMA_SCALE, COUNTS_PER_REV, CONTROL_TICK_MS, (TIM4_ARR + 1));
     TIM1_Init();
     motor_carrier_init();
     TIM2_Init();

@@ -18,7 +18,7 @@
 #define EMA_OUTSIDE_LOOP_FILTER_MODE 3U
 
 // select active filter mode for the project
-#define FILTER_MODE UNFILTERED_BASELINE
+#define FILTER_MODE EMA_IN_LOOP_FILTER_MODE
 
 typedef struct
 {
