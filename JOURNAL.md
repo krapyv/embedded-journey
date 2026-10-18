@@ -34,6 +34,10 @@
 **Morning:**
 - Implemented the filter switch, logger snapshot, finished the C implementation.
 
+**Afternoon:**
+- Tested the EMA in the loop and Unfiltered baseline.
+- Made a stall exercise, peak-to-peak.
+
 **Evening:**
 
 **Problems encountered:**

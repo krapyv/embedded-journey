@@ -207,6 +207,7 @@ void TIM2_IRQHandler(void)
     (void)acc;
 // speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (K * u - speed);
 #if (FILTER_MODE == UNFILTERED_BASELINE)
+#warning "baseline branch compiled"
     speed = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
     logger.filtered = delta * EMA_SCALE;
 #elif (FILTER_MODE == EMA_IN_LOOP_FILTER_MODE)
