@@ -35,6 +35,7 @@
 - Made conclusions and finished the Digital filters experiments.
 
 **Evening:**
+- Completed the JOURNAL logs for 17.10 and 18.10.
 
 **Problems encountered:**
 - (None today) etc
@@ -56,7 +57,105 @@
 - Finished the Digital filters project: baseline and in-loop. Redefined the plan of learning since the scope was too senior.
 
 **Problems encountered:**
-- (None today) etc
+**Digital Filters / Motor Speed Loop - Seqlock logger: three versions of the snapshot functions:**
+Version 1 had four bugs. `last_seen` actually held the seqlock start value, the discard branch did nothing, so a torn copy lost a data point, the private copy's `tick` was never set (the log printed 0), and the printf arguments put PID_output before setpoint, swapping the two columns. %d was also wrong for `int32_t`(long) and uint32_t. Version 2 contained an infinite loop: `seqlock_start` was sampled outside the do-while and printf sat inside it. If the ISR fired during the few-millisecond print, tick was start + 1 forever, so the loop never exited and the log froze. It also had no duplicate check at entry, so consecutive calls printed the same line.
+
+*Root cause:*
+The loop's one job is to produce one consistent copy, so each attempt needs its own start sample and its own single read afterwards. The print has no business inside the retry.
+
+*Fix:*
+The final version has an early return when `logger_primed && logger.tick == last_seen`. The loop samples `seqlock_start`, runs the barrier, copies the five fields, runs the barrier, reads `tick_after_copy` once, and repeats while the two differ. After the loop it set `last_seen` and does `printf("%ld,%ld,%ld,%ld,%lu\n", ...)`. A `logger_primed` flag, like primed in the EMA, handles the first call. The plain retry cannot spin more than once or twice because the ISR fires every 15 ms and the copy takes microseconds.
+
+**Blocking UART logger: the 0U bug and the line budget:**
+In `usart_write_string` the loop condition `(len >= 0U && i < len) || (len < 0U && string[i] != '\0')` could never work in null-terminator mode.
+
+*Root cause:*
+0U is unsigned, so len converts to unsigned before the comparison. `-1` becomes `0xFFFFFFFF` (not `0xFFFF`), `len >= 0U` is always true and `len < 0U` is always false. The terminator was never consulted, and the loop would walk through memory until something faulted. In was latent because I only ever pass positive lengths.
+
+*Fix:* 
+I removed the `U` suffixes. I also checked the framing question. The function expands `\n` to `\r\n`, so a binary payload byte of 0x0A would insert a 0x0D and turn a 16-byte frame into 17, desyncing the PC. That settles it: ASCII lines, which a plain script can plot and I can read by eye. Format strings end in `\n` only, because `\r\n` would send `\r\r\n`.
+
+**Log fields: units, float truncation, what the PC divides:**
+The Logger_t fields were int32_t, but the ISR assigned RPM floats to them.
+C truncates toward zero, so 64.58 RPM was logged as 64 and the resolution this project is meant to measure was thrown away. `%f` was the other temptation.
+
+*Root cause:* Float-to-int conversion truncates. Printing floats on newlib-nano needs `-u _printf_float` and costs about 5-12 KB of flash (order of magnitude). `%f` promotes to double, which the single-precision Cortex-M4F FPU runs in software.
+
+*Fix:*
+I log integers with a stated scale:
+- raw = delta (counts per tick);
+- filtered = acc (count * EMA_SCALE);
+- setpoint is while-number RPM, cast explicitly.
+- PID_output is the TIM4 compare value (out of TIM4_ARR + 1 = 640), which is what the hardware sees. It is written inside the same ISR, so the seqlock coverts it. It is the magnitude only, so the sign is lost in reverse.
+- tick is uint32_t, since signed overflow is undefined.
+
+In the baseline build `filtered = delta * EMA_SCALE`, so the PC's single `/EMA_SCALE` works in every build. Q16.16 for the setpoint was rejected: it is a representation for doing fixed-point arithmetic, and the PID runs in float.
+
+**Build-time filter switch:**
+I was not sure whether to use the `#if` pattern from my UART mode block or a runtime flag. My first `#if` also had braces on the preprocessor line, which are C code, not preprocessor syntax. Modes 2 and 3 were empty `#elif` branches, so selecting them compiled without complaint while `speed` never updated and the PID chased a stale number.
+
+*Root cause:*
+A runtime mode shared between the ISR and main needs `volatile`, a single read at the top of the tick, and an EMA re-prime on every change. The experiments are one run per configuration, so a reflash is cheap. In `#if`, an identifier that isn't a macro evaluates to 0, so enum constants would silently picj one branch and #error woudl never fire. Mine were #define's, so it worked.
+
+*Fix:*
+I used `#define` constants (`UNFILTERED_BASELINE 0U`, `EMA_IN_LOOP_FILTER_MODE 1U`, `MEDIAN_EMA_IN_LOOP_FILTER_MODE 2U`, `EMA_OUTSIDE_LOOP_FILTER_MODE 3U`) and `#define FILTER_MODE`. A single #if selects both `speed` and the logger `filtered`, so the choice appears once, and a final `#else #error` stops the build on unknown values.
+EMA_Update runs in every build, so ISR timing is identical across configurations. The baseline silences the unused acc with `(void)acc`. I decided on two separate modes rather than one: the baseline logs `delta * EMA_SCALE`, while EMA-outside-loop would control on raw but log acc. Modes 2 and 3 still need a build stop, not an empty branch.
+
+**Self-describing log header and the PC script:**
+A log of bare integers doesn't say which build produced it or what scale to use. My first header printf had no '\n', the mode was typed by hand (mode=0), and the format specifiers didn't match the types. I am not also comportable with Python yet.
+
+*Root cause:* 
+The plot script cannpt see my C macros. A hand-typed mode would repeat exactly the mistake the header exists to catch. `EMA_SCALE` is an int (`%d`), whiel `COUNTS_PER_REV`, `CONTROL_TICK_MS`, `FILTER_MODE` and `TIM4_ARR + 1` are unsigned (`%u`). The float tick macro cannot go through nano printf.
+
+*Fix:*
+One line printed during init, after `usart2_init()` and before `TIM2_Init()` prints all 5 values. It goes before the timer starts because the blocking print takes several ticks, and the first data line would then show a false gap against `last_seen = 0`. A line starting with `#` can never be a data line, so the script skips it. `ccr_full=640` lets the script convert PID_output to duty. The terminal logger must start before the board is reset, or the file misses the header. For analysis I used a working Python script (standard library only): it drops tick 0 (the fake pre-interrupt line), reports tick gaps, and gives mean/std of raw and `filt/scale` plus the PID min, max, p-p and std.
+
+**Stale firmware after flashing:**
+The capture I took as the baseline still showed the EMA tail in the filtered column (2456, 2464 etc). In the baseline build that column can only hold multipliers of 32. The PID_output sawtooth also matched the previous run.
+
+*Root cause:*
+The source was right. `make flash` compiled every source in one gcc command with no intermediate `.o` files, so nothing could be stale, and a deliberate `#warning` proved the baseline branch was built. 
+The old image was still running on the chip. The tick counter started at 153 in that capture, which showed the board had just reset into the old firmware. I did not pin down exactly why the flash step didn't take effect; the leading hypothesis is that the image was written without a reset/run.
+
+*Fix:* I powered the board off and on, and the next capture's filtered column held only 2432, 2464 and 2496, all multipliers of 32. I removed the `#warning`.
+
+**Steady-state numbers at 80 RPM and actuator ripple:**
+My paper numbers mixed units. I computed the P-term jump as 80 - 76 = 4, which subtracts RPM from counts. I also wrote the PID_output prediction as "about 350", which was a guess.
+
+*Root cause:*
+At 80 RPM with 3840 counts/rev, 80/60 * 0.015 * 3840 = 76.8 counts per tick, so raw can only be 76 or 77, as a repeating pattern of one 76 and four 77s (period 5 ticks = 75 ms = 13.3 Hz). Filtered centeres at 76.8 * 32 = 2457.6. The correct output estimate is 0.5 * 640 = 320, and the log sits near 342, about 0.53 duty, so the effective plant gain is about 150 RPM, not 160. One count is 60/(3840 * 0.015) = 1.0417 RPM, and Kp * 1.0417 * 640 = 20 compare counts per count of speed change.
+
+*Fix:*
+Measured jump on a 76 tick:
+- Baseline: output goes 339 -> 358 (+19), then back to 342 (-16). That is the 20 predicted minus about 1 from the integrator.
+- In-loop EMA: +9 or +10, because the first-tick response to a 1-count step is alpha = 0.5.
+
+The slow slide of about -1 per tick is the integral term: a 77-count tick is 80.21 RPM, so the error is -0.21 and the integrator moves -1. The 76 tick has error +0.83, which gives +4, and the cycle nets to zero. Steady-state PID_output peak to peak was 23 (baseline) against 18 (in-loop), a ratio of about 1.28, not 2.
+
+**Noise prediction: white-noise formula versus a deterministic 5-tick pattern:**
+- My prediction for the in-loop/baseline std ration was 0.37, which is only the gain at 26.7 Hz, and the first analysis run coundn't test it at all.
+
+*Root cause:*
+The 1/sqrt(N) figure of 0.58 (N = 2/alpha - 1 = 3, matching the exact EMA variance alpha/(2-alpha)) assumes white noise. Mine is a deterministic impulse train with period 5, so its power sits only at 13.3 Hz and 26.7 Hz. The analog gainst with fc = 10.6 Hz are 0.62 and 0.37. Combine by power: 0.51, not an average of gains. 
+The first capture also included the spin-up from rest, so it gave a raw std of 5.4, a mean of 76.17 and a PID max of 640 (saturated), which swamps the steady-state pattern (std about 0.4). The baseline's raw and filt matched exactly, which was a good sanity check.
+
+*Fix:*
+Skip the start-up ticks in the script (for example rows[200:]) before computing std. The corrected prediction is about 0.5, with a caveat that the analog formula differs a little from a 66.7 Hz sampled EMA.
+
+**Using the spin-up as the step response:**
+I first compared a filtered peak with a raw peak and got 7.5% for the in-loop overshoot. I treated rise time as settling time.
+
+*Root cause:*
+The speed that matters is raw, so the in-loop peak is raw 84 counts: (84 - 76.8)/76.8 = 9.4%%. The 82.56 peak was already shaved by the filter. Settling time is the point after which the signal stays inside a band, not the first crossing. The +-2% band around 2457.6 (filt units) is about 2408-2507.
+
+*Fix:*
+Each capture starts from rest with the integrator at zero, so the first ~30 ticks are a free 0->80 RPM step for each build.
+The in-loop run also dipped to 74 counts (about 3.5% below target) at ticks 23-26, which is why settling is so much longer than rise. The 27% prediction failed my own threshold (below 10%), so the paper estimate was too pessimistic.
+
+**Conclusion:**
+- **Bought:** steady-state PID_output peak-to-peak 23->18 compare counts (about 3.6% -> 2.8% duty), and the first-tick jump halved.
+- **Cost:** one tick of rise time, settling 285 -> about 400 ms, overshoot from rest about 4% -> 9%.
+- **Pick:** no filter. Revisit if Kd is enabled, since a filter on the D term only adds lag to that term and not to P and I.
 
 **Root cause at the register level:**
 -
@@ -73,7 +172,73 @@
 - Continued implementation: the ISR lines, start of the filter switch.
 
 **Problems encountered:**
-- (None today) etc
+**Digital Filters / Motor Speed Loop - Project goal and test plan:**
+I had the theory (EMA, moving average, cutoff, noise reduction) but no measured question to attach it to. A standalone "filter library" would have been finished without proving anything.
+
+*Root cause:*
+Theory alone can't say whether filter helps. That depends on what the noise damages and how much delay the consumer tolerates. In this project the consumer was the PI speed loop I had already turned.
+
+*Fix:*
+The project became a filter lap on the motor loop. It had a fixed-point EMA with alpha = 2^-k and extra fractional bits, an optional 3-sample median, and a USART log of raw, filtered, setpoint and PID output every 15 ms tick. The filter configuration was chosen at build time. The planned experiments were lag (63% time against the tau_f prediction), noise (std against the 1/sqrt(N) claim), the fixed-point stall, the closed-loop step response, and D-term chatter. Kd = 0, so the D-term experiment was dropped: filtering a term multiplied by zero changes nothing. Definition of done: three configurations logged, measured lag and noise roughly matching theory, a written conclusion that includes whether "no filter" won, and no race between the ISR and the reader.
+
+**Digital Filters / Motor Speed Loop - Choosing alpha: cutoff, tau_f and loop bandwidth:**
+I was not sure what "target cutoff" meant.
+
+*Root cause:*
+A low-pass has no wall. |H(f)| = 1/sqrt(1 + (f/fc)^2), so at fc the amplitude is down to 70.7% (-3 dB) with 45° of lag. The cutoff is a design choice, placed between the signal (closed-loop bandwidth about 4 Hz, from ωn = approx. 24 rad/s) and the noise, which is spread up to Nyquist (about 33 Hz). A power-of-two alpha means I get the nearest achievable cutoff, not the target.
+
+*Fix*
+From alpha = dt/(tau_f + dt) and `fc = 1/(2pi*tau_f)`:
+- alpha = 2^-1 gives tau_f = 15 ms and fc = approx. 10.6 Hz;
+- alpha = 2^-2 gives tau_f = 45 ms and fc = approx. 3.5 Hz.
+
+My 10 Hz target lands almost exactly on 2^-1. The 2^-2 option has a cutoff below the 4 Hz loop bandwidth, so it sits inside the band the loop needs. Both fit the check tau_f = (1 - alpha)/alpha samples * dt.
+
+**Phase-lag budget and overshoot prediction:**
+I got several steps wrong:
+
+- I applied PM = 100 * ζ unsaturated and got an 88 degrees starting margin.
+- I wrote "2.4x smaller phase margin" when the quantity is 2.4x more lag.
+- I called 20 degrees of lag "almost saturates a second-order loop".
+- I kept ζ = 0. as the baseline, which gave 4.6% overshoot.
+
+*Root cause:*
+Lag subtracts from margin; it saturates nothing. The 100 * ζ rule only holds below roughly ζ 0.6-0.7, and the exact relation for ζ = 0.88 gives about 70 degrees of margin. Lag at 4 Hz is atan(f/fc), or 20.7 degrees for fc 10.6 Hz and 48.8 degrees for fc 3.5 Hz. Converted to time, 20.7 degrees / (360 * 4 Hz) = approx. 14 ms, which is about one sample, matching tau_f. Zero-order-hold deltay adds half a sample, 10.8 degrees at 4 Hz.
+
+*Fix:*
+The budget was 70 degrees - 31.5 degrees = 38.5 degrees for 2^-1 and 70 degrees - 59.6 degrees = 10.4 degrees for 2^-2.
+That gives ζ = 0.385 and 0.104, and overshoot of about 27% and 72%. 
+For the true ζ = 0.88 the baseline overshoot is about 0.3% . I wrote hypotheses with thresholds: 2^-2 puts the loop in a ringing regime, and 2^-1 should raise overshoot to about 27%.
+
+**Fixed-point EMA: scaling, headroom, signed shifts:**
+I needed to know how many bits the accumulator needs, and x << 4 on a negative signed value is undefined behavior in C.
+
+*Root cause:*
+The update `acc += (x << FRAC) - (acc >> K)` settles when `acc >> K = x << FRAC`, so steady state is `acc = x << (K + FRAC)`.
+The shift hides a gain of 2^K, and the accumulator carries K + FRAC extra bits, not just FRAC. With x of about 155 counts (8 bits) and 6 extra bits, acc is 14 bits. Even a full int6 delta gives 15 + 6 = 21 bits, which fits int32_t.
+
+*Fix:*
+I wrote `acc += x * (1 << EMA_FRAC) - (acc >> EMA_K)` and seeded with `x * (1 << EMA_SHIFT)` on the first call (the primed flag). Multiplication is well-defined for negatives and the compiler still emits a shift. I replaced the hard-coded `EMA_SHIFT 5` with `#define EMA_SHIFT (EMA_K + EMA_FRAC)` and added `EMA_SCALE (1 << EMA_SHIFT)`, so a change to K can't silently desync the plots. I also corrected a contradictory comment: the fractional bits cost range and buy resolution, they do not prevent overflow.
+
+**Rounding and the stall band:**
+`EMA_Update` first returned `(acc + (1 << (SHIFT - 1))) >> SHIFT`, a rounded integer. A value drifting around 64.5 would flip between 64 and 65 and chatter like the raw signal, so the rounding reintroduced quantization after the filter. Separately, I expected the stall experiment to freeze the output when the fractional bits were dropped.
+
+*Root cause:*
+Rounding to whole counts is a new quantizer after the filter. The stall belongs to the plain form `y += (x - y) >> K` on an unscaled integer.
+With K = 2, x = 11 and y = 10 gives `1 >> 2 = 0`, so it stalls below x. Going down, `(-1) >> 2 = -1` (an arithmetic shift of all ones), so it arrives exactly. 
+In my scaled form the stall is tiny: at acc = 2465, >> 1 gives 1232 and the update adds 0. At 2466 it adds -1. The filter parks 1 unit above 2464, which is 1/32 of a count (about 0.03 RPM). Its width is 2^EMA_K values; I had wrongly claimed 31 by using the total shift.
+
+*Fix:*
+`EMA_Update` now returns the unrounded acc, and the ISR divides by `EMA_SCALE` inside a float expression so the fraction survives. Integer acc/32 would have been a quantizer too. Any scaled output needs its scale documented in the header (EMA_SCALE).
+
+**Sharing data between tick ISR and logger:**
+The logger reads four value (raw, filtered, setpoint, output) that must all belong to the same tick, but TIM2's ISR can fire in the middle of the copy. I initially proposed a flag, assigned the writer and reader roles backwards, and mixed up DMB and compiler barrier.
+
+*Root cause:*
+An aligned 32-bit load is a single LDR and can't be split, while a 64-bit read is two accesses an ISR can slip between. A struct gives the group an identity but not an atomic copy: the logger could read raw and filtered from tick N, then setpoint and output from N + 1, producing a struct that never existed. The writer is the tick ISR (including EMA_Update) and the reader is the logger in the main loop.
+
+*Fix:*
+I used a `volatile` global shared object. A DMB is a CPU instruction, needed when another bus master such as DMA touches the memory. What I need here is a compiler barrier, `__asm__ volatile("":::"memory")`, wrapped in an always-inline function. I use two, one before and one after the copy. Because the shared struct is already volatile, the barriers are cheap insurance, not what holds the design up. The copy is four explicit member reads into a non-volatile private struct, because struct assignment from a volatile object has implementation-defined access order. The retry-flag design worked, but a tick counter does the same job better.
 
 **Root cause at the register level:**
 -
