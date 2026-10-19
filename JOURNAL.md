@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-10-19
+
+**Morning:**
+- Made conclusions and finished the Digital filters experiments.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+
 # 2026-10-18
 
 **Morning:**
