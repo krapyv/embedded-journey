@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-20
+
+**Morning:**
+- Wrote the README.md part for the Digital Filters topic.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-19
 
 **Morning:**
