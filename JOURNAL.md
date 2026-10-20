@@ -33,6 +33,7 @@
 
 **Morning:**
 - Wrote the README.md part for the Digital Filters topic.
+- Wrote a Linkedin post about the Digital Filters. The topic is done.
 
 **Evening:**
 
