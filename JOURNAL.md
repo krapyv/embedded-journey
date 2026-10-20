@@ -36,6 +36,7 @@
 - Wrote a Linkedin post about the Digital Filters. The topic is done.
 
 **Evening:**
+- Started the Data Structure integration project: started designing.
 
 **Problems encountered:**
 - (None today) etc
