@@ -35,6 +35,7 @@
 - Continued designing the integration project: calculating the timings of CAN frames, BMP280 messages etc.
 
 **Evening:**
+- Continued designing the CAN logger record.
 
 **Problems encountered:**
 - (None today) etc
