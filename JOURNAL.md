@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-21
+
+**Morning:**
+- Continued designing the integration project: calculating the timings of CAN frames, BMP280 messages etc.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-20
 
 **Morning:**
