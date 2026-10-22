@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-22
+
+**Morning:**
+- Finished designing the Stage 0: all ISRs, all timings are done. The implementation is next.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-21
 
 **Morning:**

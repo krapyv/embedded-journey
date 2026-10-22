@@ -177,7 +177,7 @@ void TIM2_init(void)
 
     // TIM2 Handler has the position 28 in the vector table
     // the position 28 is the ISER0 bit 28
-    // set the TIM2 a priority of 4
+    // set the TIM2 a priority of 8
     NVIC->IPR[28] = ((uint8_t)TIM2_INTERRUPT_PRIORITY_LEVEL << 4U);
 
     NVIC->ISER[0] = (1UL << 28U);
@@ -199,6 +199,8 @@ void TIM2_IRQHandler(void)
         .producer_type = Payload_Timer};
 
     uint8_t current_basepri = __get_basepri();
+
+    // blocks priority numbers >= 4
     __set_basepri(MCP2515_INTERRUPT_PRIORITY_LEVEL);
 
     bool result = queue_push(&queue, message);
