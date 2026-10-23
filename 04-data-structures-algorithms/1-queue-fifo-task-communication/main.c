@@ -175,6 +175,9 @@ void TIM2_init(void)
     // ARR = 319 999 - since TIM2 has a 32-bit ADD register, it is ok
     TIM2->ARR = 319999;
 
+    // in down-counting mode the first clock underflows the CNT, so if the CNT after reset is 0, then the first interrupt fires about 62.5 ns after CEN
+    TIM2->CNT = 319999;
+
     // TIM2 Handler has the position 28 in the vector table
     // the position 28 is the ISER0 bit 28
     // set the TIM2 a priority of 8
