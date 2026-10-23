@@ -2,6 +2,11 @@
 #include "stm32f411.h"
 #include "app_config.h"
 
+// verification variables
+static volatile uint32_t previous_interrupt;
+static volatile uint32_t next_interrupt;
+static volatile uint32_t last_delta;
+
 void TIM2_init(void)
 {
     // a timer needs to produce an interrupt once in 10 ms
@@ -54,4 +59,7 @@ void TIM2_init(void)
 
 void main()
 {
+    // enable CYCNT
+    DWT->CTRL |= (1UL << 0U);
+    TIM2_init();
 }
