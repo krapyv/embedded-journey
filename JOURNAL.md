@@ -35,6 +35,7 @@
 - Started implementing the Integration project: TIM2 init function.
 
 **Evening:**
+- Continued implementing the Stage 1: skeleton - TIM2 tick, queue, fast channel running, ISR cost measured.
 
 **Problems encountered:**
 - (None today) etc
