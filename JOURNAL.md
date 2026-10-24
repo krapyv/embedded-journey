@@ -37,6 +37,9 @@
 - Started moving the Motor Speed Control Loop in the project, realized that I have conflict - two TIM2 with Motor Control Loop TIM2 with priority of 1 and 15 ms interrupts.
 - Extracted the queue to the reusable generic driver.
 
+**Afternoon:**
+- Extracted the PID in separate reusable driver.
+
 **Evening:**
 
 **Problems encountered:**
