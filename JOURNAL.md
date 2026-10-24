@@ -41,6 +41,7 @@
 - Extracted the PID in the separate reusable driver.
 - Extracted the EMA in the separate reusable driver.
 - Extracted the Encoder in the separate reusable driver.
+- Extracted the Motor output in the separate reusable driver.
 
 **Evening:**
 
