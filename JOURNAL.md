@@ -33,6 +33,9 @@
 
 **Morning:**
 - Finished building the breadboard circuit: the DC motor, MCP2515, lever shifter, CANable, UART-to-USB adapter, ST/LINK. Tested with multimeter and fixed some problems.
+- Finished the Stage 1.
+- Started moving the Motor Speed Control Loop in the project, realized that I have conflict - two TIM2 with Motor Control Loop TIM2 with priority of 1 and 15 ms interrupts.
+- Extracted the queue to the reusable generic driver.
 
 **Evening:**
 

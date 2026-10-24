@@ -17,9 +17,20 @@ static volatile uint32_t next_interrupt;
 static volatile uint32_t last_delta;
 static volatile uint32_t worst_delta;
 
+static volatile uint32_t can_previous_interrupt;
+static volatile uint32_t can_next_interrupt;
+static volatile uint32_t can_last_delta;
+static volatile uint32_t can_worst_delta;
+
 volatile uint8_t interrupts_count = 0;
 
 volatile uint32_t tim2_counter = 0;
+
+static volatile uint32_t tim2_push_counter = 0;
+static volatile uint32_t can_push_counter = 0;
+
+uint32_t can_counter = 0;
+uint32_t tick_counter = 0;
 
 Queue_t queue;
 Payload_t payload_buffer[16];
@@ -80,6 +91,7 @@ bool queue_is_full(Queue_t *queue)
 
 void Override_EXTI15_10_IRQHandler(void)
 {
+    can_previous_interrupt = DWT->CYCCNT;
     // the MCP2515 CAN interrupt can be triggered once the message was received in RXB0 or RXB1
     // the CANable connected to the laptop acts as the second CAN node which sends the frames
 
@@ -106,7 +118,7 @@ void Override_EXTI15_10_IRQHandler(void)
         do
         {
 
-            // mcp2515_read(CANINTF, &can_intf_val, 1U);
+            mcp2515_read(CANINTF, &can_intf_val, 1U);
 
             if (can_intf_val)
             {
@@ -130,8 +142,15 @@ void Override_EXTI15_10_IRQHandler(void)
             memcpy(frame.data, can_int_rx0_payload, 8 * sizeof(uint8_t));
 
             message.payload.mcp2515_frame = frame;
-            queue_push(&queue, message);
+            uint8_t current_basepri = __get_basepri();
 
+            // blocks priority numbers >= 1
+            __set_basepri(TIM2_INTERRUPT_PRIORITY_LEVEL);
+            if (!queue_push(&queue, message))
+            {
+                can_push_counter++;
+            }
+            __set_basepri(current_basepri);
             can_int_rx0_flag = 0;
         }
         // if rx1_flag is set, the rx1_buffer has a new frame
@@ -146,10 +165,25 @@ void Override_EXTI15_10_IRQHandler(void)
             memcpy(frame.data, can_int_rx1_payload, 8 * sizeof(uint8_t));
 
             message.payload.mcp2515_frame = frame;
-            queue_push(&queue, message);
 
+            uint8_t current_basepri = __get_basepri();
+
+            // blocks priority numbers >= 1
+            __set_basepri(TIM2_INTERRUPT_PRIORITY_LEVEL);
+            if (!queue_push(&queue, message))
+            {
+                can_push_counter++;
+            }
+            __set_basepri(current_basepri);
             can_int_rx1_flag = 0;
         }
+    }
+
+    can_next_interrupt = DWT->CYCCNT;
+    can_last_delta = can_next_interrupt - can_previous_interrupt;
+    if (can_last_delta > can_worst_delta)
+    {
+        can_worst_delta = can_last_delta;
     }
 
     return;
@@ -176,6 +210,11 @@ void TIM2_IRQHandler(void)
     bool result = queue_push(&queue, message);
 
     __set_basepri(current_basepri);
+
+    if (!result)
+    {
+        tim2_push_counter++;
+    }
 
     next_interrupt = DWT->CYCCNT;
     last_delta = next_interrupt - previous_interrupt;
@@ -244,7 +283,7 @@ void main()
     MCP2515_Register_Callback(Override_EXTI15_10_IRQHandler);
 
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
-    // spi_init(SPI_BR_8);
+    spi_init(SPI_BR_8);
 
     queue_init(&queue, payload_buffer, 16U);
 
@@ -253,8 +292,84 @@ void main()
 
     mcp2515_reset();
 
+    usart2_init();
+
+    uint8_t isSuccess;
+
+    // CNF3, CNF2, CNF1
+    uint8_t CNF_vals[3] = {0x01, 0x91, 0x00};
+
+    // CNF3 = 0x28, CNF2 = 0x29, CNF1 = 0x2A
+    // since all three registers are consecutive, we can write them in one write operation
+    mcp2515_write(CNF3, CNF_vals, 3U);
+
+    uint8_t read_CNF_vals[3];
+
+    mcp2515_read(CNF3, read_CNF_vals, 3U);
+
+    uint8_t CANCTRL_val;
+
+    mcp2515_read(CANCTRL1, &CANCTRL_val, 1);
+
+    mcp2515_init();
+
+    // enable interrupts via MCP2515 CANINTE register
+    // bit 5 ERRIE, bit 1 RX1IE, bit 0 RX0IE
+
+    // mask: 0010 0011 = 2^5 + 2^1 + 2^0 = 32 + 2 + 1 = 35 = 0x23
+    // data byte: 0010 0011 = 0x23
+
+    mcp2515_bit_modify(CANINTE, 0x23, 0x23);
+
+    // request Normal mode (bits 7-5: 000)
+
+    // 0b1110 0000 = 0xE0 <- mask, bits 7-5 are requested to change
+    // 0b0000 0000 = 0x00 <- data byte, bits 7-5 are requested to changed to 000
+    mcp2515_bit_modify(CANCTRL1, 0xE0, 0x00);
+
+    // waiting loop for mode to change
+    // mask: 0b1110 0000 = 0xE0 - bits 7-5 are relevant only
+
+    mcp2515_poll_bit_timeout(CANSTAT1, 0xE0, 0x00, 10U, &isSuccess);
+
     TIM2_init();
+
+    Payload_t message;
+
     while (1)
     {
+        if (can_counter < 24000)
+        {
+
+            if (queue_pop(&queue, &message))
+            {
+                if (message.producer_type == Payload_MCP2515)
+                {
+                    can_counter++;
+                    //     // CAN frame has a 11-bit wide ID
+                    //     // SIDH contains bits 11:3, SIDL - bits 2:0 of that 11 bit ID
+                    //     // SIDH has all 8 bits with ID data, SIDL - bits 7:5
+                    //     uint16_t id = (message.payload.mcp2515_frame.SIDH << 3) | (message.payload.mcp2515_frame.SIDL >> 5U);
+
+                    //     // DLC register has DLC bits 3:0
+                    //     // 1111 = 8 + 4 + 2 + 1 = 15 = 0xF
+                    //     uint8_t dlc = message.payload.mcp2515_frame.DLC & 0xF;
+
+                    //     printf("ID: %u | DLC: %u | Payload: ", id, dlc);
+
+                    //     for (uint8_t i = 0; i < dlc; i++)
+                    //     {
+                    //         // printf("%02x ", message.payload.mcp2515_frame.data[i]);
+                    //     }
+
+                    //     printf("\r\n");
+                }
+                else
+                {
+                    tick_counter++;
+                    //     // printf("Tick counter: %u\r\n", message.payload.tick_count);
+                }
+            }
+        }
     }
 }
