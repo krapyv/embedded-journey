@@ -38,7 +38,8 @@
 - Extracted the queue to the reusable generic driver.
 
 **Afternoon:**
-- Extracted the PID in separate reusable driver.
+- Extracted the PID in the separate reusable driver.
+- Extracted the EMA in the separate reusable driver.
 
 **Evening:**
 
