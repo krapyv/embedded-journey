@@ -6,6 +6,11 @@
 #include "systick.h"
 #include "uart.h"
 #include "mcp2515.h"
+#include "../../my_reusable_drivers/utils/ema/ema.h"
+#include "../../my_reusable_drivers/utils/queue/queue.h"
+#include "../../my_reusable_drivers/utils/pid/pid.h"
+#include "../../my_reusable_drivers/periph/encoder/encoder.h"
+#include "../../my_reusable_drivers/periph/motor/motor.h"
 
 volatile uint8_t can_int_flag = 0;
 volatile uint8_t can_bus_off = 0;
@@ -34,60 +39,24 @@ uint32_t tick_counter = 0;
 
 Queue_t queue;
 Payload_t payload_buffer[16];
+EMA_t ema;
+EMA_t ema_filt;
+PID_t pid;
 
-bool queue_init(Queue_t *queue, Payload_t *storage, uint8_t size)
-{
-    bool is_power_of_two = (size & (size - 1)) == 0;
-    if (size <= 0 || !is_power_of_two)
-    {
-        return false;
-    }
+volatile uint16_t prev_count;
 
-    queue->buffer = storage;
-    queue->head = 0;
-    queue->tail = 0;
-    queue->max_size = size;
+volatile bool open_loop_duty = false;
 
-    return true;
-}
+volatile float speed;
+volatile float K = 160; // measured at 6 V
+volatile float u = 0;
+volatile float target = 80;
 
-bool queue_push(Queue_t *queue, Payload_t message)
-{
-    if (queue_is_full(queue))
-    {
-        return false;
-    }
+volatile float step_log[100];
+volatile uint8_t step_log_index; // 256 samples max
+volatile bool step_log_recording = false;
 
-    queue->buffer[queue->head] = message;
-
-    queue->head = ((queue->head + 1) & (queue->max_size - 1));
-
-    return true;
-}
-
-bool queue_pop(Queue_t *queue, Payload_t *message)
-{
-    if (queue_is_empty(queue))
-    {
-        return false;
-    }
-
-    *message = queue->buffer[queue->tail];
-
-    queue->tail = ((queue->tail + 1) & (queue->max_size - 1));
-
-    return true;
-}
-
-bool queue_is_empty(Queue_t *queue)
-{
-    return queue->head == queue->tail;
-}
-
-bool queue_is_full(Queue_t *queue)
-{
-    return ((queue->head + 1) & (queue->max_size - 1)) == queue->tail;
-}
+volatile Logger_t logger;
 
 void Override_EXTI15_10_IRQHandler(void)
 {
@@ -146,7 +115,7 @@ void Override_EXTI15_10_IRQHandler(void)
 
             // blocks priority numbers >= 1
             __set_basepri(TIM2_INTERRUPT_PRIORITY_LEVEL);
-            if (!queue_push(&queue, message))
+            if (!queue_push(&queue, &message))
             {
                 can_push_counter++;
             }
@@ -170,7 +139,7 @@ void Override_EXTI15_10_IRQHandler(void)
 
             // blocks priority numbers >= 1
             __set_basepri(TIM2_INTERRUPT_PRIORITY_LEVEL);
-            if (!queue_push(&queue, message))
+            if (!queue_push(&queue, &message))
             {
                 can_push_counter++;
             }
@@ -191,42 +160,68 @@ void Override_EXTI15_10_IRQHandler(void)
 
 void TIM2_IRQHandler(void)
 {
-    previous_interrupt = DWT->CYCCNT;
-    tim2_counter++;
+    // clear an update interrupt flag, so the ISR won't re-enter forever
+    TIM2->SR &= ~(1 << 0U);
 
-    // clear UIF bit 0 of TIM2->SR
-    // UIF is write-0-to-clear
-    TIM2->SR &= ~(1UL << 0U);
+    // TIM2_counter++;
+    uint16_t current_cnt = TIM1->CNT;
 
-    Payload_t message = {
-        .payload.tick_count = tim2_counter,
-        .producer_type = Payload_Timer};
+    int16_t delta = (uint16_t)(current_cnt - prev_count);
+    int32_t acc = EMA_Update(&ema_filt, delta);
 
-    uint8_t current_basepri = __get_basepri();
+    (void)acc;
+// speed += ((float)CONTROL_TICK_MS / (float)TIME_CONSTANT) * (K * u - speed);
+#if (FILTER_MODE == UNFILTERED_BASELINE)
+    speed = (float)delta / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+    logger.filtered = delta * (1 << (ema.k + ema.frac));
+#elif (FILTER_MODE == EMA_IN_LOOP_FILTER_MODE)
+    speed = (float)acc / (1 << (ema_filt.k + ema_filt.frac)) / (COUNTS_PER_REV * CONTROL_TICK_S) * 60.0f;
+    logger.filtered = acc;
+#elif (FILTER_MODE == MEDIAN_EMA_IN_LOOP_FILTER_MODE)
+#error "Unimplemented MEDIAN_EMA_IN_LOOP_FILTER_MODE"
+#elif (FILTER_MODE == EMA_OUTSIDE_LOOP_FILTER_MODE)
+#error "Unimplemented EMA_OUTSIDE_LOOP_FILTER_MODE"
+#else
+#error "Unknown filter mode"
+#endif
 
-    // blocks priority numbers >= 4
-    __set_basepri(MCP2515_INTERRUPT_PRIORITY_LEVEL);
-
-    bool result = queue_push(&queue, message);
-
-    __set_basepri(current_basepri);
-
-    if (!result)
+    if (step_log_recording)
     {
-        tim2_push_counter++;
+
+        if (step_log_index < 100)
+        {
+            step_log[step_log_index] = speed;
+            step_log_index++;
+        }
+        else
+        {
+            step_log_recording = false;
+        }
     }
 
-    next_interrupt = DWT->CYCCNT;
-    last_delta = next_interrupt - previous_interrupt;
-    if (last_delta > worst_delta)
+    if (!open_loop_duty)
     {
-        worst_delta = last_delta;
+        u = PID_Update(&pid, speed);
     }
+    prev_count = current_cnt;
+
+    logger.raw = delta;
+    logger.setpoint = (int32_t)target;
+    logger.tick++;
+
+    logger.PID_output = Motor_Duty_Direction(u);
+
+    // NOTE: 15ms testing
+
+    // if (TIM2_counter == 67U)
+    // {
+    //     elapsed_ms = SysTick_GetTick() - SYSTICK_start;
+    // }
 }
 
 void TIM2_init(void)
 {
-    // a timer needs to produce an interrupt once in 10 ms
+    // a timer needs to produce an interrupt once in 15 ms
 
     // enable RCC TIM2 clock
     RCC->APB1ENR |= (1UL << 0U);
@@ -250,9 +245,9 @@ void TIM2_init(void)
 
     // set auto-reload register
     // HSI oscillator has by default 16MHz frequency
-    // 1 ms = 16 000 ticks. then 10 ms = 10 * 16 000 = 160 000
-    // ARR = 159 999 - since TIM2 has a 32-bit ADD register, it is ok
-    TIM2->ARR = 159999;
+    // 1 ms = 240 000 ticks. then 15 ms = 15 * 16 000 = 240 000
+    // ARR = 239 999 - since TIM2 has a 32-bit ADD register, it is ok
+    TIM2->ARR = 239999;
 
     // make sure PSC is set to 0
     TIM2->PSC = 0;
@@ -285,7 +280,22 @@ void main()
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
     spi_init(SPI_BR_8);
 
-    queue_init(&queue, payload_buffer, 16U);
+    queue_init(&queue, payload_buffer, sizeof(Payload_t), 16U);
+    Encoder_Init();
+    Motor_Init();
+    PID_Init(&pid, target, KP, KI, KD, CONTROL_TICK_S, 0.0f, 1.0f);
+
+#if (FILTER_MODE == UNFILTERED_BASELINE)
+    EMA_Init(&ema, 1U, 4U);
+#elif (FILTER_MODE == EMA_IN_LOOP_FILTER_MODE)
+    EMA_Init(&ema_filt, 1U, 4U);
+#elif (FILTER_MODE == MEDIAN_EMA_IN_LOOP_FILTER_MODE)
+#error "Unimplemented MEDIAN_EMA_IN_LOOP_FILTER_MODE"
+#elif (FILTER_MODE == EMA_OUTSIDE_LOOP_FILTER_MODE)
+#error "Unimplemented EMA_OUTSIDE_LOOP_FILTER_MODE"
+#else
+#error "Unknown filter mode"
+#endif
 
     // set the EXTI15_10 a priority of 4
     NVIC->IPR[40] = ((uint8_t)MCP2515_INTERRUPT_PRIORITY_LEVEL << 4U);

@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include "ema.h"
 
-bool EMA_Init(EMA_t *ema, uint32_t k, uint32_t frac)
+bool EMA_Init(EMA_t *ema, uint8_t k, uint8_t frac)
 {
     if (ema == NULL || k < 1 || ((k + frac) > 30))
     {

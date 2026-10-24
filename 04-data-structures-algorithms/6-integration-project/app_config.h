@@ -4,8 +4,23 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* FILTER MODES */
+#define UNFILTERED_BASELINE 0U
+#define EMA_IN_LOOP_FILTER_MODE 1U
+#define MEDIAN_EMA_IN_LOOP_FILTER_MODE 2U
+#define EMA_OUTSIDE_LOOP_FILTER_MODE 3U
+
+// select active filter mode for the project
+#define FILTER_MODE EMA_IN_LOOP_FILTER_MODE
+
 #define MCP2515_INTERRUPT_PRIORITY_LEVEL 4U
 #define TIM2_INTERRUPT_PRIORITY_LEVEL 1U
+
+#define COUNTS_PER_REV 3840U // measured over 10 revolutions, matching 3840 counts/rev
+
+#define KP 0.03f
+#define KI 0.5f
+#define KD 0.0f
 
 typedef enum
 {
@@ -37,17 +52,12 @@ typedef struct
 
 typedef struct
 {
-    Payload_t *buffer;
-    volatile uint8_t head;
-    volatile uint8_t tail;
-    uint8_t max_size;
-} Queue_t;
-
-bool queue_init(Queue_t *queue, Payload_t *storage, uint8_t size);
-bool queue_push(Queue_t *queue, Payload_t message);
-bool queue_pop(Queue_t *queue, Payload_t *message);
-bool queue_is_empty(Queue_t *queue);
-bool queue_is_full(Queue_t *queue);
+    int32_t raw;
+    int32_t filtered;
+    int32_t setpoint;
+    int32_t PID_output;
+    uint32_t tick;
+} Logger_t;
 
 /* UART2 CONFIGURATION */
 #define UART_MODE_TX_ONLY 0U

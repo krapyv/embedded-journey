@@ -44,6 +44,7 @@
 - Extracted the Motor output in the separate reusable driver.
 
 **Evening:**
+- Continued refactoring the Motor Speed Control Loop for the Stage 1.
 
 **Problems encountered:**
 - (None today) etc
