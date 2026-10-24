@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-24
+
+**Morning:**
+- Finished building the breadboard circuit: the DC motor, MCP2515, lever shifter, CANable, UART-to-USB adapter, ST/LINK. Tested with multimeter and fixed some problems.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-23
 
 **Morning:**
