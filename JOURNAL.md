@@ -41,6 +41,7 @@
 - Continued to derive and design the Stage 2.
 
 **Evening:**
+- Wrote a Linkedin post about the logger struct and seqlock. Started cleaning the profile.
 
 **Problems encountered:**
 - (None today) etc
