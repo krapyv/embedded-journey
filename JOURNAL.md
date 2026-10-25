@@ -34,6 +34,12 @@
 **Morning:**
 - Finished implementing the Stage 1.
 
+**Afternoon:**
+- Started designing the Stage 2: BMP280 integration.
+- Wired the BMP280 into the breadboard circuit.
+- Integrated the BMP280 and I2C drivers into the Integrated project. 
+- Continued to derive and design the Stage 2.
+
 **Evening:**
 
 **Problems encountered:**

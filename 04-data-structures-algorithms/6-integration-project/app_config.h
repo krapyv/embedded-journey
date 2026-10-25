@@ -13,7 +13,7 @@
 // select active filter mode for the project
 #define FILTER_MODE EMA_IN_LOOP_FILTER_MODE
 
-#define MCP2515_INTERRUPT_PRIORITY_LEVEL 4U
+#define MCP2515_INTERRUPT_PRIORITY_LEVEL 8U
 #define TIM2_INTERRUPT_PRIORITY_LEVEL 1U
 
 #define COUNTS_PER_REV 3840U // measured over 10 revolutions, matching 3840 counts/rev
