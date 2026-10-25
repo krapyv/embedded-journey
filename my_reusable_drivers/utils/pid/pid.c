@@ -43,7 +43,7 @@ float PID_Update(PID_t *pid, float measured)
 
     float I = pid->Ki * pid->integral;
 
-    float derivative;
+    float derivative = 0.0;
     if (pid->hasPrev)
     {
         derivative = (measured - pid->prevMeasured) / pid->dt;

@@ -1,8 +1,7 @@
 #ifndef PID_H
 #define PID_H
 
-#define CONTROL_TICK_MS 15U                               // 15 ms
-#define CONTROL_TICK_S ((float)CONTROL_TICK_MS / 1000.0f) // 15 ms
+#include <stdbool.h>
 
 typedef struct
 {

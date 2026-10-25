@@ -8,6 +8,7 @@
 #define MOTOR_PWM_STEPS (MOTOR_TIMER_CLOCK / MOTOR_PWM_FREQ)
 
 void Motor_Init(void);
+void Motor_Disable(void);
 
 // u is in [-1, +1]
 // sign = direction, magnitude = duty, 0 = brake

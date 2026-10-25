@@ -55,11 +55,16 @@ uint32_t Motor_Duty_Direction(float u)
     // Magnitude
     // CCR[2] = (ARR + 1) * u
 
-    uint32_t CCR2 = (TIM4_ARR + 1) * abs_u + 0.5f;
+    uint32_t CCR3 = (TIM4_ARR + 1) * abs_u + 0.5f;
 
-    TIM4->CCR[2] = CCR2;
+    TIM4->CCR[2] = CCR3;
 
-    return CCR2;
+    return CCR3;
+}
+
+void Motor_Disable(void)
+{
+    GPIOB->BSRR = (1 << 30U); // turning the motor OFF
 }
 
 void Motor_Init(void)

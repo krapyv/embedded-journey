@@ -17,6 +17,10 @@
 #define TIM2_INTERRUPT_PRIORITY_LEVEL 1U
 
 #define COUNTS_PER_REV 3840U // measured over 10 revolutions, matching 3840 counts/rev
+#define TIMER_CLOCK 16000000U
+
+#define CONTROL_TICK_MS 15U                               // 15 ms
+#define CONTROL_TICK_S ((float)CONTROL_TICK_MS / 1000.0f) // 15 ms
 
 #define KP 0.03f
 #define KI 0.5f

@@ -34,6 +34,13 @@ volatile uint32_t tim2_counter = 0;
 static volatile uint32_t tim2_push_counter = 0;
 static volatile uint32_t can_push_counter = 0;
 
+static volatile uint32_t entry;
+static volatile uint32_t last_entry = 0;
+static volatile uint32_t period;
+static volatile uint32_t max_period = 0;
+static volatile uint32_t min_period = UINT32_MAX;
+static bool have_last = false;
+
 uint32_t can_counter = 0;
 uint32_t tick_counter = 0;
 
@@ -43,20 +50,19 @@ EMA_t ema;
 EMA_t ema_filt;
 PID_t pid;
 
-volatile uint16_t prev_count;
-
 volatile bool open_loop_duty = false;
 
 volatile float speed;
-volatile float K = 160; // measured at 6 V
 volatile float u = 0;
-volatile float target = 80;
 
 volatile float step_log[100];
 volatile uint8_t step_log_index; // 256 samples max
 volatile bool step_log_recording = false;
 
 volatile Logger_t logger;
+
+uint32_t last_seen = 0;
+bool logger_primed = false;
 
 void Override_EXTI15_10_IRQHandler(void)
 {
@@ -160,13 +166,45 @@ void Override_EXTI15_10_IRQHandler(void)
 
 void TIM2_IRQHandler(void)
 {
+    entry = DWT->CYCCNT;
+
+    if (have_last)
+    {
+        period = entry - last_entry;
+
+        if (period < min_period)
+        {
+            min_period = period;
+        }
+
+        if (period > max_period)
+        {
+            max_period = period;
+        }
+    }
+    last_entry = entry;
+    have_last = true;
+
+    previous_interrupt = entry;
+
     // clear an update interrupt flag, so the ISR won't re-enter forever
     TIM2->SR &= ~(1 << 0U);
 
-    // TIM2_counter++;
-    uint16_t current_cnt = TIM1->CNT;
+    int16_t delta = Encoder_ReadDelta();
 
-    int16_t delta = (uint16_t)(current_cnt - prev_count);
+    tim2_counter++;
+
+    Payload_t message = {
+        .payload.tick_count = tim2_counter,
+        .producer_type = Payload_Timer};
+
+    // second producer to the queue
+    if (!queue_push(&queue, &message))
+    {
+        tim2_push_counter++;
+    }
+
+    // TIM2_counter++;
     int32_t acc = EMA_Update(&ema_filt, delta);
 
     (void)acc;
@@ -203,10 +241,9 @@ void TIM2_IRQHandler(void)
     {
         u = PID_Update(&pid, speed);
     }
-    prev_count = current_cnt;
 
     logger.raw = delta;
-    logger.setpoint = (int32_t)target;
+    logger.setpoint = pid.target;
     logger.tick++;
 
     logger.PID_output = Motor_Duty_Direction(u);
@@ -217,6 +254,13 @@ void TIM2_IRQHandler(void)
     // {
     //     elapsed_ms = SysTick_GetTick() - SYSTICK_start;
     // }
+
+    next_interrupt = DWT->CYCCNT;
+    last_delta = next_interrupt - previous_interrupt;
+    if (last_delta > worst_delta)
+    {
+        worst_delta = last_delta;
+    }
 }
 
 void TIM2_init(void)
@@ -247,7 +291,7 @@ void TIM2_init(void)
     // HSI oscillator has by default 16MHz frequency
     // 1 ms = 240 000 ticks. then 15 ms = 15 * 16 000 = 240 000
     // ARR = 239 999 - since TIM2 has a 32-bit ADD register, it is ok
-    TIM2->ARR = 239999;
+    TIM2->ARR = (CONTROL_TICK_MS * (TIMER_CLOCK / 1000U) - 1U); // 0.015 * 16 000 000 - 1 = 239 999
 
     // make sure PSC is set to 0
     TIM2->PSC = 0;
@@ -258,19 +302,70 @@ void TIM2_init(void)
     // make sure there is no stale pending Update interrupt
     TIM2->SR &= ~(1UL << 0U);
 
-    // TIM2 Handler has the position 28 in the vector table
-    // the position 28 is the ISER0 bit 28
-    // set the TIM2 a priority of 8
+    // ------ NVIC config ------
+    // set priority to TIM2 (more urgent = smaller numerical value)
+    // the core implements only the top 4 bits, so << 4 is mandatory to get it right
     NVIC->IPR[28] = ((uint8_t)TIM2_INTERRUPT_PRIORITY_LEVEL << 4U);
 
+    // enable the NVIC for TIM2 (position 28 in the vector table)
     NVIC->ISER[0] = (1UL << 28U);
+    // ------ NVIC config ------
+
+    // enable Update interrupt
+    TIM2->DIER |= (1 << 0U);
 
     // enable counter
     TIM2->CR1 |= (1UL << 0U);
 }
 
-void main()
+void logger_snapshot()
 {
+    if (logger_primed && logger.tick == last_seen)
+    {
+        return; // discard duplicates
+    }
+    uint32_t seqlock_start;
+    Logger_t local_logger;
+    uint32_t tick_after_copy;
+
+    do
+    {
+        seqlock_start = logger.tick;
+
+        __COMPILER_BARRIER();
+        local_logger.raw = logger.raw;
+        local_logger.filtered = logger.filtered;
+        local_logger.setpoint = logger.setpoint;
+        local_logger.PID_output = logger.PID_output;
+        local_logger.tick = seqlock_start;
+        __COMPILER_BARRIER();
+
+        tick_after_copy = logger.tick;
+    } while (tick_after_copy != seqlock_start);
+
+    last_seen = tick_after_copy;
+
+    printf("%ld,%ld,%ld,%ld,%lu\n", local_logger.raw, local_logger.filtered, local_logger.setpoint, local_logger.PID_output, local_logger.tick);
+
+    logger_primed = true;
+}
+
+static void halt_init()
+{
+    Motor_Disable();
+    // failure branch
+    while (1)
+    {
+    }
+}
+
+void main(void)
+{
+    SCB->CPACR = (0xFU << 20U);
+
+    __DSB();
+    __ISB();
+
     // globally enable the DWT features
     DCB->DEMCR |= (1UL << 24U);
     // enable CYCNT
@@ -278,17 +373,36 @@ void main()
     MCP2515_Register_Callback(Override_EXTI15_10_IRQHandler);
 
     SysTick_Init(SYSTICK_FREQUENCY_16MHZ);
+    usart2_init();
     spi_init(SPI_BR_8);
-
-    queue_init(&queue, payload_buffer, sizeof(Payload_t), 16U);
     Encoder_Init();
+
     Motor_Init();
-    PID_Init(&pid, target, KP, KI, KD, CONTROL_TICK_S, 0.0f, 1.0f);
+
+    if (!queue_init(&queue, payload_buffer, sizeof(Payload_t), 16U))
+    {
+        printf("Queue init failed!\n");
+        halt_init();
+    }
+
+    if (!PID_Init(&pid, 80.0f, KP, KI, KD, CONTROL_TICK_S, 0.0f, 1.0f))
+    {
+        printf("PID init failed!\n");
+        halt_init();
+    }
 
 #if (FILTER_MODE == UNFILTERED_BASELINE)
-    EMA_Init(&ema, 1U, 4U);
+    if (!EMA_Init(&ema, 1U, 4U))
+    {
+        printf("Unfiltered EMA init failed!\n");
+        halt_init();
+    }
 #elif (FILTER_MODE == EMA_IN_LOOP_FILTER_MODE)
-    EMA_Init(&ema_filt, 1U, 4U);
+    if (!EMA_Init(&ema_filt, 1U, 4U))
+    {
+        printf("In the loop EMA init failed!\n");
+        halt_init();
+    }
 #elif (FILTER_MODE == MEDIAN_EMA_IN_LOOP_FILTER_MODE)
 #error "Unimplemented MEDIAN_EMA_IN_LOOP_FILTER_MODE"
 #elif (FILTER_MODE == EMA_OUTSIDE_LOOP_FILTER_MODE)
@@ -300,9 +414,22 @@ void main()
     // set the EXTI15_10 a priority of 4
     NVIC->IPR[40] = ((uint8_t)MCP2515_INTERRUPT_PRIORITY_LEVEL << 4U);
 
-    mcp2515_reset();
+    // enable the NVIC for EXTI15_10 (position 40 in the vector table)
+    // 40 / 32 = 1, 40 % 32 = 8
+    NVIC->ISER[1] = (1UL << 8U);
 
-    usart2_init();
+    // set priority to SysTick (less urgent = bigger numerical value)
+    // also implemented only the top 4 bits, so << 4 is mandatory as well
+    // bits 31:28
+
+    // clear the range
+    // 1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0xF
+    SCB->SHPR3 &= ~(0xFU << 28U);
+
+    // set to the priority of 2 (0x2)
+    SCB->SHPR3 |= (0x2 << 28U);
+
+    mcp2515_reset();
 
     uint8_t isSuccess;
 
@@ -348,37 +475,33 @@ void main()
 
     while (1)
     {
-        if (can_counter < 24000)
+        if (queue_pop(&queue, &message))
         {
-
-            if (queue_pop(&queue, &message))
+            if (message.producer_type == Payload_MCP2515)
             {
-                if (message.producer_type == Payload_MCP2515)
-                {
-                    can_counter++;
-                    //     // CAN frame has a 11-bit wide ID
-                    //     // SIDH contains bits 11:3, SIDL - bits 2:0 of that 11 bit ID
-                    //     // SIDH has all 8 bits with ID data, SIDL - bits 7:5
-                    //     uint16_t id = (message.payload.mcp2515_frame.SIDH << 3) | (message.payload.mcp2515_frame.SIDL >> 5U);
+                can_counter++;
+                //     // CAN frame has a 11-bit wide ID
+                //     // SIDH contains bits 11:3, SIDL - bits 2:0 of that 11 bit ID
+                //     // SIDH has all 8 bits with ID data, SIDL - bits 7:5
+                //     uint16_t id = (message.payload.mcp2515_frame.SIDH << 3) | (message.payload.mcp2515_frame.SIDL >> 5U);
 
-                    //     // DLC register has DLC bits 3:0
-                    //     // 1111 = 8 + 4 + 2 + 1 = 15 = 0xF
-                    //     uint8_t dlc = message.payload.mcp2515_frame.DLC & 0xF;
+                //     // DLC register has DLC bits 3:0
+                //     // 1111 = 8 + 4 + 2 + 1 = 15 = 0xF
+                //     uint8_t dlc = message.payload.mcp2515_frame.DLC & 0xF;
 
-                    //     printf("ID: %u | DLC: %u | Payload: ", id, dlc);
+                //     printf("ID: %u | DLC: %u | Payload: ", id, dlc);
 
-                    //     for (uint8_t i = 0; i < dlc; i++)
-                    //     {
-                    //         // printf("%02x ", message.payload.mcp2515_frame.data[i]);
-                    //     }
+                //     for (uint8_t i = 0; i < dlc; i++)
+                //     {
+                //         // printf("%02x ", message.payload.mcp2515_frame.data[i]);
+                //     }
 
-                    //     printf("\r\n");
-                }
-                else
-                {
-                    tick_counter++;
-                    //     // printf("Tick counter: %u\r\n", message.payload.tick_count);
-                }
+                //     printf("\r\n");
+            }
+            else
+            {
+                tick_counter++;
+                //     // printf("Tick counter: %u\r\n", message.payload.tick_count);
             }
         }
     }

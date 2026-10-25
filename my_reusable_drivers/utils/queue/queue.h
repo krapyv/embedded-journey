@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <stdint.h>
+#include <stdbool.h>
 
 typedef struct
 {
@@ -12,7 +12,6 @@ typedef struct
     uint16_t mask;          // capacity - 1
     volatile uint16_t head; // written only by the producer
     volatile uint16_t tail; // written only by the consumer
-    uint8_t max_size;
 } Queue_t;
 
 bool queue_init(Queue_t *queue, void *storage, size_t item_size, uint16_t capacity);
