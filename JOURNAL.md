@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-26
+
+**Morning:**
+- Continued implementing the Stage 2: measured the I2C EV interrupt window values, redefined the scope of the project, almost finished the Stage 2.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-25
 
 **Morning:**
