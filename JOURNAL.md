@@ -35,6 +35,7 @@
 - Continued implementing the Stage 2: measured the I2C EV interrupt window values, redefined the scope of the project, almost finished the Stage 2.
 
 **Evening:**
+- Continued designing the Stage 2: Missed-STOP timeout ("no bus hangs").
 
 **Problems encountered:**
 - (None today) etc
