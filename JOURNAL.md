@@ -35,6 +35,7 @@
 - Finished implementing the Stage 2.
 
 **Evening:**
+- Finished debugging and testing the Stage 2 and its fault recovery/fault detection.
 
 **Problems encountered:**
 - (None today) etc
