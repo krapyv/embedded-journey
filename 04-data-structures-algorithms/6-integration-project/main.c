@@ -69,6 +69,8 @@ volatile Logger_t logger;
 uint32_t last_seen = 0;
 bool logger_primed = false;
 
+uint32_t cumulative_error_counter = 0;
+
 void Override_EXTI15_10_IRQHandler(void)
 {
     can_previous_interrupt = DWT->CYCCNT;
@@ -364,6 +366,15 @@ static void halt_init()
     }
 }
 
+void enter_error(BMP280_HandleTypeDef *hbmp, BMP280_State_t state)
+{
+    if ((state != BMP280_STATE_ERROR) && (state != BMP280_STATE_FAULT))
+        return;
+
+    cumulative_error_counter++;
+    hbmp->state = state;
+}
+
 void main(void)
 {
     SCB->CPACR = (0xFU << 20U);
@@ -543,20 +554,28 @@ void main(void)
 
         I2C_Process();
 
+        BMP280_Status_t init_res;
         switch (hbmp.state)
         {
         case BMP280_STATE_IDLE:
             break;
         case BMP280_STATE_INIT:
-            if (BMP280_Init(&hbmp, meas) != BMP280_OK)
+            init_res = BMP280_Init(&hbmp, meas);
+
+            if (init_res == BMP280_ERR_CHIP_ID)
             {
-                hbmp.state = BMP280_STATE_ERROR;
+                // wrong id = wrong device
+                enter_error(&hbmp, BMP280_STATE_FAULT);
+            }
+            else if (init_res != BMP280_OK)
+            {
+                enter_error(&hbmp, BMP280_STATE_ERROR);
             }
             break;
         case BMP280_STATE_READ_CALIBRATION:
             if (BMP280_ReadCalibration(&hbmp) != BMP280_OK)
             {
-                hbmp.state = BMP280_STATE_ERROR;
+                enter_error(&hbmp, BMP280_STATE_ERROR);
             }
             break;
         case BMP280_STATE_RECONSTRUCT_CALIBRATION:
@@ -565,19 +584,19 @@ void main(void)
         case BMP280_STATE_CTRL_MEAS:
             if (BMP280_WriteCtrlMeas(&hbmp) != BMP280_OK)
             {
-                hbmp.state = BMP280_STATE_ERROR;
+                enter_error(&hbmp, BMP280_STATE_ERROR);
             }
             break;
         case BMP280_STATE_MEASURING:
             if (BMP280_Measuring(&hbmp) != BMP280_OK)
             {
-                hbmp.state = BMP280_STATE_ERROR;
+                enter_error(&hbmp, BMP280_STATE_ERROR);
             }
             break;
         case BMP280_STATE_READ_MEASURAMENTS:
             if (BMP280_ReadMeasurements(&hbmp) != BMP280_OK)
             {
-                hbmp.state = BMP280_STATE_ERROR;
+                enter_error(&hbmp, BMP280_STATE_ERROR);
             }
             break;
         case BMP280_STATE_RECONSTRUCT_MEASURAMENTS:
@@ -612,20 +631,25 @@ void main(void)
             {
                 hbmp.retries++;
 
-                // begin a transaction from the beginning (Calibration is read once at the very beginning, so omit the state)
-                hbmp.state = BMP280_STATE_CTRL_MEAS;
+                if (hbmp.isInitialized == 0)
+                {
+                    hbmp.state = BMP280_STATE_INIT;
+                }
+                else
+                {
+                    // begin a transaction from the beginning (Calibration is read once at the very beginning, so omit the state)
+                    hbmp.state = BMP280_STATE_CTRL_MEAS;
+                }
             }
 
             break;
         case BMP280_STATE_FAULT:
-            printf("The BMP280 sensor experienced hard fault!");
-            fflush(stdout);
+            printf("The BMP280 sensor experienced hard fault!\n");
+            hbmp.state = BMP280_STATE_DEAD;
+            break;
 
-            // fault branch
-            while (1)
-            {
-            }
-            // break;
+        case BMP280_STATE_DEAD:
+            break;
         }
     }
 }
