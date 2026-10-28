@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-28
+
+**Morning:**
+- Debugged BMP280 interaction with CAN load 450 frames per second. Found the electrical hardware caused issue of dropped frames. The Stage 2 is done.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-27
 
 **Morning:**

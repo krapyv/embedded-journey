@@ -70,6 +70,8 @@ uint32_t last_seen = 0;
 bool logger_primed = false;
 
 uint32_t cumulative_error_counter = 0;
+uint32_t error_counters[13];
+BMP280_Status_t last_error_code;
 
 void Override_EXTI15_10_IRQHandler(void)
 {
@@ -366,12 +368,14 @@ static void halt_init()
     }
 }
 
-void enter_error(BMP280_HandleTypeDef *hbmp, BMP280_State_t state)
+void enter_error(BMP280_HandleTypeDef *hbmp, BMP280_State_t state, BMP280_State_t current_state, BMP280_Status_t status_code)
 {
     if ((state != BMP280_STATE_ERROR) && (state != BMP280_STATE_FAULT))
         return;
 
     cumulative_error_counter++;
+    error_counters[current_state]++;
+    last_error_code = status_code;
     hbmp->state = state;
 }
 
@@ -554,49 +558,53 @@ void main(void)
 
         I2C_Process();
 
-        BMP280_Status_t init_res;
+        BMP280_Status_t status_res;
         switch (hbmp.state)
         {
         case BMP280_STATE_IDLE:
             break;
         case BMP280_STATE_INIT:
-            init_res = BMP280_Init(&hbmp, meas);
+            status_res = BMP280_Init(&hbmp, meas);
 
-            if (init_res == BMP280_ERR_CHIP_ID)
+            if (status_res == BMP280_ERR_CHIP_ID)
             {
                 // wrong id = wrong device
-                enter_error(&hbmp, BMP280_STATE_FAULT);
+                enter_error(&hbmp, BMP280_STATE_FAULT, hbmp.state, status_res);
             }
-            else if (init_res != BMP280_OK)
+            else if (status_res != BMP280_OK)
             {
-                enter_error(&hbmp, BMP280_STATE_ERROR);
+                enter_error(&hbmp, BMP280_STATE_ERROR, hbmp.state, status_res);
             }
             break;
         case BMP280_STATE_READ_CALIBRATION:
-            if (BMP280_ReadCalibration(&hbmp) != BMP280_OK)
+            status_res = BMP280_ReadCalibration(&hbmp);
+            if (status_res != BMP280_OK)
             {
-                enter_error(&hbmp, BMP280_STATE_ERROR);
+                enter_error(&hbmp, BMP280_STATE_ERROR, hbmp.state, status_res);
             }
             break;
         case BMP280_STATE_RECONSTRUCT_CALIBRATION:
             BMP280_ReconstructCalibration(&hbmp);
             break;
         case BMP280_STATE_CTRL_MEAS:
-            if (BMP280_WriteCtrlMeas(&hbmp) != BMP280_OK)
+            status_res = BMP280_WriteCtrlMeas(&hbmp);
+            if (status_res != BMP280_OK)
             {
-                enter_error(&hbmp, BMP280_STATE_ERROR);
+                enter_error(&hbmp, BMP280_STATE_ERROR, hbmp.state, status_res);
             }
             break;
         case BMP280_STATE_MEASURING:
-            if (BMP280_Measuring(&hbmp) != BMP280_OK)
+            status_res = BMP280_Measuring(&hbmp);
+            if (status_res != BMP280_OK)
             {
-                enter_error(&hbmp, BMP280_STATE_ERROR);
+                enter_error(&hbmp, BMP280_STATE_ERROR, hbmp.state, status_res);
             }
             break;
         case BMP280_STATE_READ_MEASURAMENTS:
-            if (BMP280_ReadMeasurements(&hbmp) != BMP280_OK)
+            status_res = BMP280_ReadMeasurements(&hbmp);
+            if (status_res != BMP280_OK)
             {
-                enter_error(&hbmp, BMP280_STATE_ERROR);
+                enter_error(&hbmp, BMP280_STATE_ERROR, hbmp.state, status_res);
             }
             break;
         case BMP280_STATE_RECONSTRUCT_MEASURAMENTS:
