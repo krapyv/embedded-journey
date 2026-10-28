@@ -379,6 +379,14 @@ void enter_error(BMP280_HandleTypeDef *hbmp, BMP280_State_t state, BMP280_State_
     hbmp->state = state;
 }
 
+void big_endian_16(uint16_t value)
+{
+}
+
+void big_endian_32(uint32_t value)
+{
+}
+
 void main(void)
 {
     SCB->CPACR = (0xFU << 20U);

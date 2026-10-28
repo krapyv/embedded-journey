@@ -35,6 +35,8 @@
 - Debugged BMP280 interaction with CAN load 450 frames per second. Found the electrical hardware caused issue of dropped frames. The Stage 2 is done.
 
 **Evening:**
+- Started deriving the Stage 3: CAN and logger structs, their offsets.
+- Started implementing the big-endian 16 and 32 bits functions.
 
 **Problems encountered:**
 - (None today) etc
