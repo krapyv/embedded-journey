@@ -11,6 +11,7 @@
 #include "../../my_reusable_drivers/utils/ema/ema.h"
 #include "../../my_reusable_drivers/utils/queue/queue.h"
 #include "../../my_reusable_drivers/utils/pid/pid.h"
+#include "../../my_reusable_drivers/utils/crc16/crc16.h"
 #include "../../my_reusable_drivers/periph/encoder/encoder.h"
 #include "../../my_reusable_drivers/periph/motor/motor.h"
 
@@ -73,6 +74,10 @@ uint32_t cumulative_error_counter = 0;
 uint32_t error_counters[13];
 BMP280_Status_t last_error_code;
 
+uint16_t sync = 0xAAAA;
+
+uint8_t sensor_buf[22];
+
 void Override_EXTI15_10_IRQHandler(void)
 {
     can_previous_interrupt = DWT->CYCCNT;
@@ -126,6 +131,7 @@ void Override_EXTI15_10_IRQHandler(void)
             memcpy(frame.data, can_int_rx0_payload, 8 * sizeof(uint8_t));
 
             message.payload.mcp2515_frame = frame;
+            message.timestamp = SysTick_GetTick();
             uint8_t current_basepri = __get_basepri();
 
             // blocks priority numbers >= 1
@@ -149,6 +155,7 @@ void Override_EXTI15_10_IRQHandler(void)
             memcpy(frame.data, can_int_rx1_payload, 8 * sizeof(uint8_t));
 
             message.payload.mcp2515_frame = frame;
+            message.timestamp = SysTick_GetTick();
 
             uint8_t current_basepri = __get_basepri();
 
@@ -205,7 +212,8 @@ void TIM2_IRQHandler(void)
 
     Payload_t message = {
         .payload.tick_count = tim2_counter,
-        .producer_type = Payload_Timer};
+        .producer_type = Payload_Timer,
+        .timestamp = SysTick_GetTick()};
 
     // second producer to the queue
     if (!queue_push(&queue, &message))
@@ -379,12 +387,41 @@ void enter_error(BMP280_HandleTypeDef *hbmp, BMP280_State_t state, BMP280_State_
     hbmp->state = state;
 }
 
-void big_endian_16(uint16_t value)
+void put_be16(uint8_t *buf, uint32_t k, uint16_t value)
 {
+    uint8_t high_byte = ((uint8_t)value >> 8);
+    uint8_t low_byte = (value & 0xFF);
+
+    buf[k] = high_byte;
+    buf[k + 1] = low_byte;
 }
 
-void big_endian_32(uint32_t value)
+void put_be32(uint8_t *buf, uint32_t k, uint32_t value)
 {
+    uint8_t msb = (value >> 24);
+    uint8_t xmsb = (value >> 16) & 0xFF;
+    uint8_t xlsb = (value >> 8) & 0xFF;
+    uint8_t lsb = (value & 0xFF);
+
+    buf[k] = msb;
+    buf[k + 1] = xmsb;
+    buf[k + 2] = xlsb;
+    buf[k + 3] = lsb;
+}
+
+void sensor_fill(uint8_t *sensor_buf, uint32_t measure_tick, int32_t temp_value, uint32_t press_value, int32_t fast_channel, uint8_t status)
+{
+    put_be16(sensor_buf, 0U, RECORD_SYNC);
+    sensor_buf[2] = RECORD_TYPE_SENSOR;
+    put_be32(sensor_buf, 3U, measure_tick);
+    put_be32(sensor_buf, 7U, (uint32_t)temp_value);
+    put_be32(sensor_buf, 11U, press_value);
+    put_be32(sensor_buf, 15U, (uint32_t)fast_channel);
+    sensor_buf[19] = status;
+
+    uint16_t covered_crc = crc16_table(&sensor_buf[2], 18U);
+
+    put_be16(sensor_buf, 20U, covered_crc);
 }
 
 void main(void)

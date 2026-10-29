@@ -26,6 +26,13 @@
 #define KI 0.5f
 #define KD 0.0f
 
+#define RECORD_SYNC 0xAA55
+#define RECORD_TYPE_CAN 0x01
+#define RECORD_TYPE_SENSOR 0x02
+#define RECORD_STATUS_FRESH 0x01
+#define RECORD_STATUS_RETRYING 0x02
+#define RECORD_STATUS_DEAD 0x03
+
 typedef enum
 {
     Payload_Timer = 0,
@@ -52,6 +59,7 @@ typedef struct
 {
     union Payload_Messages payload;
     Payload_ProducerTypes_t producer_type;
+    uint32_t timestamp;
 } Payload_t;
 
 typedef struct

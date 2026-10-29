@@ -29,6 +29,22 @@
 
 ----------------------------------------------
 
+# 2026-10-29
+
+**Morning:**
+- Implemented the big-endian helpers.
+- Implemented the sensor fill function.
+- Extracted the CRC16 driver to the separate reusable driver.
+- Integrated the CRC16 driver to the Integration project.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-28
 
 **Morning:**
