@@ -38,6 +38,7 @@
 - Integrated the CRC16 driver to the Integration project.
 
 **Evening:**
+- Tested the CRC and the Sensor fill in the Integration project.
 
 **Problems encountered:**
 - (None today) etc

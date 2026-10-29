@@ -74,9 +74,9 @@ uint32_t cumulative_error_counter = 0;
 uint32_t error_counters[13];
 BMP280_Status_t last_error_code;
 
-uint16_t sync = 0xAAAA;
-
 uint8_t sensor_buf[22];
+
+volatile uint16_t crc_res;
 
 void Override_EXTI15_10_IRQHandler(void)
 {
@@ -389,7 +389,7 @@ void enter_error(BMP280_HandleTypeDef *hbmp, BMP280_State_t state, BMP280_State_
 
 void put_be16(uint8_t *buf, uint32_t k, uint16_t value)
 {
-    uint8_t high_byte = ((uint8_t)value >> 8);
+    uint8_t high_byte = ((uint16_t)value >> 8);
     uint8_t low_byte = (value & 0xFF);
 
     buf[k] = high_byte;
@@ -426,6 +426,14 @@ void sensor_fill(uint8_t *sensor_buf, uint32_t measure_tick, int32_t temp_value,
 
 void main(void)
 {
+#if (RECORD_MODE == RECORD_SELF)
+    crc_res = crc16_table("123456789", 9U);
+    sensor_fill(sensor_buf, 0x01020304, -500, 1024U, 400, 0x01U);
+
+    while (1)
+    {
+    }
+#endif
     SCB->CPACR = (0xFU << 20U);
 
     __DSB();

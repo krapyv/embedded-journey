@@ -26,7 +26,7 @@
 #define KI 0.5f
 #define KD 0.0f
 
-#define RECORD_SYNC 0xAA55
+#define RECORD_SYNC (uint32_t)0xAA55
 #define RECORD_TYPE_CAN 0x01
 #define RECORD_TYPE_SENSOR 0x02
 #define RECORD_STATUS_FRESH 0x01
@@ -78,4 +78,8 @@ typedef struct
 
 // select active mode for the project
 #define TARGET_UART_MODE UART_MODE_TX_ONLY
+
+#define RECORD_SELT 0U
+
+#define RECORD_MODE RECORD_SELT
 #endif // APP_CONFIG_H
