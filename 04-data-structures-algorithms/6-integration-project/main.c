@@ -489,7 +489,7 @@ void main(void)
 
     // enable the NVIC for EXTI15_10 (position 40 in the vector table)
     // 40 / 32 = 1, 40 % 32 = 8
-    NVIC->ISER[1] = (1UL << 8U);
+    // NVIC->ISER[1] = (1UL << 8U);
 
     // set priority to SysTick (less urgent = bigger numerical value)
     // also implemented only the top 4 bits, so << 4 is mandatory as well
@@ -523,6 +523,7 @@ void main(void)
 
     mcp2515_init();
 
+    // NVIC->ICER[1] = (1UL << 8U);
     // enable interrupts via MCP2515 CANINTE register
     // bit 5 ERRIE, bit 1 RX1IE, bit 0 RX0IE
 

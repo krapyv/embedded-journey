@@ -79,7 +79,8 @@ typedef struct
 // select active mode for the project
 #define TARGET_UART_MODE UART_MODE_TX_ONLY
 
-#define RECORD_SELT 0U
+#define RECORD_SELF 0U
+#define RECORD_NORMAL 01
 
-#define RECORD_MODE RECORD_SELT
+#define RECORD_MODE RECORD_NORMAL
 #endif // APP_CONFIG_H

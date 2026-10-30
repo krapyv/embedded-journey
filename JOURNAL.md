@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 202x-xx-xx
+
+**Morning:**
+- Wanted to write a post on Linkedin, but found the bug with failed BMP280 transactions under the CAN load. Debugged it. Fixed it.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+
 # 2026-10-29
 
 **Morning:**
