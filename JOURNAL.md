@@ -40,6 +40,7 @@
 - Implemented the USART TX ISR path. Updated the Ring Buffer driver.
 
 **Evening:**
+- Finished and tested the Stage 3.
 
 **Problems encountered:**
 - (None today) etc

@@ -8,6 +8,7 @@
 #include "mcp2515.h"
 #include "i2c.h"
 #include "bmp280.h"
+#include "uart.h"
 #include "../../my_reusable_drivers/utils/ema/ema.h"
 #include "../../my_reusable_drivers/utils/queue/queue.h"
 #include "../../my_reusable_drivers/utils/pid/pid.h"
@@ -418,6 +419,8 @@ void sensor_fill(uint8_t *sensor_buf, uint32_t measure_tick, int32_t temp_value,
     put_be32(sensor_buf, 7U, (uint32_t)temp_value);
     put_be32(sensor_buf, 11U, press_value);
     put_be32(sensor_buf, 15U, (uint32_t)fast_channel);
+
+    // 0x01 - fresh, 0x02 - retrying, 0x03 - dead
     sensor_buf[19] = status;
 
     uint16_t covered_crc = crc16_table(&sensor_buf[2], 18U);
@@ -517,6 +520,9 @@ void main(void)
     // set the EXTI15_10 a priority of 8
     NVIC->IPR[40] = ((uint8_t)MCP2515_INTERRUPT_PRIORITY_LEVEL << 4U);
 
+    // set the USART2 to a priority of 9
+    NVIC->IPR[38] = ((uint8_t)USART_INTERRUPT_PRIORITY_LEVEL << 4U);
+
     // enable the NVIC for EXTI15_10 (position 40 in the vector table)
     // 40 / 32 = 1, 40 % 32 = 8
     // NVIC->ISER[1] = (1UL << 8U);
@@ -609,34 +615,50 @@ void main(void)
 
     while (1)
     {
-        logger_snapshot();
         if (queue_pop(&queue, &message))
         {
             if (message.producer_type == Payload_MCP2515)
             {
                 can_counter++;
-                //     // CAN frame has a 11-bit wide ID
-                //     // SIDH contains bits 11:3, SIDL - bits 2:0 of that 11 bit ID
-                //     // SIDH has all 8 bits with ID data, SIDL - bits 7:5
-                //     uint16_t id = (message.payload.mcp2515_frame.SIDH << 3) | (message.payload.mcp2515_frame.SIDL >> 5U);
+                // CAN frame has a 11-bit wide ID
+                // SIDH contains bits 11:3, SIDL - bits 2:0 of that 11 bit ID
+                // SIDH has all 8 bits with ID data, SIDL - bits 7:5
+                uint16_t id = (message.payload.mcp2515_frame.SIDH << 3) | (message.payload.mcp2515_frame.SIDL >> 5U);
 
-                //     // DLC register has DLC bits 3:0
-                //     // 1111 = 8 + 4 + 2 + 1 = 15 = 0xF
-                //     uint8_t dlc = message.payload.mcp2515_frame.DLC & 0xF;
+                // DLC register has DLC bits 3:0
+                // 1111 = 8 + 4 + 2 + 1 = 15 = 0xF
+                uint8_t dlc = message.payload.mcp2515_frame.DLC & 0xF;
 
-                //     printf("ID: %u | DLC: %u | Payload: ", id, dlc);
+                uint32_t timestamp = message.timestamp;
 
-                //     for (uint8_t i = 0; i < dlc; i++)
-                //     {
-                //         // printf("%02x ", message.payload.mcp2515_frame.data[i]);
-                //     }
+                can_fill(can_buf, timestamp, id, dlc, message.payload.mcp2515_frame.data);
 
-                //     printf("\r\n");
+                usart2_tx_write(can_buf, 20U);
             }
             else
             {
                 tick_counter++;
-                //     // printf("Tick counter: %u\r\n", message.payload.tick_count);
+
+                if (tick_counter % 5 == 0)
+                {
+                    uint8_t status;
+
+                    if ((hbmp.state == BMP280_STATE_DEAD) || (hbmp.state == BMP280_STATE_FAULT))
+                    {
+                        status = RECORD_STATUS_DEAD; // dead
+                    }
+                    else if ((hbmp.state == BMP280_STATE_ERROR) || (hbmp.measure_tick == 0))
+                    {
+                        status = RECORD_STATUS_RETRYING; // retrying
+                    }
+                    else
+                    {
+                        status = RECORD_STATUS_FRESH; // fresh
+                    }
+                    sensor_fill(sensor_buf, hbmp.measure_tick, hbmp.temp_value, hbmp.press_value, logger.filtered, status);
+
+                    usart2_tx_write(sensor_buf, 22U);
+                }
             }
         }
 

@@ -13,8 +13,9 @@
 // select active filter mode for the project
 #define FILTER_MODE EMA_IN_LOOP_FILTER_MODE
 
-#define MCP2515_INTERRUPT_PRIORITY_LEVEL 8U
 #define TIM2_INTERRUPT_PRIORITY_LEVEL 1U
+#define MCP2515_INTERRUPT_PRIORITY_LEVEL 8U
+#define USART_INTERRUPT_PRIORITY_LEVEL 9U
 
 #define COUNTS_PER_REV 3840U // measured over 10 revolutions, matching 3840 counts/rev
 #define TIMER_CLOCK 16000000U
@@ -26,7 +27,7 @@
 #define KI 0.5f
 #define KD 0.0f
 
-#define RECORD_SYNC (uint32_t)0xAA55
+#define RECORD_SYNC (uint16_t)0xAA55
 #define RECORD_TYPE_CAN 0x01
 #define RECORD_TYPE_SENSOR 0x02
 #define RECORD_STATUS_FRESH 0x01
@@ -75,15 +76,21 @@ typedef struct
 #define UART_MODE_TX_ONLY 0U
 #define UART_MODE_RX_ONLY 1U
 #define UART_MODE_TX_RX 2U
+#define UART_MODE_TX_ISR 3U
 
 // select active mode for the project
-#define TARGET_UART_MODE UART_MODE_TX_ONLY
+#define TARGET_UART_MODE UART_MODE_TX_ISR
 
 #define RECORD_SELF 0U
 #define RECORD_NORMAL 01
 
-#define RECORD_MODE RECORD_SELF
+#define RECORD_MODE RECORD_NORMAL
 
 #define UART_TX_BUFFER_SIZE 512U
+
+// Record status
+#define RECORD_STATUS_FRESH 0x01
+#define RECORD_STATUS_RETRYING 0x02
+#define RECORD_STATUS_DEAD 0X03
 
 #endif // APP_CONFIG_H
