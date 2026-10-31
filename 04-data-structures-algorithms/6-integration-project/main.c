@@ -363,7 +363,7 @@ void logger_snapshot()
 
     last_seen = tick_after_copy;
 
-    printf("%ld,%ld,%ld,%ld,%lu\n", local_logger.raw, local_logger.filtered, local_logger.setpoint, local_logger.PID_output, local_logger.tick);
+    // printf("%ld,%ld,%ld,%ld,%lu\n", local_logger.raw, local_logger.filtered, local_logger.setpoint, local_logger.PID_output, local_logger.tick);
 
     logger_primed = true;
 }
@@ -488,26 +488,22 @@ void main(void)
 
     if (!queue_init(&queue, payload_buffer, sizeof(Payload_t), 16U))
     {
-        printf("Queue init failed!\n");
         halt_init();
     }
 
     if (!PID_Init(&pid, 80.0f, KP, KI, KD, CONTROL_TICK_S, 0.0f, 1.0f))
     {
-        printf("PID init failed!\n");
         halt_init();
     }
 
 #if (FILTER_MODE == UNFILTERED_BASELINE)
     if (!EMA_Init(&ema, 1U, 4U))
     {
-        printf("Unfiltered EMA init failed!\n");
         halt_init();
     }
 #elif (FILTER_MODE == EMA_IN_LOOP_FILTER_MODE)
     if (!EMA_Init(&ema_filt, 1U, 4U))
     {
-        printf("In the loop EMA init failed!\n");
         halt_init();
     }
 #elif (FILTER_MODE == MEDIAN_EMA_IN_LOOP_FILTER_MODE)
@@ -740,7 +736,6 @@ void main(void)
 
             break;
         case BMP280_STATE_FAULT:
-            printf("The BMP280 sensor experienced hard fault!\n");
             hbmp.state = BMP280_STATE_DEAD;
             break;
 

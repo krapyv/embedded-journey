@@ -83,4 +83,7 @@ typedef struct
 #define RECORD_NORMAL 01
 
 #define RECORD_MODE RECORD_SELF
+
+#define UART_TX_BUFFER_SIZE 512U
+
 #endif // APP_CONFIG_H

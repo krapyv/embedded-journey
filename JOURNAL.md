@@ -36,6 +36,9 @@
 - Continued implementing the Stage 3: CAN fill function.
 - Continued deriving and implementing the USART and the TX ring.
 
+**Afternoon:**
+- Implemented the USART TX ISR path. Updated the Ring Buffer driver.
+
 **Evening:**
 
 **Problems encountered:**
