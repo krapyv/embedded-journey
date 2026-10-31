@@ -75,6 +75,7 @@ uint32_t error_counters[13];
 BMP280_Status_t last_error_code;
 
 uint8_t sensor_buf[22];
+uint8_t can_buf[20];
 
 volatile uint16_t crc_res;
 
@@ -424,11 +425,44 @@ void sensor_fill(uint8_t *sensor_buf, uint32_t measure_tick, int32_t temp_value,
     put_be16(sensor_buf, 20U, covered_crc);
 }
 
+void can_fill(uint8_t *can_buf, uint32_t timestamp, uint16_t id, uint8_t dlc, const uint8_t *data)
+{
+    put_be16(can_buf, 0U, RECORD_SYNC);
+    can_buf[2] = RECORD_TYPE_CAN;
+    put_be32(can_buf, 3U, timestamp);
+    put_be16(can_buf, 7U, (id & 0x7FF));
+
+    // DLC > 8 means 8 data bytes
+    uint8_t masked_dlc = dlc & 0xF;
+    can_buf[9] = masked_dlc;
+
+    uint8_t can_idx = 10;
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        if (i < masked_dlc)
+        {
+            can_buf[can_idx] = data[i];
+        }
+        else
+        {
+            can_buf[can_idx] = 0x0;
+        }
+
+        can_idx++;
+    }
+
+    uint16_t covered_crc = crc16_table(&can_buf[2], 16U);
+    put_be16(can_buf, 18U, covered_crc);
+}
+
 void main(void)
 {
 #if (RECORD_MODE == RECORD_SELF)
     crc_res = crc16_table("123456789", 9U);
     sensor_fill(sensor_buf, 0x01020304, -500, 1024U, 400, 0x01U);
+
+    uint8_t data[8] = {0xDE, 0xAD, 0xBE};
+    can_fill(can_buf, 0x01020304, 0x123, 0x3, data);
 
     while (1)
     {

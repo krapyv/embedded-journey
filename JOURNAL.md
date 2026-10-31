@@ -33,6 +33,8 @@
 
 **Morning:**
 - Wrote a Linkedin post about the I2C SR1 |= ACK bug in the Integration project.
+- Continued implementing the Stage 3: CAN fill function.
+- Continued deriving and implementing the USART and the TX ring.
 
 **Evening:**
 

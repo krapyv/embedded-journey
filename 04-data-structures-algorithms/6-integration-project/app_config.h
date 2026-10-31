@@ -82,5 +82,5 @@ typedef struct
 #define RECORD_SELF 0U
 #define RECORD_NORMAL 01
 
-#define RECORD_MODE RECORD_NORMAL
+#define RECORD_MODE RECORD_SELF
 #endif // APP_CONFIG_H
