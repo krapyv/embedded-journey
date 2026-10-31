@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-10-31
+
+**Morning:**
+- Wrote a Linkedin post about the I2C SR1 |= ACK bug in the Integration project.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-30
 
 **Morning:**
