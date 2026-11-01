@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-01
+
+**Morning:**
+- Finished the Stage 4 and 5. Made the profiling table.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-10-31
 
 **Morning:**

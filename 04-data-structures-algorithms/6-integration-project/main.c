@@ -34,6 +34,11 @@ static volatile uint32_t can_next_interrupt;
 static volatile uint32_t can_last_delta;
 static volatile uint32_t can_worst_delta;
 
+static volatile uint32_t can_fill_worst_delta;
+static volatile uint32_t sensor_fill_worst_delta;
+static volatile uint32_t can_fill_minimal_worst_delta = UINT32_MAX;
+static volatile uint32_t sensor_fill_minimal_worst_delta = UINT32_MAX;
+
 volatile uint8_t interrupts_count = 0;
 
 volatile uint32_t tim2_counter = 0;
@@ -413,6 +418,8 @@ void put_be32(uint8_t *buf, uint32_t k, uint32_t value)
 
 void sensor_fill(uint8_t *sensor_buf, uint32_t measure_tick, int32_t temp_value, uint32_t press_value, int32_t fast_channel, uint8_t status)
 {
+    uint32_t start = DWT->CYCCNT;
+
     put_be16(sensor_buf, 0U, RECORD_SYNC);
     sensor_buf[2] = RECORD_TYPE_SENSOR;
     put_be32(sensor_buf, 3U, measure_tick);
@@ -426,10 +433,23 @@ void sensor_fill(uint8_t *sensor_buf, uint32_t measure_tick, int32_t temp_value,
     uint16_t covered_crc = crc16_table(&sensor_buf[2], 18U);
 
     put_be16(sensor_buf, 20U, covered_crc);
+
+    uint32_t end = DWT->CYCCNT;
+
+    if ((end - start) > sensor_fill_worst_delta)
+    {
+        sensor_fill_worst_delta = end - start;
+    }
+    if ((end - start) < sensor_fill_minimal_worst_delta)
+    {
+        sensor_fill_minimal_worst_delta = end - start;
+    }
 }
 
 void can_fill(uint8_t *can_buf, uint32_t timestamp, uint16_t id, uint8_t dlc, const uint8_t *data)
 {
+    uint32_t start = DWT->CYCCNT;
+
     put_be16(can_buf, 0U, RECORD_SYNC);
     can_buf[2] = RECORD_TYPE_CAN;
     put_be32(can_buf, 3U, timestamp);
@@ -456,6 +476,17 @@ void can_fill(uint8_t *can_buf, uint32_t timestamp, uint16_t id, uint8_t dlc, co
 
     uint16_t covered_crc = crc16_table(&can_buf[2], 16U);
     put_be16(can_buf, 18U, covered_crc);
+
+    uint32_t end = DWT->CYCCNT;
+
+    if ((end - start) > can_fill_worst_delta)
+    {
+        can_fill_worst_delta = end - start;
+    }
+    if ((end - start) < can_fill_minimal_worst_delta)
+    {
+        can_fill_minimal_worst_delta = end - start;
+    }
 }
 
 void main(void)

@@ -88,9 +88,4 @@ typedef struct
 
 #define UART_TX_BUFFER_SIZE 512U
 
-// Record status
-#define RECORD_STATUS_FRESH 0x01
-#define RECORD_STATUS_RETRYING 0x02
-#define RECORD_STATUS_DEAD 0X03
-
 #endif // APP_CONFIG_H
