@@ -36,6 +36,9 @@
 - Wrote a Breadboard Circuit README.md part.
 - Dismanteled the breadboard circuit. Organized my wires, parts, board and peripherals.
 
+**Afternoon:**
+- Completed the Journal logs for 20.10, 21.10, 22.10, 23.10.
+
 **Evening:**
 
 **Problems encountered:**
@@ -152,11 +155,12 @@
 **Evening:**
 - Wrote a Linkedin post about the logger struct and seqlock. Started cleaning the profile.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 1: Refactor bugs:**
+*Problems encountered:*
 
-**Root cause at the register level:**
--
+*Root cause:*
+
+*Fix:*
 
 # 2026-10-24
 
@@ -175,11 +179,38 @@
 **Evening:**
 - Continued refactoring the Motor Speed Control Loop for the Stage 1.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 1: Frame accounting and the queue-full fault test:**
+*Problems encountered:*
+- 27000 frames gave `can_counter = 27000`, but `tick_counter = 7031` instead of the ~5940 expected for 59.4 s.
+- In the fault test, where main stopped popping at 24000, I came out 12 frames short.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- The extra ticks were my ~10 s halt delay. 7031 ticks is 70.3 s, against 59.4 s of traffic. Compare frames to cangen's count, never to ticks.
+- The 12 frames were still in the queue: 27000 = 24000 popped + 2988 rejected + 12 queued.
+
+*Fix:*
+I dumped the queue in GDB and confirmed:
+- head = 15, tail = 0: 15 live entries, 12 CAN + 3 ticks (5921 + 5923), with slot 15 reserved.
+- cangen's incrementing payload: slot 15 held 0x5DBF (23999, the kast popped), and slots 0-14 held 0x5DC0-0x5DCB with no gaps.
+- ID check: (36 << 3) | (96 >> 5) = 0x123.
+- Queue-full counters are written only by their own ISR. TIM2's sits inside the BASEPRI block, which makes it doubly safe, but the singer-writer rule is the real reason.
+
+**Multi-Sensor Logger - Stage 1: Merging the motor project and extracting reusable modules:**
+*Problems encountered:*
+The logger design assumed TIM2 at 10 ms and priority 8. My motor project already used TIM2 and 15 ms and priority 1 for the PID loop, and I was about to copy PID, EMA and queue code into a second project.
+
+*Root cause:*
+There is only one TIM2, and the PID gains were tuned for 15 ms. With TIM2 at priority 1 the race flipped: CAN (4) became the interruptible producer. Copied code also meant two diverging version.
+
+*Fix:*
+- Kept 15 ms, so the expected CYCCNT delta is 240000 and the tick rate about 67 Hz.
+- The CAN ISR now raises BASEPRI to 1 around its push. That blocks TIM2 and SysTick for one 20-byte copy.
+- Split the code into: 
+* Pure logic: PID, EMA, queue. No register access, and the parameters (dt, target, k, frac, item size) are passed it.
+- Peripheral drivers: encoder (TIM1) and motor (TIM4 PWM + H-bridge). The motor driver takes u as a parameter, returns the CCR value for the caller to log, and no longer touches the global u or the logger.
+- Application glue: the TIM2 ISR body stays in main.c, and TIM2 is not a "motor peripheral".
+- Safe start order kept: brake, STBY low, PWM, STBY high last.
+
 
 # 2026-10-23
 
@@ -189,11 +220,43 @@
 **Evening:**
 - Continued implementing the Stage 1: skeleton - TIM2 tick, queue, fast channel running, ISR cost measured.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 1: TIM2 time base, first-period bug and the 8-cycle offset:**
+*Problems encountered:*
+- My copied TIM2_init from the previous project used down-counting.
+- PSC, CNT and SR.UIF were not set explicitly.
+- I assumed "16 MHz everywhere".
+- The first DWT measurement of the period gave 160008 cycles, not 160000.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- After reset CNT = 0. In down-counting the first clock underflows immediately, so the first interrupt fires about 62.5 ns after CEN instead of 10 ms.
+- A stale CNT or a pending UIF from a previous run (re-init, bootloader handoff) would distort the first period or fire the ISR at ISER.
+- `RCC->CFGR = 0` gives SWS= 00 (HSI), HPRE = /1 and PPRE = /1. With an APB1 prescaler of 1, TIMxCLK = HCLK = 16 MHz, so it's proven.
+- The 8 extra cycles came from my handler: the first capture ran after one compare (`interrupts_count == 0`), the second after two. The captures weren't at the same distance from ISR entry.
+
+*Fix:*
+- Up-counting.
+- Explicit `PSC = 0`, `CNT = 0` and `SR &= ~UIF`, all before ISER and CEN.
+- DWT enabled via DEMCR bit 24 (TRCENA) and DWT_CTRL bit 0 (CYCCNTENA).
+- The CYCCNT capture moved to the first line of the handler, after which the delta read exactly 160000.
+- Formula: period = (PSC + 1) * (ARR + 1) / f_timer.
+
+**Multi-Sensor Logger - Stage 1: ISR cost, BASEPRI window and the 3898-cycle outlier:**
+*Problems encountered:*
+TIM2 measured 208 cycles at idle. Under CAN load, `worst_delta` jumped to 3898 while the typical value stayed at about 215.
+
+*Root cause:*
+- An in-handler capture excludes hardware entry (stacking, vector fetch), the compiler prologue, the epilogue and exception return, plus anything before the first capture.
+- CYCCNT keeps counting while a higher-priority ISR runs. 3891 = approx. 215 (TIM2's own cost) + 3671 (the CAN ISR's worst case) + a few cycles of stacking, so the CAN ISR ran inside TIM2's unprotected part (before the BASEPRI value).
+- Expected hit rate: a 60-cycle window at 450 frames/s gives P = approx 1 - e^(-450 * 60/16 MHz) = approx. 1.69 * 10^(-3) per tick, about 10 hits per minute. That fits a single large outlier.
+
+*Fix:*
+Measured the CAN ISR directly with its own single-writer worst-case variable.
+
+* TIM2 handler (with -O0)   Cycles: 215     Time: 13 microseconds
+* BASEPRI-raised interval   Cycles: 155     Time: 9.7 microseconds, 4% of the 222 microseconds frame gap
+* CAN ISR                   Cycles: 3633 - 3671     Time: 227-230 microseconds
+
+The CAN ISR is about 10% of the CPU at 450 frames/s. It is also longer than 222 microseconds, so 100% bus load is impossible.
 
 # 2026-10-22
 
@@ -202,11 +265,37 @@
 
 **Evening:**
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 0: MPSC race and the BASEPRI direction:**
+*Problems encountered:*
+In original design both the CAN EXTI ISR (priority 4) and TIM2 (priority 8) push into one queue. I believed BASEPRI masks the more urgent interrupts, so that writing TIM2's lever would block 0-7.
 
-**Root cause at the register level:**
--
+*Root cause:*
+If TIM2 has read head and CAN preempts it with a full push, TIM2 resumes with the old head, overwrites CAN's slot, and the CAN event disappears silently. A compiler barrier doesn't help, because the problem is preemption, not instruction order. BASEPRI blocks every priority number equal to or greater than its value (same or less urgent), and 0 disables it.
+Writing 8 would have blocked 8-15 and left CAN at 4 free to preempt: a fix that looks like a fix but isn't.
+
+*Fix:*
+In TIM2: save BASEPRI, raise it to 4 (blocks 4-15, including CAN), push, then restore the saved value. My `__set_basepri()` wrapper does the `<< 4` shift internally and carries a "memory" clobber, so the compiler can't move the push out of the section. 
+Cost: one push of a few microseconds, against 222 microseconds between frames.
+
+**Multi-Sensor Logger - Stage 0: TX ring drop policy, TXEIE order and ownership table:**
+*Problems encountered:*
+- I called drop-newest policy "LIFO".
+- I said a stale tail read could make main see less free space than really exists and treated that as a danger.
+- I assigned the TX ring's reader to "the PC".
+- I created per-ISR "TX record dropped" counters.
+
+*Root cause:*
+- Drop-newest (tail drop) is the right policy, and the strongest reason is the single-writer rule: drop-oldest would make main move tail, which the TXE ISR owns.
+- The ISR only ever advances tail, so a stale read makes free space look smaller, never larger. That's the safe direction, and no critical section is needed.
+- Records are built in main after pop(), so a full TX ring is only ever detected in main.
+- TXE is a level flag. If TXEIE is enabled before head moves, the ISR can see an empty ring, disable TXEIE, and leave the new byte stranded.
+
+*Fix:*
+- Whole record or nothing.
+- Push the bytes, move head once, then enable TXEIE.
+- One main-owned drop counter.
+- Each queue producer owns its own queue-full counter.
+- The latest filtered value is a single aligned 32-bit word: written by TIM2, read by main, atomic, and `volatile`. A pair of values in a struct would need more than that.
 
 # 2026-10-21
 
@@ -216,11 +305,36 @@
 **Evening:**
 - Continued designing the CAN logger record.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 0: Queue depth from worst-case arrival:**
+*Problems encountered:*
+I had to size the event queue for a 3 ms worst-case main iteration. My CAN frame count was 13 per 3 ms, which was too low.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- A standard 8-byte frame is 108 bits (1 SOF + 12 arbitration + 6 control + 64 data + 15 CRC + 1 delimiter + 2 ACK + 7 EOF). I forgot the 3-bit interframe space, so back-to-back frames take 111 bits, or 222 microseconds at 500 kbit/s.
+- 3000/222 = 13.5, and I floored it. A window can catch frames at both edges, so the maximum count is the ceiling, 14. I had used ceiling logic correctly for TIM2 (at most 1 tick per 3 ms window).
+- Bit stuffing only makes frames longer, so the unstuffed frame is the worst case for arrival late.
+
+*Fix:*
+16 = 14 CAN + 1 tick + 1 reserved slot. It's a power of two, so indices use a mask. 8-byte frames at 100% bus load, 3 ms main iteration.
+
+**Multi-Sensor Logger - Stage 0: CAN log record format and UART bandwidth:**
+*Problems encountered:*
+I mixed up the CAN frame (what arrives from the bus) with the log record (what I send over UART). I also argued that a 1-byte sync could only hold 0x0-0xF, and listed a length field even though the record is fixed-length.
+
+*Root cause:*
+- A byte has 256 values, and no sync value is ever unique, because any byte can appear in a timestamp or in data. The sync is only a candidate start of a record, and the CRC confirms it. Two bytes still help, because a random match froms from 1/256 to 1/65536.
+- In a fixed-length record the receiver already knows the size, and DLC alone says how many of 8 data bytes are valid.
+- The CAN bus CRC is checked by the MCP2515 and never reaches me. My CRC protects the UART link.
+
+*Fix:*
+The CAN log record is 20 bytes: sync (2), type (1), timestamp (4), ID (2), DLC (1), data (8), CRC (2).
+
+- The timestamp is the 1 ms SysTick counter, which wraps after 2^32 ms = 49.7 days. It is captured in the CAN ISR, because main can be up to 3 ms late.
+- Padding bytes are zeroed, so identical frames give identical CRCs and no stale data leaks.
+- The CRC covers type through data, not the sync.
+- On a CRC mismatch the host drops the record and resyncs. There is no retry, because the UART is TX-only.
+
+Bandwidth: 11520 B/s / 20 B = 576 records/s, against about 4500 frames/s at 100% bus load.The definition of Done: no overflow at 450 frames/s (10% bus load, 78% of UART) for 10 minutes.
 
 # 2026-10-20
 
@@ -231,11 +345,23 @@
 **Evening:**
 - Started the Data Structure integration project: started designing.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 0: Project goal:**
+*Problems encountered:*
+The project integrates weeks 20-27 into one node: a fast channel (encoder speed with EMA), a slow channel (BMP280), CAN frame logging via the MCP2515, and CRC-protected records streamed over UART. The first design question assumed the BMP280 batch blocks main for about 48 ms. I first answered that CPU time equals bus time, and that the fast channel would need to "preempt" the BMP280.
 
-**Root cause at the register level:**
--
+*Root cause:*
+The 48 ms came from the week 24th estimate of batch latency (7 conversions x 6.4 ms plus bus time). That is the time until results exist, not time main is stuck. 
+My I2C driver is interrupt-driven and the BMP280 state machine is called once per main loop iteration, so nothing waits on the sensor.
+
+My numbers:
+* One 6-byte burst read is 9 * (address-write + register + address-read + 6 data) + 3 (START, repeated START, STOP) = 84 bits, or 840 microseconds at 100 kHz.
+* One 0xF3 status poll is 39 bits, or 390 microseconds.
+* CPU cost per burst is about 20 events * (12 entry + 10 exit + ~60 handler cycles) = approx. 164 cycles, about 10 microseconds at 16 MHz, roughly 1% of the wire time.
+
+The 0xF3 "measuring" bit doesn't make the conversion faster. It tells me where it's done, so the CPU can do other work in between.
+
+*Fix:*
+No sensor block, the BMP280 is event-driven, and the TIM2 ISR owns the fast-channel sample. A long main iteration delays processing of a sample but never the sample itself. The real long iteration was the BMP280 READY printf: 31 characters * 10 bits * 8.68 microseconds = approx. 2.7 ms, rounded to 3 ms.
 
 # 2026-10-19
 
