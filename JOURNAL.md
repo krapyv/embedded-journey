@@ -33,6 +33,8 @@
 
 **Morning:**
 - Finished the Stage 4 and 5. Made the profiling table.
+- Wrote a Breadboard Circuit README.md part.
+- Dismanteled the breadboard circuit. Organized my wires, parts, board and peripherals.
 
 **Evening:**
 
