@@ -40,12 +40,52 @@
 - Completed the Journal logs for 20.10, 21.10, 22.10, 23.10.
 
 **Evening:**
+- Completed the Journal logs for 24.10, 25.10, 27.10, 28.10, 30.10, 31.10, 01.11.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - End-to-end test and the 10-minute run:**
+*Problems encountered:* 
+The firmware counters alone couldn't prove the stream was correct on the wire.
 
-**Root cause at the register level:**
--
+*Root cause:*
+Only the host can verify sync, CRC and record ordering, and cangen't incrementing payload is the only independent check for gaps.
+
+*Fix:*
+Ran a Python decoder, `logger_rx.py`. It self-checks the CRC against 0x906E, finds the sync, verifies the CRC, decodes both record types, and counts cangen gaps.
+
+*3 minutes run:*
+* Host: 
+CAN ok 81000; sensor 2642 (= approx. 13.2/s); CRC err, unknown type, skipped bytes, gaps all 0.
+* Firmware:
+`tx_drop_counter`, both push counter, `cumulative_error_counter` all 0
+
+*10 minutes run (-n 27272):*
+* Host:
+CAN 272727/272727, 0 gaps, 0 CRC errors; sensor 8956 over about 680 s (13.2/s), all "fresh"
+* Firmware:
+all counters 0
+
+Sensor values were 26.9°C, 1027 hPa and 80 RPM in the 3-minute run (25.3-25.4°C in the 10-minute run). The status reports "retrying" until the first measurement completes (`measure_tick == 0`), and "dead" for FAULT/DEAD.
+
+**Multi-Sensor Logger - Stage 5: Profiling table and CPU load:**
+*Problems encountered:*
+The worst-case measurements came out huge: TXE byte 5736 cycles, `sensor_fill` 5807, `CalculateData` 5287.
+
+*Root cause:*
+Preemption inflates the worst case again. USART at priority 9 can be interrupted by CAN (4390) and TIM2 (690), and 4390 + 690 + entry/exit = approx. 5200, close to the 5736 measured. A worst case measures latency; the load table needs each function's own cost.
+
+*Fix:*
+Recorded the minimum (initialized to `UINT32_MAX`), which is the uninterrupted run, and added about 24 cycles of entry/exit for ISRs. I2C EV events per measurement were estimated at about 120 (14-16 status polls * 6 events + 20 for the burst + 3 for CTRL_MEAS).
+
+* TIM2 handler: 667 cycles, 66.7 rate/s, load 0.28%
+* CAN ISR: 3615 cycles, 450 rate/s, load 10.2%
+* I2C EV event: 136 cycles, 15000 rate/s, load 12.75%
+* USART TXE byte: 152 cycles, approx. 9300 rate/s, load 8.8%
+* `can_fill` + CRC: 1143 cycles, 450 rate/s, load 3.2%
+* `sensor_fill` + CRC: 1113 cycles, 13.3 rate/s, 0.09%
+* CalculateData: 944 cycles, 125 rate/s, 0.74%
+
+The total is about 5.77 M cycles/s, roughly 36% of 16 MHz, so about 64% headroom. The dominant rows are I2C EV (many cheap events, mostly 0xF3 polling) and the CAN ISR (few expensive ones, polled SPI).
+Future improvements, out of scope for now: wait the known maximum conversion time instead of polling 0xF3; DMA for UART TX; -O2.
 
 # 2026-10-31
 
@@ -60,11 +100,59 @@
 **Evening:**
 - Finished and tested the Stage 3.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 3: Building records byte by byte, and five small bugs:**
+*Problems encountered:*
+Building the 22-byte sensor record (sync, type, timestamp, temp, pressure, fast channel, status, CRC) and the 20-byte CAN record produced a chain of bugs.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- Struct copy: a struct with the same fields has `sizeof` = 24 (padding after type and after status), and memcpy on the little-endian M4 sends bits 7-0 first.
+- Union: `message.payload.tick_count = SysTick_GetTick()` overwrote the first 4 bytes of the CAN frame in the union. The timestamp belongs outside the union.
+- CRC variant: my week-25 code is reflected (0x8408) with a final XOR of 0xFFFF (CRC-16/X-25).
+- CRC call: `crc16_table(sensor_buf[2], 20U)` passed the value 0x02 as an address (read from 0x00000002), and a length of 20 instead of 18 (last - first + 1 = 19 - 2 + 1). An earlier `start_index` parameter had quietly changed len into an end index.
+- Cast precedence: `(uint8_t)value >> 8` casts first, so the high byte was always 0. Sync read 00 55, and every CRC lost its high byte (00 A8 instead of AD 88). The host would have rejected every record.
+- Type byte: `can_fill` wrote `RECORD_TYPE_SENSOR`. The CRC can't catch that, because the type is inside the CRC range.
+
+*Fix:*
+- `put_be16`/`put_be32` helpers using shifts on the value (endianness-independednt), with an explicit `(uint32_t)` case for signed fields.
+- Fixed offsets: sensor CRC over `&buf[2]`, length 18; CAN over `&buf[2]`, length 16.
+- `(uint8_t)(value >> 8)`.
+- Sync 0xAA55 instead of 0xAAAA, because a pattern with two different bytes can't match itself shifted by one byte.
+- Shared constants in app_config.h.
+- `id & 0x7FF`, `dlc & 0xF`, data zeroed past DLC.
+- CRC moved into a reusable module and verified against the standard check value: "123456789" -> 0x906E.
+
+**Multi-Sensor Logger - Stage 3: Sensor record rate and TX ring sizing:**
+*Problems encountered:*
+I had to decide how often to send sensor records, and I couldn't wrap my mind around how long a main iteration takes without `logger_snapshot()`.
+
+*Root cause:*
+- Option A, one record per measurement: about 125 measurements/s x 22 B = 2750 B/s, plus 9000 B/s of CAN = 11750 B/s > 11520. Constant overflow.
+- The TXE ISR keeps draining while main stalls, so a slow main never fills the ring. The burst that fills it comes after a stall, when main converts a full queue into records back to back.
+
+*Fix:*
+- Option B: one sensor record every 5 control ticks (75 ms), about 13.3/s = approx. 293 B/s. Total = approx. 9300 B/s, about 81% of UART. This finally gave the tick message a real job.
+- Ring size: the queue holds at most 15 messages, so 15 * 22 = 330 B, rounded to 512. Index type `uint16_t`, mask 511.
+
+**Multi-Sensor Logger - Stage 3: Interrupt-driven UART TX:**
+*Problems encountered:* I wanted to reuse the queue module for the TX ring and I doubled whether the polluting the shared `uart.c` driver with project code is worth it. The first implementation had also several bugs.
+
+*Root cause:*
+- Queue module: with item size 1 there's no "is there room for 22?" check. With item size 22, CAN records leave 2 garbage bytes per slot and desync the host.
+- Interrupt storm: setting TXEIE in `usart2_init` with an empty ring causes a storm. TXE is a level flag, so the ISR fires forever and main never runs.
+- Missing barriers: without them in push and pop, the compiler may move head before the data store.
+- TXE check: TXE is 1 whenever DR is empty. In a TX + RX build, an RX interrupt would run the TX branch unless it also checks TXEIE.
+- Drop counter: `*drop_counter++` incremented the pointer, not the counter.
+- Priority: USART2 was never given one. The reset value 0 is the most urgent in the system and would preempt TIM2.
+
+*Fix:*
+- Reused my week-20 byte ring, plus `ring_buffer_free_space()` = mask - used. It returns 511 when empty, so the reserved slot is counted.
+- `__COMPILER_BARRIER()` between the data access and the index move.
+- New mode `UART_MODE_TX_ISR`, with buffer size from `UART_TX_BUFER_SIZE` in app_config.h.
+- `usart2_tx_write()`: check space, push all bytes or count a drop, then set TXEIE (CR1 bit 7).
+- The TX branch checks `SR & TXE` and `CR1 & TXEIE`, pops and writes DR, and disables TXEIE when the ring is empty.
+- USART2 at priority 9 (`IPR[38]`, `ISER[1]` bit 6). A late TXE only leaves a gap on the wire, while a late RXNE would lose a byte.
+- The CR1 RMW race between main and the ISR is safe by ordering: main sets TXEIE only with  >= 20 bytes queued, and the ISR clears it only when the ring is empty, about 87 microseconds per byte away.
+- Removed printf from the logger build, because two writes to DR would interleave bytes.
 
 # 2026-10-30
 
@@ -74,12 +162,21 @@
 **Evening:**
 - Tested and integrated the fix. Understood what have I done :)
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 2: Root cause, a CR1 read-modify-write while STOP was pending:**
+*Root cause:*
+A 16-entry ring of I2C events (CYCCNT, SR1, state), written only by the EV handler, showed the pattern: the transaction right after a 1-byte read always died after its address, about 1100 cycles (70 microseconds) after that read's RxNE. The captured failures happened at boot in READ_CALIBRATION, where the sensor went FAULT/DEAD after four. The N=1 RxNE handler did `CR1 |= ACK` while the hardware was still executing the STOP set at ADDR.
+- Without delay: both the read and the write see STOP = 1, so writing 1 back is harmless.
+- With a delay (the CAN ISR's BASEPRI window, or the TIM2 motor tick): the RMW straddles the moment hardware clears STOP. It reads 1, the hardware clears it, and the write sets its again. A fresh STOP request waits silently and fires in the next transaction right after the address. The master is released with no error flag.
 
-**Root cause at the register level:**
--
+The reference manual (RM0383)(I2C_CR1): software must not write CR1 while STOP, START or PEC is pending. One mechanism explains every number: rare without load, mostly BASEPRI, the rest TIM2.
 
+*Fix:*
+No CR1 writes after STOP is requested.
+- Removed the ACK write from the N=1 RxNE branch.
+- Removed four post-STOP writes in the BTF branches (N=2: POS clear + ACK; N>=3: ACK, in both RX and TX_RX paths).
+- Restored ACK and POS in `I2C_PolStopConfirmation()`, only after BUSY=0.
+
+*Result:* 0 errors, 81000/81000 with `NVIC->ISER[1] = 257` (bits 0 and 8), so the CAN interrupt was verifiably on.
 
 # 2026-10-29
 
@@ -107,11 +204,38 @@
 - Started deriving the Stage 3: CAN and logger structs, their offsets.
 - Started implementing the big-endian 16 and 32 bits functions.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 2: Forced-timeout test found a length-blind timeout:**
+*Problems encountered:*
+- My one-shot `skip_stop_once` first used `if (!skip_stop_once)`, which never skipped.
+- After fixing it, one injected fault produced 3 errors, `retries` reached 3, and one glitch would have killed the sensor.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- The first cleanup found `hi2c.state = ERROR`, not RX_ADDR. With STOP skipped, BUSY stays 1, so `I2C_PollStopConfirmation()` timed out after about 2 ms and set ERROR before the 3 ms helper fired.
+- After cleanup the bus was healthy (SR2 = 0, SCL and SDA both high on PB6/PB7).
+- The second cleanup hit the retry's 24-byte calibration read: RxLength = 24, index = 18, BTF and RxNE set, ACK = 1. It was a healthy transaction, and RX_ADDR is the normal state for the whole N>=3 data phase.
+- The calibration read is 9 * (1 + 1 + 1 + 24) + 3 = 246 bits = 2.46 ms on the wire, but `>= 3` ticks guarantees only 2 ms. The timeout aborted it mid-byte and left the bus unusable for the next start.
+
+*Fix:*
+Timeout raised to `>= 5` ticks (guaranteed >= 4 ms, about 55% margin over ~2.55 ms worst case). It's a named macro, with the derivation in the comment. 
+Retest from boot:
+- `cumulative_error_counter` = 1
+- `sb_hits` = 20795 and growing
+- the pipeline cycles normally
+
+**Multi-Sensor Logger - Stage 2: I2C failures under CAN load, the investigation and its wrong turns:**
+*Problems encountered:* 
+CAN passed (81000/81000, 0 queue drops), but the BMP280 lost 80-190 transactions per 3-minute run under 450 frames/s, and 0 without CAN traffic.
+
+*Root cause (narrowing):*
+- Per-state counters: all timeouts, `[MEASURING] = 189`, `[READ_MEASUREMENTS] = 7`. The 15 ms conversion timeout never fired.
+- `NVIC->IPR[40] = 0x80`: CAN really was at 8, so it couldn't preempt I2C. The N=1 window theory was dead.
+- Registers at `I2C_Cleanup` showed state TX_ADDR, `SR1 = 0`, `SR2 = 0` (MSL = 0, BUSY = 0), and `CR1` = PE + ACK. The master had silently left master mode after the address byte.
+- Counters on AF, ARLO, BERR and both `I2C_PollHardwareBusy` branches were all 0.
+- `I2C_Process()` silently wipes AF/ARLO, so `error_code = 0` alone proved nothing.
+- I disabled CAN with `NVIC->ICER[1]`, saw the errors stay, and concluded that it is an electrical issue. That test was invalud: `mcp2515_init()` ends with `NVIC->ISER[1] = (1 << 8)` and re-enabled it.
+- Repeated with the interrupt verifiable  off (ISER checked in GDB): 0 errors. So it was software all along.
+- Bisect: removing only the CAN ISR's BASEPRI section cut errors from about 190 to 36.
+- The SPI chip select (PA4, ODR read-modify-write) can't touch PB6/PB7, so that was ruled out.
 
 # 2026-10-27
 
@@ -121,11 +245,51 @@
 **Evening:**
 - Finished debugging and testing the Stage 2 and its fault recovery/fault detection.
 
-**Problems encountered:**
-- (None today) etc
+**Multi-Sensor Logger - Stage 2: Missed-STOP timeout and I2C cleanup:**
+*Problems encountered:*
+If STOP is never set, the BMP280 waits forever, because "no DONE" returned OK with no bound. My first plan reused `measure_start_tick` (the 15 ms conversion timer).
 
-**Root cause at the register level:**
--
+*Root cause:*
+- A transaction bound and a conversion bound are different waits and need separate start ticks.
+- `>= N` SysTick ticks guarantees only N-1 ms.
+- The BMP280 ERROR state retries only when `hi2c.state == IDLE`, which never happens after a hang.
+- `request_status` stayed FIRED, so the next function would wait for a completion that never comes. 
+
+*Review also found:*
+- `ReadMeasurements` had no return after its DONE branch, so it fired a second burst read into raw_adc while the state moved to RECONSTRUCT.
+- `ReadCalibration` and `WriteCtrlMeas` had no timeout at all.
+- Any INIT failure went to FAULT, so a power-up glitch was permanent, and retries restarted at CTRL_MEAS with zero calibration data.
+
+*Fix:*
+- One helper, `BMP280_InflightTransactionTimeout()`, with its own `missed_stop_start_tick` set next to `request_status = FIRED`. On timeout it calls `I2C_Cleanup()` and resets `request_status`.
+- `I2C_Cleanup()` runs:
+* `hi2c.state = IDLE` first, so the EV guard discards stale events during the reset.
+* Request STOP.
+* Bounded 2 ms wait on BUSY.
+* SWRST set, then cleared.
+* `I2C_Reinit()`.
+* Reset index, phase and mode.
+- Added the missing return and the missing timeouts.
+- Chip-ID mismatch -> FAULT; any other failure -> ERROR.
+- ERROR retries from INIT while `isInitialized == 0`.
+
+**Multi-Sensor Logger - Stage 2: Error counting, FAULT handling and C pitfalls:**
+*Problems encountered:*
+- The FAULT state printed its message on every loop iteration (41 characters = approx. 3.6 ms per pass), and the earlier version froze main with `while(1)`.
+- My cumulative error counter in the ERROR case counted once per loop pass, and missed the final failure that leads to FAULT.
+- The guard is `enter_error()` never let anything through.
+- `BMP280_Status_t init_res = ...` sat directly after a case label.
+
+*Root cause:*
+- The ERROR case body runs on every main loop pass until I2C is IDLE, so one error could count hundreds of times.
+- `(state != ERROR) || (state != FAULT)` is true for every value, so the function always returned early: no counting and no state change.
+- A declaration right after a label is an error before C23.
+
+*Fix:*
+- FAULT prints once (with `\n`) and moves to a terminal `BMP280_STATE_DEAD` with an empty case. The loop keeps draining the queue and logging CAN.
+- `enter_error()` sets the state and counts once per detected failure. Chip-ID -> FAULT counts; ERROR->FAULT (retries exhausted) doesn't, because that failure was already counted.
+- Guard changed to `&&`.
+- Declaration moved above the switch.
 
 # 2026-10-26
 
@@ -157,10 +321,63 @@
 
 **Multi-Sensor Logger - Stage 1: Refactor bugs:**
 *Problems encountered:*
+The refactored main.c was half-migrated, with several silent bugs.
 
 *Root cause:*
+- `Encoder_Init()` was never called (TIM1 clock off), and the ISR still read TIM1->CNT through an old global prev_count.
+- `EMA_Init(&ema, 1, 4)` set up `ema`, but the ISR updated `ema_filt` (k=0, frac=0). I first thought the acc would grow by x each sample. In fact `acc >> 0` is acc, so `acc += x - acc` gives acc = x: alpha = 1, no filtering at all.
+- TIM2 still had ARR = 159999 (10 ms) while dt was 15 ms. The speed read 2/3 of reality, so the integral drove the motor to about 120 RPM while the reading said 80. That is a scale error the controller cannot see.
+- `derivative` was uninitialized on the first PID call.
+- The `SCB->CPACR` FPU enable was missing. With `-mfpu=fpv4-sp-d16 -mfloat-abi=hard`, the first fload instruction faults and escalates to HardFault (FORCED).
+- A printf in the TIM2 ISR (priority 1): polled UART at about 87 microseconds per character, inside the most urgent interrupt.
 
 *Fix:*
+- Called `Encoder_Init()` and used `Encoder_ReadDelta()`.
+- Pointed `EMA_Init` at the filter the ISR actually uses.
+- ARR from integer math, `CONTROL_TICK_MS * (TIMER_CLOCK / 1000U) - 1U`, from the same macro as dt.
+- `derivative = 0.0f` on the first call.
+- CPACR + DSB/ISB restored.
+- Counters instead of the ISR printf.
+- Init failures call `halt_init()`: `Motor_Disable()` (STBY low via BSRR bit 30), then `while (1)`.
+
+**Multi-Sensor Logger - Stage 1: Verifying the refactor and TIM2 jitter:**
+*Problems encountered:*
+`min_period` read 0, and I guessed 0.
+
+*Root cause:*
+`min_period` was a static starting at 0, so `period < min_period` was never true. A real minimum period can't be 0.
+
+*Fix:*
+Initialized `min_period` to `UINT32_MAX` and skipped the first entry with a `have_last` flag. Results:
+
+* TIM2->ARR - Value: 239999
+* Period, min/max - Value: 239873 / 240121 (+-127 cycles, symmetric)
+* TIM2 handler - Value: 643 typical / 690 worst (40-43 microseconds)
+* CAN ISR - Value: 3591 typical / 4390 worst
+* Clean 27000 run - `can_counter` = 27000, both push counters 0
+* Fault run - `tim2_push_counter` = 503 (prediction: at least ~440)
+
+- The period is symmetric because a late entry makes one period longer and the next shorter by the same amount.
+- The 127-cycle lateness is under the ~160-cycle bound set by the CAN ISR's BASEPRI window.
+- The CAN worst case grew by about 719 = approx. one TIM2 preemption (690 + 24), the predicted flip.
+
+**Multi-Sensor Logger - Stage 2: I2C priority and the N=1 STOP deadline:**
+*Problems encountered:*
+- With CAN at 4 and I2C EV at 5, I compared the I2C delay to the 155-cycle BASEPRI window.
+- I firstly derived the master transmitter sequence when the question was the master receiver.
+
+*Root cause:*
+- I2C EV waits for the whole CAN ISR (224 - 274 microseconds), not just its push.
+- Late events are usually harmless, because hardware stretches SCL. But the 1-byte receive (my 0xF3 poll) has a real deadline: ACK clear -> ADDR clear (SR1 then SR2) -> STOP. After ADDR clears, SCL is released and the byte clocks in. STOP must be set before the last clock, so the design target is 8 data clocks = 80 microseconds (1280 cycles).
+- In the N=2 and N>=3 paths, STOP is set while BTF holds SCL low, so there is no deadline there.
+
+*Fix:*
+- Moved CAN to priority 8. Final table: TIM2 1, SysTick 2, I2C EV 5, I2C ER 6, CAN 8.
+- Measured EV at 112 cycles typical (962 worst, one TIM2 preemption) and the undisturbed window at 47 cycles.
+- Forced the worst case by pending TIM2 (`NVIC->ISPR[0]` bit 28) and SysTick (`SCB->ICSR` PENDSTSET) inside the window: 928 cycles = 58 microseconds. Margin: 352 cycles, 27.5%.
+- TIM2 alone measured 875 against the predicted 761. The in-handler 690 misses about 114 cycles of overhead. Cause not investigated, because the bound is measured, not derived.
+
+Decision: accept, and document the invariant that TIM2 handler growth eats this margin.
 
 # 2026-10-24
 
