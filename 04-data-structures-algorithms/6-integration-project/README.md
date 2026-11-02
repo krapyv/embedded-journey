@@ -123,14 +123,26 @@ In both UART TX and RX ring buffers, the data access and the index index moves a
 
 Two breadboards:
 - the first contains the Black Pill and the Motor Driver TB6612FNG (A).
-- the second one has the BMP280 and the lever shifter TXS0108E (B).
+- the second one has the BMP280 and the level shifter TXS0108E (B).
+
+All grounds are one nore: Black Pill GND, XL4015 OUT-, TB6612FNG GND, both breadboards' ground rails, MCP2515, CANable and the UART adapter.
+
+**Pin map:**
+| Pin    | Function |
+| -------- | ------- |
+| PA2 / PA3  | USART2 TX / RX    |
+| PA4 / PA5 / PA6 / PA7 | SPI1 CS / SCK / MISO / MOSI (MCP2515)     |
+| PA8 / PA9    | TIM1 CH1 / CH2 (encoder A / B)  |
+| PB6 / PB7  | I2C1 SCL / SDA (BMP280)  |
+| PB8  | TIM4 CH3 PWM (driver PWMA)  |
+| PB12 / PB13 / PB14  | Driver AIN1 / AIN2 / STBY  |
+| PB15  | EXTI15 (MCP2515 INT)  |
+
 
 **Breadboard A:**
 
 One power rail of the breadboard is connected to the 5V pin of the Blackpill (red wire).
-The second power rail is connected to the 3.3V.
-
-The TXS0108E level shifter is sitting on the second breadboard straddling the separation channel. The MCP2515 module sits off-board (male pins, not breadboard-mounted) as well as the CANable USB to CAN debugger-analyzer. 
+The second power rail is connected to the 3.3V. 
 
 1. Encoder: 
 
@@ -149,7 +161,7 @@ Both PA8 and PA9 are 5 V-tolerant.
 
 3. Adapter 230 V AC 12 V DC
 
-IMPORTANT: make sure you limited the XL4015 current to 1 A and 6 V voltage.
+IMPORTANT: before connecting the driver, set the XL4015 output to 6.0 V and its current limit to 1 A.
 
 The 12 V adapter connects through a DC socket with screw terminals. Check their polarity before wiring:
 - Plug the adapter into the DC socket, then into the mains.
@@ -195,6 +207,8 @@ IMPORTANT: the UART-to-USB adapter's VCC pin SHOULD be left unconnected. The Bla
 One power rail of the breadboard is connected to the 3.3V of the first breadboard (orange wire). Second power rail is connected to the 5V rail of the first breadboard (orange wire).
 Both ground rails of the breadboard B are connected to the ground rails of the breadboard A (brown jumper wires).
 
+The TXS0108E level shifter is sitting on the second breadboard straddling the separation channel. The MCP2515 module sits off-board (male pins, not breadboard-mounted) as well as the CANable USB to CAN debugger-analyzer.
+
 7. TXS0108E:
 
 TXS0108E straddles the separation row — VA (3.3V) side faces right rails, VB (5V) side faces left rails.
@@ -227,6 +241,7 @@ TXS0108E OE pin is connected to 3.3V power rail (orange wire).
 The CANable GND is connected to the common ground rail (GND) (black wire).
 The CANable CAN_H and CAN_L are connected to the MCP2515 CAN_H and CAN_L respectively. The CAN_H wire is yellow, the CAN_L wire is green.
 The CANable is connected to the PC's USB port.
+The CANable termination should also be enabled.
 
 8. BMP280:
 
@@ -244,3 +259,16 @@ The BMP280 faces the right side of the power rails (3.3 V).
 - In the breadboard circuit there were used 4.7k Ohms pull-up resistors on both SDA and SCL connected to power rails (rise time 217ns from 1000ns available).
 
 ## Known Limitations
+
+1. 11-bit IDs only:
+The CAN record's 2-byte ID field can't hold 29-bit extended IDs.
+
+2. CAN frame-rate ceiling: 
+Above about 561 CAN frames/s the budget is exceeded and frames are dropped (counted per producer).
+
+3. Fast channel logged every 75 ms:
+The speed is computed every 15 ms, but only one value in five is logged to prevent UART's budget excess.
+
+4. Compiler barriers instead of data barriers:
+For the Cortex-M4 compiler barriers are enough because there is a single-entry write buffer. For porting the driver to an M7, it would need `__DMB()`. 
+On an M7 the write buffer can reorder stores to different addresses, so the queue, the ring buffers and the `logger` seqlock would need `__DMB()`. See the MPSC project for the full reasoning,

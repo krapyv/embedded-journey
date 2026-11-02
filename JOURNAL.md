@@ -35,6 +35,7 @@
 - Almost finished the Integration Project README.md: Known Limitations are left.
 
 **Evening:**
+- Wrote the Known Limitations section and finished the Breadboard Circuit section.
 
 **Problems encountered:**
 - (None today) etc
