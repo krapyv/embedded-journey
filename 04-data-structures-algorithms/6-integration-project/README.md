@@ -1,3 +1,124 @@
+# Integration Project - Multi-sensor Logger
+
+A project that integrates a fast channel (encoder speed with EMA), a slow channel (BMP280), CAN frame logging via the MCP2515, and CRC-protected records streamed over UART.
+
+```
+TIM1 encoder -> speed -> PI -> TIM4 PWM -> motor, every 15 ms in the TIM2 ISR. The EMA sits inside or outside the loop, selected by a build-time macro FILTER_MODE (default: outside loop). Fast channel, computed every 15 ms, logged every 75 ms in the sensor record.                                      ┐
+BMP280 -> I2C (slow channel, about 125 measurements per second, of which only about 13 are sent - every 5 TIM2 ticks) ┤-> queue -> CRC-16 record (CRC-16/X-25) -> UART
+MCP2515 -> CAN RX                                                                                                     ┘
+```
+The project built on the reusable drivers listed in Project Structure.
+
+## Project Structure
+
+```text
+reusable_drivers/
+├── core/   # ARM Cortex-M4 and STM32F411 register definitions
+│    ├── stm32f411.h     # Memory boundaries and register definitions for AHB/APB peripherals
+│    └── core_cm4.h      # Register layout definitions for NVIC and SysTick architectures
+├── devices/bmp280      
+│    ├── bmp280.h        # Device handle, state machine enums, register map, and public API signatures
+│    └── bmp280.c     # BMP280 peripheral driver: state machine functions, calculation and compensation functions
+├── devices/mcp2515      
+│    ├── mcp2515.h        # SPI instructions, CAN register addresses, state enums, and public API signatures
+│    └── mcp2515.c       # MCP2515 peripheral driver:  transaction, ISR and util functions
+├── periph/i2c     # Portable peripheral drivers
+│    ├── i2c.c      # Register-level I2C peripheral driver: EV/ER ISR logic, transaction state machine, and SWRST recovery
+│    └── i2c.h      # I2C control and state enums, handler struct declaration, extern variable declaration, and function headers
+├── periph/spi
+│    ├── spi.c   # Register-level SPI peripheral driver: initialization and transfer functions
+│    └── spi.h   # SPI_Channel_t enum for future multi-channel expansion and function headers
+├── periph/encoder
+│    ├── encoder.c   # Quadrature encoder initialization and ReadDelta function
+│    └── encoder.h   # Function headers declaration
+├── periph/motor 
+│    ├── motor.c   # Motor initialization and control functions
+│    └── motor.h   # Motor timer clock, PWM frequency, PWM steps and function headers
+├── periph/uart
+│    ├── uart.c      # USART2 register configuration and DMA1 Stream 6 transfer invocation
+│    └── uart.h      # USART2 bit definitions, control macros, and function declarations
+├── periph/systick
+│    ├── systick.c   # SysTick initialization, counter variable and functions
+│    └── systick.h   # SysTick mode, BRR, clock and register configuration and function headers
+├── utils/crc16 
+│    ├── crc16.c      # CRC-16 table and calculate functions
+│    └── crc16.h      # Function headers
+├── utils/ema    
+│    ├── ema.c   # EMA initialization and update functions
+│    └── ema.h   # EMA control struct and function headers
+├── utils/pid    
+│    ├── pid.c   # PID control struct and function headers
+│    └── pid.h   # PID initialization and update functions
+├── utils/ring_buffer    
+│    ├── ring_buffer.c   # Ring buffer initialization and control functions
+│    └── ring_buffer.h   # Ring buffer control struct and function 
+├── utils/queue    
+│    ├── queue.c      # Queue initialization and control functions
+│    └── queue.h      # Queue control struct and functions
+│
+├── main.c      # Application entry point: CAN EXTI ISR, TIM2 init and ISR, helper big-ending functions, logger frame functions, BMP280 state machine and CAN broadcast loop
+├── app_config.h    # The header file for UART peripheral mode, structs and define values
+├── startup_stm32f411ceux.s     # Vector table definition, stack allocation, and Reset_Handler assembly
+├── stm32f411.ld                # Linker script mapping text, data, and bss sections to FLASH and SRAM
+└── logger_rx.py    # Python/pyserial host-side script-decoder for the multi-sensor logger stream
+```
+
+## Architecture Decisions
+
+1. UART bandwidth budget
+
+UART bandwidth budget sets the record rate. At 115200 baud (8-N-1) the link carries 11520 B/s. Two record types share it: CAN records (20 B each; 450 frames/s from the host - 9000 B/s) and sensor records (22 B). One sensor record per BMP280 measurement (~125/s, 2750 B/s) would bring the total to 11750 B/s, above capacity. Sending one sensor record every 5th control tick (75 ms, ~13.3/s = approx. 293 B/s) brings the total to approx. 9300 B/s, about 81% of the link. The encoder speed (EMA output) has no record of its own: it is computed every 15 ms and carried as a 4-byte field (offsets 15-18) in the sensor record, so it is logged every 75 ms.
+
+2. Record Layouts
+
+* CAN record:
+Offset 0-1 Sync - 0xAA55
+Offset 2 Type - 0x01
+Offset 3-6 Timestamp - ms, SysTick
+Offset 7-8 ID - 11 bits
+Offset 9 DLC - 8 byte max
+Offset 10-17 Data bytes - when <8, the unused bytes filled with 0x00, the decoder ignores them 
+Offset 18-19 CRC - CRC-16/X-25, big-endian over Type to the end of payload
+
+* Sensor record:
+Offset 0-1 Sync - 0xAA55
+Offset 2 Type - 0x02
+Offset 3-6 Timestamp - ms, SysTick
+Offset 7-10 Temp - int32, 0.01 °C
+Offset 11-14 Pressure - uint32 Q24.8 Pa
+Offset 15-18 Fast channel - int32, EMA accumulator = counts/tick * 2^5
+Offset 19 Status - 0x01 - Fresh, 0x02 - Retrying, 0x03 - Dead
+Offset 20-21 CRC - CRC-16/X-25, big-endian over Type to the end of payload
+
+3. Byte order
+
+The stream uses big-endian byte order because big-endian matches the bootloader protocol and the host decoder.
+For that there were created two big-endian helpers: put16be and put32be.
+
+4. Interrupt priorities
+
+TIM2 has priority 1, SysTick - 2, I2C EV - 5, I2C ER - 6, CAN EXTI - 8, USART2 - 9.
+The control loop is the most urgent and nothing can preempt it.
+I2C sits above CAN so the 1-byte read's STOP deadline (80 µs) isn't blocked by the ~224 µs CAN ISR. Measured worst case 58 µs, a margin of 27.5%.
+USART TX is the least urgent, because a late TXE only leaves a gap on the wire and never loses a byte.
+CAN's BASEPRI = 1 window (~155 cycles) delays I2C EV entry but cannot occur inside the N=1 window, because CAN (8) cannot preempt EV (5). The delay falls while ADDR holds SCL low.
+
+5. Event queue (MPSC)
+
+There is one queue with two producers (CAN ISR, TIM2 tick) and one consumer (main).
+Depth of 16: 14 CAN frames + 1 tick + 1 reserved slot, sized for a 3 ms main iteration at 100% bus load. A power of two, so indices use a mask.
+The less urgent producer (CAN) raises BASEPRI to TIM2's level around its push. TIM2 needs no masking. 
+
+16 slots absorb a burst; sustained CAN traffic above ~561 frames/s exceeds the UART budget and frames are dropped (counted per producer).
+
+`pop()` does not need masking (see the MPSC README).
+
+6. Shared data and ownership
+
+Single-writer rule for every counter and index; each producer owns its own queue-full counter.
+The motor logger struct `logger` (speed, PID output) is written by the TIM2 ISR and read by `main()`. `main()` reads the tick counter before and after copying it and retries if it changed (seqlock), with compiler barriers so the copy isn't reordered around the counter reads.
+In both UART TX and RX ring buffers, the data access and the index index moves are separated by compiler barriers.
+
 ## Breadboard circuit
 
 Two breadboards:
@@ -121,3 +242,5 @@ The BMP280 faces the right side of the power rails (3.3 V).
 
 * I2C is open-drain. The lines need pull-ups to VCC 3.3V to define the idle high state. Without pull-ups configured either externally or internally, the lines float and the bus never reaches a defined idle state.
 - In the breadboard circuit there were used 4.7k Ohms pull-up resistors on both SDA and SCL connected to power rails (rise time 217ns from 1000ns available).
+
+## Known Limitations

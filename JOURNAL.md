@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-02
+
+**Morning:**
+- Almost finished the Integration Project README.md: Known Limitations are left.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-01
 
 **Morning:**
