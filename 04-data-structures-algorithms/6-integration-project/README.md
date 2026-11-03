@@ -258,6 +258,68 @@ The BMP280 faces the right side of the power rails (3.3 V).
 * I2C is open-drain. The lines need pull-ups to VCC 3.3V to define the idle high state. Without pull-ups configured either externally or internally, the lines float and the bus never reaches a defined idle state.
 - In the breadboard circuit there were used 4.7k Ohms pull-up resistors on both SDA and SCL connected to power rails (rise time 217ns from 1000ns available).
 
+## How to run
+
+Clone the repository, navigate to the project directory, and execute the toolchain commands:
+
+```bash
+# Clean previous build artifacts and compile the firmware binary
+make clean
+make all
+
+# Flash the binary to the microcontroller using ST-LINK
+make flash
+
+# Check if the CANable is seen by Linux
+ip link show type can
+
+# Configure and activate a CAN interface with the name can0 
+sudo ip link set can0 up type can bitrate 500000
+
+# Make sure you have dependencies installed
+pip install pyserial
+sudo apt install can-utils
+
+# Run the logger_rx.py
+# --port for another port (defaults to /dev/ttyUSB0)
+# --baud for baud rate (defaults to 115200) 
+# --csv for optional CSV output file
+python3 logger_rx.py    # defaults to /dev/ttyUSB0 at 115200
+
+```
+
+In a second terminal run:
+
+```bash
+# generate and send exactly 81000 CAN bus frames over the can0 interface
+# 2.2 ms delay between each transmitted frame = 455 frames/s, 450 frames/s case from the UART budget (decision 1), 8 bytes long, data bytes are incrementing, fixed CAN ID of 0x123, 81000 frames = 3 minutes
+cangen can0 -g 2.2 -L 8 -D i -I 123 -n 81000
+```
+
+Expected logger_rx.py output:
+```bash
+CAN ok=272727  sensor ok=8852  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.38 degC  1027.93 hPa  80.2 RPM  [fresh]
+CAN ok=272727  sensor ok=8865  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.38 degC  1027.92 hPa  79.9 RPM  [fresh]
+CAN ok=272727  sensor ok=8878  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.38 degC  1027.93 hPa  80.1 RPM  [fresh]
+CAN ok=272727  sensor ok=8891  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.38 degC  1027.95 hPa  79.6 RPM  [fresh]
+CAN ok=272727  sensor ok=8905  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.39 degC  1027.94 hPa  79.7 RPM  [fresh]
+CAN ok=272727  sensor ok=8918  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.39 degC  1027.89 hPa  79.6 RPM  [fresh]
+CAN ok=272727  sensor ok=8931  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.39 degC  1027.94 hPa  80.2 RPM  [fresh]
+CAN ok=272727  sensor ok=8944  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.38 degC  1027.90 hPa  79.9 RPM  [fresh]
+^C
+=== FINAL ===
+CAN ok=272727  sensor ok=8956  CRC err=0  unknown type=0  skipped bytes=0  cangen gaps=0
+  last sensor: 25.39 degC  1027.95 hPa  80.2 RPM  [fresh]
+```
+
 ## Known Limitations
 
 1. 11-bit IDs only:
