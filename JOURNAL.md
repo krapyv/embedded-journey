@@ -36,6 +36,7 @@
 - Started learning the theory: DWT, CPU time spent on I2C traffic, cycles counting, resistors, endianness.
 
 **Evening:**
+- Learned about ADDR, ACK and STOP in N=1 I2C transactions.
 
 **Problems encountered:**
 - (None today) etc
