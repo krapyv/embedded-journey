@@ -33,6 +33,7 @@
 
 **Morning:**
 - Finished the Integration Project README.md.
+- Started learning the theory: DWT, CPU time spent on I2C traffic, cycles counting, resistors, endianness.
 
 **Evening:**
 
