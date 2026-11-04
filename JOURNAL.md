@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-04
+
+**Morning:**
+- Reminded myself the SPI theory.
+- Started answering the most relevant questions about SPI (interview-like): did 4 out of 12. 8 to go.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-03
 
 **Morning:**
