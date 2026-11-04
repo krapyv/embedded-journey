@@ -36,6 +36,7 @@
 - Started answering the most relevant questions about SPI (interview-like): did 4 out of 12. 8 to go.
 
 **Evening:**
+- Continued answering the relevant questions about SPI: 4 more. 8 out of 12. 4 to go.
 
 **Problems encountered:**
 - (None today) etc
