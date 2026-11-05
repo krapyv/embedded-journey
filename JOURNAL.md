@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-05
+
+**Morning:**
+- Finished the SPI interview questions for now: 12 out of 12 done.
+- Wrote a Linkedin post about the error handling bug in the Integration Project.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-04
 
 **Morning:**
