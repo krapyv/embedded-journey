@@ -36,6 +36,7 @@
 - Started learning the RTOS (FreeRTOS): what is is, tasks and task states, scheduling and context switching triggers.
 
 **Evening:**
+- Learned about the FreeRTOS ticks and context switching on Cortex-M4: two stack pointers, task's saved context, PendSV.
 
 **Problems encountered:**
 - (None today) etc
