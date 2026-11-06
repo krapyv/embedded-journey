@@ -35,7 +35,7 @@ Done: Phases 0-3 (bare-metal STM32F411, GPIO, SysTick, UART+DMA, timers, ADC, I2
 
 | Weeks | Dates (start of week) | Block | Priority |
 |---|---|---|---|
-| 1 | 19 Oct | Close Phase 4 (filters + integration), diagnostic, posting survey | ⭐⭐ |
+| 1 | 19 Oct | Close Phase 4 (filters + integration), diagnostic, posting survey | ⭐⭐ | DONE 
 | 2-7 | 26 Oct - 30 Nov | FreeRTOS + LIN | ⭐⭐⭐ |
 | 8 | 7 Dec | HAL layering + visible signals (CI, READMEs, AUTOSAR vocabulary) | ⭐⭐⭐ |
 | 9 | 14 Dec | ISO-TP | ⭐⭐⭐ |

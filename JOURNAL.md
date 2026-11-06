@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-06
+
+**Morning:**
+- Ordered 16 GB of RAM and thermal paste.
+- Started learning the RTOS (FreeRTOS): what is is, tasks and task states, scheduling and context switching triggers.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-05
 
 **Morning:**
