@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-07
+
+**Morning:**
+- Finished writing down about the PendSV, SVC, interrupts under FreeRTOS.
+- Learned about the differences between FreeRTOS and other RTOSes (AUTOSAR Classic OS, Zephyr etc.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-06
 
 **Morning:**
