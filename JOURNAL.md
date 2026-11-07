@@ -34,6 +34,7 @@
 **Morning:**
 - Finished writing down about the PendSV, SVC, interrupts under FreeRTOS.
 - Learned about the differences between FreeRTOS and other RTOSes (AUTOSAR Classic OS, Zephyr etc.
+- Started derive the theory myself, trying to understand why do we need the RTOS, when do we need it, what it is etc. It is ... hard. It is awesome.
 
 **Evening:**
 
