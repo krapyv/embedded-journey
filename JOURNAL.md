@@ -40,7 +40,7 @@
 - Added 16 more GB RAM. Total: 32 GB.
 
 **Evening:**
-
+- Continued trying to understand the FreeRTOS.
 
 **Problems encountered:**
 - (None today) etc
