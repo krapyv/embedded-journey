@@ -36,7 +36,11 @@
 - Learned about the differences between FreeRTOS and other RTOSes (AUTOSAR Classic OS, Zephyr etc.
 - Started derive the theory myself, trying to understand why do we need the RTOS, when do we need it, what it is etc. It is ... hard. It is awesome.
 
+**Afternoon:**
+- Added 16 more GB RAM. Total: 32 GB.
+
 **Evening:**
+
 
 **Problems encountered:**
 - (None today) etc
