@@ -34,6 +34,9 @@
 **Morning:**
 - Continued trying to understand the FreeRTOS. Revisited the compiler prologue's and epilogue's, registers. Learned TCB, PendSV and its handler.
 
+**Afternoon:**
+- Continued learning and trying to wrap my head around the FreeRTOS. Derived the whole switching model: what triggers a switch, who decides which task runs, and how many switches happen.
+
 **Evening:**
 
 **Problems encountered:**
