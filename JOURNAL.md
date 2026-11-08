@@ -38,6 +38,9 @@
 - Continued learning and trying to wrap my head around the FreeRTOS. Derived the whole switching model: what triggers a switch, who decides which task runs, and how many switches happen.
 
 **Evening:**
+- For now stopped learning the FreeRTOS theory. It started make sense for me.
+- Added the FreeRTOS-Kernel as a submodule.
+- Started preparing the first project.
 
 **Problems encountered:**
 - (None today) etc
