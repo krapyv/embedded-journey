@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-08
+
+**Morning:**
+- Continued trying to understand the FreeRTOS. Revisited the compiler prologue's and epilogue's, registers. Learned TCB, PendSV and its handler.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-07
 
 **Morning:**
