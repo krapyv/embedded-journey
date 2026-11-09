@@ -35,6 +35,7 @@
 - Started to adjust the FreeRTOS config file, learning it.
 
 **Evening:**
+- Continued configuring the FreeRTOS config file.
 
 **Problems encountered:**
 - (None today) etc

@@ -5,17 +5,17 @@ OBJCOPY = $(PREFIX)objcopy
 
 # --- Centralized Driver Path ---
 DRIVERS = ../../my_reusable_drivers
-FREERTOS = ../../thrid_party/FreeRTOS-Kernel
+FREERTOS = ../../third_party/FreeRTOS-Kernel
 CONFIG = ./config
 
-INCLUDES = -I. -I${DRIVERS}/core -I${DRIVERS}/periph/spi -I${DRIVERS}/periph/systick -I${DRIVERS}/devices/mcp2515 -I${DRIVERS}/periph/uart -I${CONFIG} -I${FREERTOS} -I${FREERTOS}/GCC/ARM_CM4F -I${FREERTOS}/portable/MemMang
+INCLUDES = -I. -I${DRIVERS}/core -I${DRIVERS}/devices/led -I${DRIVERS}/periph/uart -I${CONFIG} -I${FREERTOS}/include -I${FREERTOS}/portable/GCC/ARM_CM4F 
 
 # Compiler flags (same for all STM32F411 projects)
 CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
-SRC = startup_stm32f411ceux.s ${DRIVERS}/periph/uart/uart.c ${DRIVERS}/periph/uart/ring_buffer/ring_buffer.c ${DRIVERS}/periph/spi/spi.c ${DRIVERS}/periph/systick/systick.c ${DRIVERS}/devices/mcp2515/mcp2515.c ${FREERTOS}/tasks.c ${FREERTOS}/list.c ${FREERTOS}/queue.c ${FREERTOS}/GCC/ARM_CM4F/port.c ${FREERTOS}/portable/MemMang/heap_4.c main.c
+SRC = startup_stm32f411ceux.s ${DRIVERS}/periph/uart/uart.c ${DRIVERS}/devices/led/led.c ${DRIVERS}/periph/uart/ring_buffer/ring_buffer.c ${FREERTOS}/tasks.c ${FREERTOS}/list.c ${FREERTOS}/queue.c ${FREERTOS}/portable/GCC/ARM_CM4F/port.c ${FREERTOS}/portable/MemMang/heap_4.c main.c
 ELF = program.elf
 BIN = program.bin
 
