@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-09
+
+**Morning:**
+- Started to adjust the FreeRTOS config file, learning it.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-08
 
 **Morning:**

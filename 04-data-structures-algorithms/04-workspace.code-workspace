@@ -1,0 +1,64 @@
+{
+  "folders": [
+	{
+		"path": "../my_reusable_drivers"
+	},
+	{
+		"path": "../../stm32f411-core"
+	},
+	{
+		"path": "../../stm32-uart-driver"
+	},
+	{
+		"path": "5-closed-loop-motor-speed-controller"
+	},
+	{
+		"path": "../03-arm-bare-metal/day-6-pwd-led-dimmer"
+	},
+	{
+		"path": "../03-arm-bare-metal/day-9-i2c-temperature-pressure-polling"
+	},
+	{
+		"path": "../03-arm-bare-metal/day-10-spi-eeprom"
+	},
+	{
+		"path": "1-queue-fifo-task-communication"
+	},
+	{
+		"path": "6-integration-project"
+	},
+	{
+		"path": "../../stm32-mcp2515-driver"
+	},
+	{
+		"path": "../my_reusable_drivers/utils/queue"
+	},
+	{
+		"path": "../my_reusable_drivers/periph/motor"
+	},
+	{
+		"path": "../../stm32-i2c-driver"
+	},
+	{
+		"path": "../03-arm-bare-metal/day-12-can-sensor-node"
+	},
+	{
+		"path": "../../stm32-bmp280-driver"
+	},
+	{
+		"path": "3-windowed-median-filter-binary-search-calibration"
+	},
+	{
+		"path": "../03-arm-bare-metal/day-15-bootloader"
+	},
+	{
+		"path": "../../stm32-ring-buffer"
+	},
+	{
+		"path": "."
+	}
+],
+  "settings": {
+    "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
+  }
+}
