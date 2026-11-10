@@ -35,6 +35,7 @@
 - Started writing the first FreeRTOS task: finished the layout, now fixing the problems.
 
 **Evening:**
+- Wrote a Linkedin post about my FreeRTOS struggels :)
 
 **Problems encountered:**
 - (None today) etc
