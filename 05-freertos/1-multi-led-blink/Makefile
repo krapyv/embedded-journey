@@ -23,7 +23,7 @@ BIN = program.bin
 all: $(BIN)
 
 # Link: .c and .s -> .elf
-$(ELF): $(SRC)
+$(ELF): $(SRC) $(CONFIG)/FreeRTOSConfig.h
 	$(CC) $(CFLAGS) $(INCLUDES) $(LDFLAGS) $(SRC) -o $(ELF)
 
 # Convert: .elf -> .bin

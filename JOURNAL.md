@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-10
+
+**Morning:**
+- Started writing the first FreeRTOS task: finished the layout, now fixing the problems.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-09
 
 **Morning:**
