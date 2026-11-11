@@ -7,17 +7,34 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-static LED_HandleTypeDef ledHandle = {
+static LED_HandleTypeDef ledHandlePC13 = {
     .pin = 13,
     .rcc_bit = 2,
     .moder_reg = &(GPIOC->MODER),
     .bsrr_reg = &(GPIOC->BSRR),
-    .rcc_clk_reg = &(RCC->AHB1ENR)};
+    .rcc_clk_reg = &(RCC->AHB1ENR),
+    .half_period_ms = 500};
+
+static LED_HandleTypeDef ledHandlePA1 = {
+    .pin = 1,
+    .rcc_bit = 0,
+    .moder_reg = &(GPIOA->MODER),
+    .bsrr_reg = &(GPIOA->BSRR),
+    .rcc_clk_reg = &(RCC->AHB1ENR),
+    .half_period_ms = 1200};
+
+static LED_HandleTypeDef ledHandlePA10 = {
+    .pin = 10,
+    .rcc_bit = 0,
+    .moder_reg = &(GPIOA->MODER),
+    .bsrr_reg = &(GPIOA->BSRR),
+    .rcc_clk_reg = &(RCC->AHB1ENR),
+    .half_period_ms = 1700};
 
 void vToggleLed(void *pvParameters)
 {
-    const TickType_t xDelay = pdMS_TO_TICKS(500);
     LED_HandleTypeDef *pxLedHandler = (LED_HandleTypeDef *)pvParameters;
+    const TickType_t xDelay = pdMS_TO_TICKS(pxLedHandler->half_period_ms);
 
     for (;;)
     {
@@ -28,14 +45,39 @@ void vToggleLed(void *pvParameters)
     }
 }
 
+void vToggleLedHighest(void *pvParameters)
+{
+    LED_HandleTypeDef *pxLedHandler = (LED_HandleTypeDef *)pvParameters;
+    const TickType_t xDelay = pdMS_TO_TICKS(pxLedHandler->half_period_ms);
+
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    for (;;)
+    {
+        led_on_bsrr(pxLedHandler);
+        xTaskDelayUntil(&xLastWakeTime, xDelay);
+        led_off_bsrr(pxLedHandler);
+        xTaskDelayUntil(&xLastWakeTime, xDelay);
+    }
+}
+
 void main(void)
 {
     SCB->AIRCR = (0x5FA << 16U);
-    led_init(&ledHandle);
+    led_init(&ledHandlePC13);
+    led_init(&ledHandlePA1);
+    led_init(&ledHandlePA10);
 
-    TaskHandle_t xHandle = NULL;
-    xTaskCreate(vToggleLed, "ToggleLED", 512, &ledHandle, 2, &xHandle);
-    configASSERT(xHandle);
+    TaskHandle_t xHandlePC13 = NULL;
+    xTaskCreate(vToggleLed, "ToggleLED_PC13", 512, &ledHandlePC13, 2, &xHandlePC13);
+    configASSERT(xHandlePC13);
+
+    TaskHandle_t xHandlePA1 = NULL;
+    xTaskCreate(vToggleLed, "ToggleLED_PA1", 512, &ledHandlePA1, 3, &xHandlePA1);
+    configASSERT(xHandlePA1);
+
+    TaskHandle_t xHandlePA10 = NULL;
+    xTaskCreate(vToggleLedHighest, "ToggleLED_PA10", 512, &ledHandlePA10, 4, &xHandlePA10);
+    configASSERT(xHandlePA10);
 
     vTaskStartScheduler();
 

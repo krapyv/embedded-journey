@@ -33,6 +33,8 @@
 
 **Morning:**
 - Finished the Stage 2: one task, one LED. Measured period, verified vectors, thread mode on PSP, Handler mode on MSP, the tick, measured the real TCB size etc.
+- Added 2 more LEDs with their 220 Ohms resistors to the breadboard circuit.
+- Started and finished the Stage 3: three LED tasks, three priorities.
 
 **Evening:**
 
