@@ -40,7 +40,8 @@
 - Implemented the Stage 4: the UART logger. To be tested.
 
 **Evening:**
-
+- Tested the Stage 4 - works.
+- Implemented the deliberately 200+ byte UART line test case to check whether the RTOS earns its keep.
 
 **Problems encountered:**
 - (None today) etc

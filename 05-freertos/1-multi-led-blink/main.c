@@ -74,14 +74,25 @@ void vPrintLogger(void *pvParameters)
     uint32_t *half_period_ms = (uint32_t *)pvParameters;
     const TickType_t xDelay = pdMS_TO_TICKS(*half_period_ms);
 
+    char output[250];
     for (;;)
     {
-        printf("%lu | PC13: %lu | PA10: %lu | PA1: %lu\n", xTaskGetTickCount(), ledHandlePC13.counter, ledHandlePA10.counter, ledHandlePA1.counter);
+        int len = snprintf(output, sizeof(output), "%lu | PC13: %lu | PA10: %lu | PA1: %lu | pad: ----------------------------------------------------------------------------------------------------------------------------------------------------------------\n", xTaskGetTickCount(), ledHandlePC13.counter, ledHandlePA10.counter, ledHandlePA1.counter);
+        if (len < 0)
+        {
+            len = snprintf(output, sizeof(output), "ERROR!\n");
+        }
+        // len at max could be 249 characters (index 249 is the null terminator)
+        if (len >= (int)sizeof(output))
+        {
+            len = sizeof(output) - 1; // 250 - 1
+        }
+        usart2_write_string(output, len);
         xTaskDelayUntil(&tick_counter, xDelay);
     }
 }
 
-void main(void)
+int main(void)
 {
     SCB->AIRCR = (0x5FA << 16U);
     led_init(&ledHandlePC13);
@@ -110,4 +121,6 @@ void main(void)
     for (;;)
     {
     }
+
+    return 0;
 }
