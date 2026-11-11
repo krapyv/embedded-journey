@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-11
+
+**Morning:**
+- Finished the Stage 2: one task, one LED. Measured period, verified vectors, thread mode on PSP, Handler mode on MSP, the tick, measured the real TCB size etc.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-10
 
 **Morning:**
