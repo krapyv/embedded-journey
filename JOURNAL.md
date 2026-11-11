@@ -36,7 +36,11 @@
 - Added 2 more LEDs with their 220 Ohms resistors to the breadboard circuit.
 - Started and finished the Stage 3: three LED tasks, three priorities.
 
+**Afternoon:**
+- Implemented the Stage 4: the UART logger. To be tested.
+
 **Evening:**
+
 
 **Problems encountered:**
 - (None today) etc

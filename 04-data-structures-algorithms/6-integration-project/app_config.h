@@ -76,7 +76,8 @@ typedef struct
 #define UART_MODE_TX_ONLY 0U
 #define UART_MODE_RX_ONLY 1U
 #define UART_MODE_TX_RX 2U
-#define UART_MODE_TX_ISR 3U
+#define UART_MODE_TX_RX_POLLING 3U
+#define UART_MODE_TX_ISR 4U
 
 // select active mode for the project
 #define TARGET_UART_MODE UART_MODE_TX_ISR

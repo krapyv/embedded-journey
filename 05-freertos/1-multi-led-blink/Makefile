@@ -11,7 +11,7 @@ CONFIG = ./config
 INCLUDES = -I. -I${DRIVERS}/core -I${DRIVERS}/devices/led -I${DRIVERS}/periph/uart -I${CONFIG} -I${FREERTOS}/include -I${FREERTOS}/portable/GCC/ARM_CM4F 
 
 # Compiler flags (same for all STM32F411 projects)
-CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -nostartfiles -g3 -O0 --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -nostartfiles -g3 -O0 -Wundef -Wall -Wextra --specs=nano.specs --specs=nosys.specs -lc -DUSE_APP_CONFIG
 LDFLAGS = -T stm32f411.ld
 
 # Project files (CHANGE THIS FOR EACH PROJECT)
