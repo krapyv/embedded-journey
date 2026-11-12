@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-12
+
+**Morning:**
+- Finished the Stage 4: the UART logger with the 200+ bytes array experiment.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-11
 
 **Morning:**

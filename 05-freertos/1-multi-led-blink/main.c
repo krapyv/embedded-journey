@@ -70,14 +70,18 @@ void vToggleLedHighest(void *pvParameters)
 
 void vPrintLogger(void *pvParameters)
 {
+
     TickType_t tick_counter = xTaskGetTickCount();
     uint32_t *half_period_ms = (uint32_t *)pvParameters;
     const TickType_t xDelay = pdMS_TO_TICKS(*half_period_ms);
 
+    const TickType_t xOffsetDelay = pdMS_TO_TICKS(497);
+    xTaskDelayUntil(&tick_counter, xOffsetDelay);
+
     char output[250];
     for (;;)
     {
-        int len = snprintf(output, sizeof(output), "%lu | PC13: %lu | PA10: %lu | PA1: %lu | pad: ----------------------------------------------------------------------------------------------------------------------------------------------------------------\n", xTaskGetTickCount(), ledHandlePC13.counter, ledHandlePA10.counter, ledHandlePA1.counter);
+        int len = snprintf(output, sizeof(output), "%lu | PC13: %lu | PA10: %lu | PA1: %lu | pad: ----------------------------------------------------------------------------------------------------------------------------------------------------------\n", xTaskGetTickCount(), ledHandlePC13.counter, ledHandlePA10.counter, ledHandlePA1.counter);
         if (len < 0)
         {
             len = snprintf(output, sizeof(output), "ERROR!\n");
