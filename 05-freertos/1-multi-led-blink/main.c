@@ -52,6 +52,30 @@ void vToggleLed(void *pvParameters)
     }
 }
 
+void vToggleLedPC13(void *pvParameters)
+{
+    LED_HandleTypeDef *pxLedHandler = (LED_HandleTypeDef *)pvParameters;
+    const TickType_t xDelay = pdMS_TO_TICKS(pxLedHandler->half_period_ms);
+
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    for (;;)
+    {
+        pxLedHandler->counter++;
+        led_on_bsrr(pxLedHandler);
+        // vTaskDelay(xDelay);
+        while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
+        {
+        }
+        xLastWakeTime += xDelay;
+        led_off_bsrr(pxLedHandler);
+        // vTaskDelay(xDelay);
+        while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
+        {
+        }
+        xLastWakeTime += xDelay;
+    }
+}
+
 void vToggleLedHighest(void *pvParameters)
 {
     LED_HandleTypeDef *pxLedHandler = (LED_HandleTypeDef *)pvParameters;
@@ -62,8 +86,16 @@ void vToggleLedHighest(void *pvParameters)
     {
         pxLedHandler->counter++;
         led_on_bsrr(pxLedHandler);
+        // while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
+        // {
+        // }
+        // xLastWakeTime += xDelay;
         xTaskDelayUntil(&xLastWakeTime, xDelay);
         led_off_bsrr(pxLedHandler);
+        // while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
+        // {
+        // }
+        // xLastWakeTime += xDelay;
         xTaskDelayUntil(&xLastWakeTime, xDelay);
     }
 }
@@ -105,7 +137,7 @@ int main(void)
     usart2_init();
 
     TaskHandle_t xHandlePC13 = NULL;
-    xTaskCreate(vToggleLed, "ToggleLED_PC13", 512, &ledHandlePC13, 2, &xHandlePC13);
+    xTaskCreate(vToggleLedPC13, "ToggleLED_PC13", 512, &ledHandlePC13, 2, &xHandlePC13);
     configASSERT(xHandlePC13);
 
     TaskHandle_t xHandlePA1 = NULL;
@@ -125,6 +157,4 @@ int main(void)
     for (;;)
     {
     }
-
-    return 0;
 }

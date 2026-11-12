@@ -33,6 +33,7 @@
 
 **Morning:**
 - Finished the Stage 4: the UART logger with the 200+ bytes array experiment.
+- Completed Stage 5 tasks A: the highest-priority task busy-waits and B: the PC13 (priority 2) busy-waits instead.
 
 **Evening:**
 
