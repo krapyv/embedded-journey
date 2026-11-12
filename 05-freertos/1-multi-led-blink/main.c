@@ -52,7 +52,7 @@ void vToggleLed(void *pvParameters)
     }
 }
 
-void vToggleLedPC13(void *pvParameters)
+void vToggleBusyWaitLed(void *pvParameters)
 {
     LED_HandleTypeDef *pxLedHandler = (LED_HandleTypeDef *)pvParameters;
     const TickType_t xDelay = pdMS_TO_TICKS(pxLedHandler->half_period_ms);
@@ -137,11 +137,11 @@ int main(void)
     usart2_init();
 
     TaskHandle_t xHandlePC13 = NULL;
-    xTaskCreate(vToggleLedPC13, "ToggleLED_PC13", 512, &ledHandlePC13, 2, &xHandlePC13);
+    xTaskCreate(vToggleBusyWaitLed, "ToggleLED_PC13", 512, &ledHandlePC13, 2, &xHandlePC13);
     configASSERT(xHandlePC13);
 
     TaskHandle_t xHandlePA1 = NULL;
-    xTaskCreate(vToggleLed, "ToggleLED_PA1", 512, &ledHandlePA1, 3, &xHandlePA1);
+    xTaskCreate(vToggleBusyWaitLed, "ToggleLED_PA1", 512, &ledHandlePA1, 2, &xHandlePA1);
     configASSERT(xHandlePA1);
 
     TaskHandle_t xHandlePA10 = NULL;

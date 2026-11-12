@@ -36,6 +36,7 @@
 - Completed Stage 5 tasks A: the highest-priority task busy-waits and B: the PC13 (priority 2) busy-waits instead.
 
 **Evening:**
+- Continued implementing and testing Stage 5c: equal priority and time slicing.
 
 **Problems encountered:**
 - (None today) etc
