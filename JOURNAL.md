@@ -33,6 +33,7 @@
 
 **Morning:**
 - Finished the Stage 5c: equal priority and time slicing.
+- Almost done with the Stage 6: walking one context switch by hand. Hard to wrap the head around it, not gonna lie.
 
 **Evening:**
 
