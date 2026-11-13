@@ -52,29 +52,30 @@ void vToggleLed(void *pvParameters)
     }
 }
 
-void vToggleBusyWaitLed(void *pvParameters)
-{
-    LED_HandleTypeDef *pxLedHandler = (LED_HandleTypeDef *)pvParameters;
-    const TickType_t xDelay = pdMS_TO_TICKS(pxLedHandler->half_period_ms);
+// Stage 5
+// void vToggleBusyWaitLed(void *pvParameters)
+// {
+//     LED_HandleTypeDef *pxLedHandler = (LED_HandleTypeDef *)pvParameters;
+//     const TickType_t xDelay = pdMS_TO_TICKS(pxLedHandler->half_period_ms);
 
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    for (;;)
-    {
-        pxLedHandler->counter++;
-        led_on_bsrr(pxLedHandler);
-        // vTaskDelay(xDelay);
-        while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
-        {
-        }
-        xLastWakeTime += xDelay;
-        led_off_bsrr(pxLedHandler);
-        // vTaskDelay(xDelay);
-        while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
-        {
-        }
-        xLastWakeTime += xDelay;
-    }
-}
+//     TickType_t xLastWakeTime = xTaskGetTickCount();
+//     for (;;)
+//     {
+//         pxLedHandler->counter++;
+//         led_on_bsrr(pxLedHandler);
+//         // vTaskDelay(xDelay);
+//         while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
+//         {
+//         }
+//         xLastWakeTime += xDelay;
+//         led_off_bsrr(pxLedHandler);
+//         // vTaskDelay(xDelay);
+//         while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
+//         {
+//         }
+//         xLastWakeTime += xDelay;
+//     }
+// }
 
 void vToggleLedHighest(void *pvParameters)
 {
@@ -86,6 +87,7 @@ void vToggleLedHighest(void *pvParameters)
     {
         pxLedHandler->counter++;
         led_on_bsrr(pxLedHandler);
+        // Stage 5
         // while ((xTaskGetTickCount() - xLastWakeTime) < xDelay)
         // {
         // }
@@ -137,11 +139,11 @@ int main(void)
     usart2_init();
 
     TaskHandle_t xHandlePC13 = NULL;
-    xTaskCreate(vToggleBusyWaitLed, "ToggleLED_PC13", 512, &ledHandlePC13, 2, &xHandlePC13);
+    xTaskCreate(vToggleLed, "ToggleLED_PC13", 512, &ledHandlePC13, 2, &xHandlePC13);
     configASSERT(xHandlePC13);
 
     TaskHandle_t xHandlePA1 = NULL;
-    xTaskCreate(vToggleBusyWaitLed, "ToggleLED_PA1", 512, &ledHandlePA1, 2, &xHandlePA1);
+    xTaskCreate(vToggleLed, "ToggleLED_PA1", 512, &ledHandlePA1, 3, &xHandlePA1);
     configASSERT(xHandlePA1);
 
     TaskHandle_t xHandlePA10 = NULL;

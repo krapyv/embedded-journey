@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-13
+
+**Morning:**
+- Finished the Stage 5c: equal priority and time slicing.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-12
 
 **Morning:**
