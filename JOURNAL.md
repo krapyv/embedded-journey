@@ -35,6 +35,7 @@
 - Finished the project's questions. The Week 29 project is done.
 
 **Evening:**
+- Completed the Journal logs for 07.11, 08.11 and partly 09.11.
 
 **Problems encountered:**
 - (None today) etc
@@ -113,11 +114,25 @@
 **Evening:**
 - Continued configuring the FreeRTOS config file.
 
-**Problems encountered:**
-- (None today) etc
+**FreeRTOS Multi-LED Blink - Kernel integration: submodule, Makefile paths, header dependency:**
+*Problem encountered:*
+- Added FreeRTOS-Kernel as a submodule inside the week folder instead of the repo root.
+- Makefile errors and typos.
+- `program.elf` depended only on `$(SRC)`.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- A submodule pinned to a tag is always in detached HEAD. That's correct.
+- `-I` is only for folders with headers that something includes. `.c` files go in SRC with their full path, and `MemMang/` has no header.
+- Make only expands `$(VAR)`. Without `$` it is a literal file name.
+- Make rebuilds only when a listed prerequisite is newer. An edit to FreeRTOSConfig.h alone would flash the old binary, which would silently invalidate the Stage 5c time-slicing experiment.
+
+*Fix:*
+- Removed and re-added the submodule at the root (`git rm -f`, delete the cached clone in `.git/modules/...`), checked out V11.3.3, and committed the pointer.
+- Fixed all paths after an `ls` of the real tree.
+- Added `$(CONFIG)/FreeRTOSConfig.h` as a prerequisite of the ELF. It's not in the gcc command, which uses `$(SRC)`, not `$^`.
+- Added `-Wall -Wextra -Wundef`.
+
+The build linked on the first full attempt, and the image is 21.83 KB.
 
 # 2026-11-08
 
@@ -132,11 +147,17 @@
 - Added the FreeRTOS-Kernel as a submodule.
 - Started preparing the first project.
 
-**Problems encountered:**
-- (None today) etc
+**FreeRTOS Multi-LED Blink - Why switching happens in PendSV, and what PENDSVSET really is:**
+*Problems encountered:*
+I did not understand why does SysTick pend PendSV instead of switching itself. Also I believed PENDSVSET is set once and the Ready tasks then run one after another.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- Nesting C handlers is always safe, so SysTick's prologue can't corrupt a preempted CAN ISR. The real danger is a swap while another handler is active. R4-R11 would hold that ISR's values, not the task's, so the switch must happen at the lowest priority when no other handler is running.
+- PendSV specifically gives two things. First, one switch path for every requester: a task (vTaskDelay, queue block), an ISR (portYIELD_FROM_ISR) and the tick all just write ICSR bit 28. A task can't "call SysTick", but it can pend an exception. Second, batching: one pending bit, so three requests give one switch.
+- After PendSV returns, no kernel runs in the background. The CPU is executing a task. Kernel code only runs on an API call, SysTick, a FromISR call, or PendSV. One PendSV equals one save and one load. The hardware clears the pending state on entry. Every later switch needs a new event, usually a task blocking, whitch sets PENDSVSET on its way out.
+
+*Fix (model):*
+PENDSVSET is a doorbell, and the ready lists are the queue. Ringing three times is one switch. Nobody is lost, because the lists remember who's Ready. The chain continues as long as every task eventually blocks, and Idle (priority 0, never blocks) is always there at the end.
 
 # 2026-11-07
 
@@ -151,11 +172,42 @@
 **Evening:**
 - Continued trying to understand the FreeRTOS.
 
-**Problems encountered:**
-- (None today) etc
+**FreeRTOS Multi-LED Blink - Building the understanding of the FreeRTOS concepts:**
+*Problems encountered:*
+- After reading the theory, my honest state was "I do not understand what I'm doing". I had two wrong ideas. 
+Firstly, I thought an exception is an "unexpecte internal error", as opposed to an interrupt, which is external.
+Second, I described the RTOS as something that guarantees an urgent job is never delayed.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- Exceptions: on ARMv7-M, exception is the umbrella term. It means any event that stacks a frame and jumps through the vector table. Interrupts (IRQ 16+) are one kind. Only HardFault, MemManage, BusFault and UsageFault are errors. SVC (11), PendSV (14) and SysTick (15) are deliberate, and FreeRTOS fires them thousands of times per second.
+The distinction that matters is timing: SVC is synchronous (taken at the instruction), while PendSV is asynchronous (it pends until its priority allows).
+- The guarantee: the highest-priority Ready task runs within bounded latency and never waits behind lower-priority work. It can still be delayed by any ISR, kernel critical section, the switch itself, or priority inversion. FreeRTOS knows priorities, not deadlines. Turning deadlines into priorities is my job, and the usual rule is that a shorter period gets a higher priority.
+
+*Fix:*
+Rewrote my "why an RTOS" notes.
+
+- A superloop's period is the sum of every job's worst case, so one slow job shifts all the others.
+- An RTOS gives each job its own loop, stack and priority, and switches by saving the CPU state onto that task's own stack.
+- It's concurrency, no parallelism.
+- ISRs stay ISRs: the ISR grabs the data, and a task processes it.
+- A blocked task costs zero CPU but not zero RAM, because its stack stays reserved.
+
+**FreeRTOS Multi-LED Blink - Who saves which registers, and why PendSV is naked:**
+*Problems encountered:*
+I believed SysTick entry saves R4-R11 only the task's stack. When asked what protects the logger's R4 if SysTick's C code uses R4, I said "the logger's stack". Additionally I didn't understand the question "what if PendSV used a normal prologue?".
+
+*Root cause:*
+Three different actors save registers:
+
+| Actor | Saves | Where | When |
+| Hardware | R0-R3, R12, LR, PC, xPSR | active SP before entry (PSP for a task) | every exception |
+| Compiler prologue/epilogue | only the R4-R11 that function uses | MSP (Handler mode) | every handler that uses them |
+| PendSV (FreeRTOS asm) | R4-R11 (+S16-S31), EXC_RETURN | the outgoing task's own stack | only on a switch |
+
+While SysTick runs, the logger's R4 is still in the CPU register. If the handler uses R4, its prologue parks it on MSP and the epilogue puts it back to the same owner. That works for nesting, but fails for a switch. If PendSV were plain C, it would push the logger's R4 to MSP, swap PSP, and pop the logger's R4 into the LED task. Nothing would ever have saved the LED task's own R4. MSP can't hold it until later either, because every ISR reuses MSP from the same top.
+
+*Fix (understanding):*
+`xPortPendSVHandler` is naked: no prologue, no epilogue. It pushed R4-R11 and EXC_RETURN through R0 = PSP onto the outgoing task's stack, and pops the incoming task's set from its stack. For a task that never ran, pxPortInitialiseStack() writes dummy values there.
 
 # 2026-11-06
 
