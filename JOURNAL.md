@@ -34,6 +34,9 @@
 **Morning:**
 - Completed the JOURNAL logs for 09.11, 10.11, 11.11, 12.11, 13.11, 14.11.
 
+**Morning -> afternoon:**
+- Wrote a README.md for the FreeRTOS Multi-LED Blink project.
+
 **Evening:**
 
 **Problems encountered:**

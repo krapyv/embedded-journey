@@ -115,7 +115,9 @@ void vPrintLogger(void *pvParameters)
     char output[250];
     for (;;)
     {
-        int len = snprintf(output, sizeof(output), "%lu | PC13: %lu | PA10: %lu | PA1: %lu | pad: ----------------------------------------------------------------------------------------------------------------------------------------------------------\n", xTaskGetTickCount(), ledHandlePC13.counter, ledHandlePA10.counter, ledHandlePA1.counter);
+        int len = snprintf(output, sizeof(output), "%lu | PC13: %lu | PA10: %lu | PA1: %lu\n", xTaskGetTickCount(), ledHandlePC13.counter, ledHandlePA10.counter, ledHandlePA1.counter);
+
+        // int len = snprintf(output, sizeof(output), "%lu | PC13: %lu | PA10: %lu | PA1: %lu | pad: ----------------------------------------------------------------------------------------------------------------------------------------------------------\n", xTaskGetTickCount(), ledHandlePC13.counter, ledHandlePA10.counter, ledHandlePA1.counter);
         if (len < 0)
         {
             len = snprintf(output, sizeof(output), "ERROR!\n");

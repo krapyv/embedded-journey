@@ -252,7 +252,7 @@ By end of Phase 4: You can implement any common data structure in C, calculate C
 
 Phase 5: FreeRTOS (C) (Weeks 29-37)
 Week	Topic	Morning Practice	Evening Theory	Project
-29	Tasks, scheduling	Create 3 tasks, observe	RTOS concepts	Multi-blink LED
+29	Tasks, scheduling	Create 3 tasks, observe	RTOS concepts	Multi-blink LED ✅
 30	Queues, semaphores	Task-to-task communication	Priority inversion	Sensor reader task
 31	Mutexes, event groups	Shared resource protection	Deadlock detection	Printf mutex
 32	Task notifications	Faster than semaphores	Benchmark	Command processor
