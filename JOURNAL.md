@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-15
+
+**Morning:**
+- Completed the JOURNAL logs for 09.11, 10.11, 11.11, 12.11, 13.11, 14.11.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-14
 
 **Morning:**
@@ -37,11 +50,24 @@
 **Evening:**
 - Completed the Journal logs for 07.11, 08.11 and partly 09.11.
 
-**Problems encountered:**
-- (None today) etc
+**FreeRTOS Multi-LED Blink - First-task launch: Thumb bit and the abandoned MSP frame**
+*Problems encountered:*
+I thought that xPSR = 0x01000000 with T = 0 would cause lockup. I first thought the 8 words below the MSP top were the first task's registers.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- Thumb bit: bit 24 is T. With T = 0, the first instruction raises a UsageFault with INVSTATE (UFSR bit 1 = CFSR bit 17). UsageFault is disabled by default, so it escalates to HardFault (HFSR.FORCED). The HardFault handler runs normally, because its own T comes from bit 0 of its vector. Lockup only happens for a fault inside HardFault/NMI. The same rule is why vectors and function pointers are odd.
+- MSP: `svc 0` is executed by `prvPortStartFirstTask`, so the hardware stacks its 8 registers onto MSP. The SVC handler returns with 0xFFFFFFFD, which unstacks from PSP (the first task's fake frame). Nothing ever pops the MSP frame.
+
+*Verification:* `x/8wx 0x2001FFE0` showed:
+- R0 = 0 (the value just written to CONTROL)
+- R1 = 0x00F00000 (CPACR CP10/CP11)
+- R2 = 0xE000EF34 (FPCCR)
+- R3 = 0xC0000000 (ASPEN | LSPEN)
+- LR = 0x08004D7B 
+- PC = 0x08004BDA = prvPortStartFirstTask + 32
+- xPSR = 0x41000000
+
+MSP stays at 0x2001FFE0 forever, 32 bytes permanently lost, and harmless.
 
 # 2026-11-13
 
@@ -51,11 +77,42 @@
 
 **Evening:**
 
-**Problems encountered:**
-- (None today) etc
+**FreeRTOS Multi-LED Blink - Stage 5c: time slicing and round-robin**
+*Problems encountered:*
+I didn't understand why busy-waiting tasks sharing the CPU still blink at the right rate. My run-2 prediction ("returns to the task PA10 preempted; one LED stays dark") was wrong.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- The busy-wait compares the tick, which SysTick advances regardless of who runs. It measures elapsed time, not CPU time received. The cost is up to 1 tick of jitter, which doesn't accumulate thanks to the `+=` grid. A `for (i < N)` delay would halve the blink rate.
+- Each priority has a circular ready list with an index. Every selection (`listGET_OWNER_OF_NEXT_ENTRY`) takes the next entry. configUSE_TIME_SLICING only decides whether the tick triggers a selection.
+
+*Measurements:*
+- Run 1 (slicing = 1, PC13 and PA1 both busy-waiting at 2): a GDB `commands` script on the PendSV breakpoint printed xTickCount and the outgoing task. The tick went +1 per hit (484, 485, ...) and alternated PC13/PA1, so about 1000 switches/s. Both LEDs kept their rates.
+- Run 2 (slicing = 0): PendSV only at PA10 events (20400, 22100, 23800, ... a 1700 grid). After each PA10 block the other priority-2 task came in: PC13 out at 22100, PA1 out at 23800, PC13 out at 25500. That's about 1.2 switches/s. Each LED was active 1.7 s and frozen 1.7 s, and the catch-up toggles after resuming were too fast to see. That explains the "taking turns, slower" pattern.
+
+**FreeRTOS Multi-LED Blink - Stage 6: one context switch, word by word**
+*Problems encountered:* Stepping `si` through `__asm volatile` showed nothing. The fix was `display/i $pc` and `x/30i 0x08004eb0`, which shows the real sequence: `mrs r0, psp` -> `ldr r2, [r3]` -> `tst lr, #16` / `vstmdbeq` -> `stmdb r0!, {r4-r11, lr}` -> `str r0, [r2]` -> BASEPRI = 0x40 -> `bl vTaskSwitchContext` -> BASEPRI = 0 -> `ldmia` -> `msr psp` -> `bx lr`.
+
+*Measurements:* Outgoing task PA10. PSP at entry was 0x20001A48, and after the push it was 0x20001A24, so 36 bytes = 9 words. `$lr` = 0xFFFFFFFD (bit 4 = 1: no FPU frame). After `str`, `pxCurrentTCB -> pxTopOfStack` = 0x20001A24.
+
+| Address | Value | Register | Saved by |
+| --- | --- | --- | --- |
+| 0x20001A24 | 0x000006A4 | R4 = 1700 (xDelay) | PendSV |
+| 0x20001A28 | 0x00000000 | R5 | PendSV |
+| 0x20001A2C | 0x00000000 | R6 | PendSV |
+| 0x20001A30 | 0x00001A68 | R7 (frame pointer at -O0 = 1700 | PendSV |
+| 0x20001A34 | 0x0019F0A0 | R8 | PendSV |
+| 0x20001A38 | 0x00000000 | R9 | PendSV |
+| 0x20001A3C | 0x0000D480 | R10 = 54 400 = 32 x 1700 (next wake time) | PendSV |
+| 0x20001A40 | 0x00000000 | R11 | PendSV |
+| 0x20001A44 | 0xFFFFFFFD | EXC_RETURN | hardware |
+| 0x20001A48 | 0x000006A4 | R0 | hardware |
+| 0x20001A4C | 0x20001AE4 | R1 | handware |
+| 0x20001A50 | 0x10000000 | R2 = PENDSVSET bit | hardware |
+| 0x20001A54 | 0xE000ED04 | R3 = ICSR address | hardware |
+| 0x20001A58 | 0xFA000000 | R12 | hardware |
+| 0x20001A5C | 0x08001905 | LR (xTaskResumeAll + 484) | hardware |
+| 0x20001A60 | 0x08000DA0 | PC (xTaskDelayUntil + 236) | hardware |
+| 0x20001A64 | 0x61000000 | xPSR (T bit + flag) | hardware |
 
 # 2026-11-12
 
@@ -66,11 +123,71 @@
 **Evening:**
 - Continued implementing and testing Stage 5c: equal priority and time slicing.
 
-**Problems encountered:**
-- (None today) etc
+**FreeRTOS Multi-LED Blink - snprintf clamp: three off-by-one rounds**
+*Problems encountered:*
+First version sent `len` as returned. The clamp then went `len > 250` -> `len = 250`, then `len > sizeof(output)` -> `sizeof(output)`.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- snprintf returns the length the full string would have had, not the bytes written. A 300-char line would send 300 bytes from a 250-byte buffer, leaking other stack locals and saved registers over UART.
+- A 250-char line needs 251 bytes, so `len == 250` is already truncated.
+- After truncation, index 249 is `\0`, so sending 250 transmits a NUL.
+- A negative return (encoding error) would fall into the driver's "send until NUL" mode by side effect.
+- `int` against `size_t` is a signed/unsigned comparison.
+
+*Fix:*
+| snprintf returns | Meaning | Sent |
+| < 0 | error | `ERROR!\n` fallback |
+| 0-249 | fits | exactly len |
+| >= 250 | truncated | 249 (no NULL) |
+
+Handle `len < 0` first, then `len >= (int)sizeof(output)` -> `sizeof(output) - 1`.
+
+**FreeRTOS Multi-LED Blink - Stage 4 measurements: the log is a measurement**
+*Measurements:* Tick 436 000 -> 467 000 (31 s):
+
+|#| Full period | Expected | Measured|
+| --- | --- | --- | --- |
+| Tick step | - | 1000 | 1000 every line |
+| PC13 | 1.0 s | 31 | 437 -> 468 = 31 |
+| PA1 | 2.4 s| approx. 12.9 | 182 -> 195 = 13 |
+| PA10 | 3.4 s | approx. 9.1 | 129 -> 138 = 9 |
+
+It ran over 7 minutes with no assert or fault.
+
+*Observation:*
+PC13 always reads tick/1000 + 1. At every `k*1000` tick, PC13 (priority 2) and the logger (1) wake together. The scheduler runs PC13 first, so the logger always sees that tick's increment. The priority order is visible in the data.
+
+**FreeRTOS Multi-LED Blink - Stage 4: catching preemption mid-print**
+*Problems encountered:* 
+The planned "long print doesn't disturb the fast task" experiment would have proved nothing as designed.
+
+*Root cause*:
+With the logger printing at `k*1000` to `k*1000 + ~18`, the LED wake-ups mod 1000 are PC13 {0,500}, PA1 {200, 400, 600, 800, 0}, PA10 {700, 400, 100, 800, 500, ... }. None falls in 1-17, so the logger is never interrupted mid-line.
+
+*Fix:*
+- Shifted the logger grind with `xTaskDelayUntil(&tick_counter, pdMS_TO_TICKS(497))` before the loop. The grid start is computed (0 + 497), not observed, so it can't absorb lateness. That's better than vTaskDelay plus re-reading the tick.
+- Padded the line to approx. 200 chars (`len` = 196, then 200 as the counters grow).
+- TX time: 10 bits x 8.68 microseconds = 86.8 microseconds/byte, 210 bytes on the wire (with the added `\r`) = approx. 18.2 ms.
+- Worst-case length with four 10-digit fields = 229 < 250, so the clamp can never trigger, shown by calculation.
+
+*Result:*
+- Breakpoint in PC13 after its delay: `xTaskGetTickCount() = 500`.
+- The terminal showed a partial line, `497 | PC13: 1 | PA10: 1 | PA1: 1` (approx. 32 chars). The prediction was 3 ms / 86.8 microseconds = 34 bytes.
+- The tick column stepped 1497, 2497, ... by exactly 1000, and the counter rates were unchanged.
+- Every 17 s PA10 also hit 500 mod 1000 and runs first (priority 4).
+
+**FreeRTOS Multi-LED Blink - Stage 5a/5b: starvation in both directions**
+*Prediction vs result (5a: PA10, priority 4, busy-waits):*
+- Predicted: PA10 blinks correctly, the logger never prints, the tick keeps advancing (an ISR), Idle never runs, PC13 is frozen lit and PA1 dark (`led_init` never touches ODR, reset 0, so active-low PC13 is lit).
+- Observed: exactly that. Minicom was silent, the PendSV breakpoint never hit, `pcTaskName` was always "ToggleLED_PA10", and xTickCount went 60 786 -> 73 851.
+
+*Correction to my model:* The starved tasks were never "moved from delayed to Ready". They never ran, so they say in the Ready list since `xTaskCreate`. The SVC launched the highest-priority task first, not the first one created.
+
+*Prediction vs result (5b: PC13, priority 2, busy-waits):*
+- Predicted: PA10 runs, blocks; PA1 runs, blocks; PC13 spins; the logger and Idle never run.
+- Observed: matched. PendSV outgoing sequence: PA10 -> PA1 -> PC13 (PA1 woke) -> PA1 -> PC13 (PA10 woke) -> PA10. PC13's counter went 2 -> 9, and the logger and IDLE never appeared.
+
+*Busy-wait design:* `while ((xTaskGetTickCount() - xLastWakeTime) < xDelay) { }` with `xLastWakeTime += xDelay`. The subtraction is wrap-safe, the function call prevents the compiler optimizing it away, and the grid is computed rather than re-read.
 
 # 2026-11-11
 
@@ -86,11 +203,80 @@
 - Tested the Stage 4 - works.
 - Implemented the deliberately 200+ byte UART line test case to check whether the RTOS earns its keep.
 
-**Problems encountered:**
-- (None today) etc
+**FreeRTOS Multi-LED Blink - LED driver: ODR read-modify-write -> BSRR:**
+*Problems encountered:*
+`*odr_reg &= ~(1 << pin)` and `|=` in a driver that several preemptible tasks would call. Then `1 << hled->pin + 16` with  signed literal.
 
-**Root cause at the register level:**
--
+*Root cause:*
+- An ODR read-modify-write is load, modify, store. If task A is preempted after the load and task B changes its pin on the same port, A stores is stale copy and erases B's change. It's a stale read, not a half-written value.
+- `1` is a 32-bit signed int, so `1 << 31` (BR15) is undefined behavior. `+` binds tighter than `<<`, so the expression was correct by luck, but unreadable.
+
+*Fix:*
+- New `bsrr_reg` field plus `led_on_bsrr`/`led_off_bsrr`, each a single plain `=` store. PC13 is active-low: on = BR13 (bit 29), off = BS13 (bit 13).
+- `1U << (pin + 16)` in all shifts.
+- Old ODR function kept so earlier project still build.
+- `led_init` (a read-modify-write on AHB1ENR and MODER) is called only from `main()` before the scheduler, when no other task exist.
+
+**FreeRTOS Multi-LED Blink - Stage 2: proving the scheduler, not trusting the blink:**
+*Verification:*
+
+| Check | Result |
+| --- | --- |
+| Period | 60 blinks in 60 s (stopwatch) |
+| Vector table | word 0 =0x20020000 (initial MSP), words 2-6/12 = 0x080001F9 (Default_Handler), word 11 = 0x08004AD1, 14 = 0x08004DD9, 15 = 0x08004E3B, all different from the default and odd (Thumb bit) |
+| In the task | CONTROL = 0x2 (SPSEL = 1), sp = psp = 0x2000988 (in ucHeap), msp = 0x2001FFE0 |
+| In SysTick_Handler | CONTROL = 0x0, sp = msp = 0x2001FFD0 |
+| ICSR | 0x80F: VECTACTIVE = 15 (SysTick), bit 11 RETTOBASE = 1 (not nested) |
+| Tick | xTickCount 0 -> 5161 over approx. 5 s|
+| sizeof(TCB_t) | 84 bytes |
+| PendSV outgoing task | IDLE ToggleLED, IDLE, ToggleLED... |
+
+*Problems encountered:*
+`print SCB->ICSR` failed with "No symbol SCB" (it's a macro), so I read `x/wx 0xE000ED04`. I didn't know how to confirm handler address. The answer: `info symbol` or `nm`.
+
+**FreeRTOS Multi-LED Blink - Stage 3: three tasks, one function, and the DelayUntil grid**
+*Problems encountered:*
+- Only PC13 was initialized, so GPIOA's clock was off and PA0/PA1 were still in reset mode.
+- Code priorities didn't match my plan.
+- PA0 is the Black Pill KEY button pin.
+- In `vToggleLedHighest` I set `xLastWakeTime = xTaskGetTickCount()` before every `xTaskDelayUntil`, and passed `half_period_ms` directly as ticks.
+
+*Root cause:*
+- `xTaskDelayUntil(&xLastWakeTime, x)` wakes at `xLastWakeTime + x` and writes the new wake time back through the pointer (`*pxPreviousWakeTime = xTimeToWake`). Re-reading the clock each pass turned it into vTaskDelay, counted from whenever the task got the CPU.
+- The second argument is in ticks. It only worked because 1 tick = 1 ms.
+
+*Fix:*
+- LEDs: PC13 (priority 2, 500 ms half period), PA1 red (3, 1200 ms), PA10 green (4, 1700 ms). PA10 is free.
+- `half_period_ms` lives in the handler, so one function serves two tasks.
+- A separate DelayUntil function for the top task, with `xLastWakeTime` read once before the loop and `pdMS_TO_TICKS` applied once.
+- All `led_init` calls in `main()`.
+
+*Verification:*
+At the same breakpoint, `xLastWakeTime` went 1700 -> 5100: exactly 3400 = 2 * 1700, no extra tick. The grid starts at 0 because the task read the tick before the first SysTick.
+
+**FreeRTOS Multi-LED Blink - Stage 4: logger task bugs and the warnings that caught them**
+*Problems encountered:*
+The first logger implementation had six problems:
+1. `xHandleLogger` was passed by value (NULL), so the task was created but `configASSERT(xHandleLogger)` would wait.
+2. `uint32_t half_period_ms = (uint32_t *)pvParameters`: the SRAM address became the period.
+3. The vTaskDelay tasks never incremented their counters.
+4. The printed tick was `xLastWakeTick`, which steps by 1000 by instruction, so it proves nothing.
+5. `#if (TARGET_UART_MODE != UART_MODE_TX_ISR)` used an undefined macro.
+6. printf went through newlib with nosys stubs.
+
+*Root cause:*
+- In `#if`, an undefined identifier becomes 0, so the test was really `!= 0`. Selecting TX_ONLY (0) would silently compile out `_write`.
+- On the first printf, newlib calls `_fstat`/`_isatty`, which are stub failures (the linker warns "will always fail"), and may choose full buffering.
+
+*Fix:*
+- `&xHandleLogger`, and dereference the parameter pointer.
+- `counter++` once per loop in every task, so there is still one writer each.
+- Print `xTaskGetTickCount()` at the moment of printing.
+- Defined `UART_MODE_TX_ISR 4U`.
+- Added `-Wundef -Wall -Wextra`. The only warnings left were the unused `file` in `_write` and `void main`.
+- Confirmed POLLING mode sets only TE|RE and enables no NVIC line.
+- Logger at priority 1, period 1000 ms with xTaskDelayUntil, counters `volatile` in the handles.
+- Replaced printf with `snprintf` into a local buffer plus `usart2_write_string`. Lines arrived once per second either way.
 
 # 2026-11-10
 
@@ -100,11 +286,29 @@
 **Evening:**
 - Wrote a Linkedin post about my FreeRTOS struggels :)
 
-**Problems encountered:**
-- (None today) etc
+**FreeRTOS Multi-LED Blink - main(): five bugs before the first blink**
+*Problems encountered:*
+1. `ledHandle` was a local in `main()`.
+2. AIRCR written as `(0x5FA << 16) | ~(0x7 << 8)`.
+3. Task priority 6 with configMAX_PRIORITIES = 5.
+4. The task only called `led_on`.
+5. Stack depth 64 words, believed "more than generous".
+6. No `vTaskStartScheduler()`, then `configASSERT(xHandle)` placed after it.
 
-**Root cause at the register level:**
--
+*Root cause:*
+1. `vPortStartFirstTask` resets MSP from vector entry [0], so main's frame is reused by handler prologues. `odr_reg` would then hold a stacked register value, which can corrupt RAM or cause a BusFault.
+2. `~` inverts all 32 bits: `0xFFFFF8FF | 0x05FA0000 = 0xFFFFF8FF`, so the key does not match and the write is ignored. With a matching key, bit 2 (SYSRESETREQ) would reset the chip.
+3. Valid task priorities are 0 to 4. It's a separate space from NVIC, and higher means more urgent. The assert would fire in xTaskCreate.
+4. LED always on, so the test proves nothing. 
+5. One saved context alone is 17 words (51 with FPU), plus the vTaskDelay call chain at -O0.
+6. Creating a task only puts it in the ready list. On this port vTaskStartScheduler returns only if Idle can't be allocated (heep is too small).
+
+*Fix:*
+- Handle is now `static` at file scope (`.data`).
+- `SCB->AIRCR = (0x5FA << 16U)`: PRIGROUP 0b000, all 4 bits preemption. The reset value 0xFA050000 is already correct, but I write it explicitly against handoff. Note the read shows 0xFA05 while a write needs 0x05FA.
+- Priority 2, on/off with vTaskDelay, 512 words.
+- `configASSERT(xHandle)` before the scheduler start, then a trap loop that means "check the heap".
+- Pass `&ledHandle` through `pvParameters`.
 
 # 2026-11-09
 
@@ -114,7 +318,7 @@
 **Evening:**
 - Continued configuring the FreeRTOS config file.
 
-**FreeRTOS Multi-LED Blink - Kernel integration: submodule, Makefile paths, header dependency:**
+**FreeRTOS Multi-LED Blink - Kernel integration: submodule, Makefile paths, header dependency**
 *Problem encountered:*
 - Added FreeRTOS-Kernel as a submodule inside the week folder instead of the repo root.
 - Makefile errors and typos.
@@ -133,6 +337,33 @@
 - Added `-Wall -Wextra -Wundef`.
 
 The build linked on the first full attempt, and the image is 21.83 KB.
+
+**FreeRTOS Multi-LED Blink - FreeRTOSConfig.h: every value derived**
+*Problems encountered:*
+- I didn't understand "priorities as shifted bytes".
+- I thought an unshifted 4 written to BASEPRI would mask everything.
+- My configASSERT was a bare `if`, then `do {...} while (0);` with a trailing semicolon.
+- I didn't know what the handler mapping did.
+
+*Root case:*
+- The F411 implements only priority bits [7:4]. Level 5 is the byte 0x50. BASEPRI and the system-handler priority registers take the raw byte.
+- Writing plain 4 gives 0x04. The low nibble isn't implemented, so BASEPRI holds 0x00, and 0 means "mask nothing" (according to PM0214), not "mask everything" (that's PRIMASK's job). The kernel's critical sections would protect nothing. There's no warning, the system works almost always, and lists corrupt rarely, ending as a HardFault far away.
+- A bare `if` macro steals a following `else`. With the trailing `;` inside the macro, `configASSERT(x);` adds an empty statement and breaks `if/else`.
+- The startup file's `SVC_Handler`, `PendSV_Handler` and `SysTick_Handler` are weak aliases to Default_Handler. Without a rename the link still succeeds, and the first `svc 0` lands in an infinite loop.
+
+*Fix:*
+| Item | Value | Reason |
+| --- | --- | --- |
+| configCPU_CLOCK_HZ | 16 000 000 | reset HSI, no PLL. SysTick reload 15 999 fits the 24-bit field (max 0xFFFFFF) |
+| configPRIO_BITS | 4 | |
+| configKERNEL_INTERRUPT_PRIORITY | 0xF0 (level 15) | PendSV only switches when no other handler is active |
+| configMAX_SYSCAL_INTERRUPT_PRIORITY | 0x40 (level 4) | CAN EXTI at 4 may call FromISR. A few microseconds of masking vs 222 microseconds per 8-byte frame (approximately equals 94 microseconds at DLC 0) is safe |
+| Tick width | 32 bits | single aligned LDR, no critical section. Wraps after approx. 49.7 days, so compare by subtraction |
+| configASSERT | `do { if ((x) == 0) { taskDISABLE_INTERRUPTS(); for (;;) { } } } while (0) ` | no trailing `;` |
+| Handler mapping | `#define vPortSVCHandler SVC_Handler` (+PendSV, SysTick) | strong definitions override the weak ones. Old SysTick_Handler removed |
+| Heap | 16 384 B | 5 tasks x (2048 B stack + TCB) = approx. 10.7 KB |
+
+Hooks, stack-overflow checks, timers, trace and static allocation are all off.
 
 # 2026-11-08
 
@@ -200,6 +431,7 @@ I believed SysTick entry saves R4-R11 only the task's stack. When asked what pro
 Three different actors save registers:
 
 | Actor | Saves | Where | When |
+| --- | --- | --- | --- |
 | Hardware | R0-R3, R12, LR, PC, xPSR | active SP before entry (PSP for a task) | every exception |
 | Compiler prologue/epilogue | only the R4-R11 that function uses | MSP (Handler mode) | every handler that uses them |
 | PendSV (FreeRTOS asm) | R4-R11 (+S16-S31), EXC_RETURN | the outgoing task's own stack | only on a switch |
