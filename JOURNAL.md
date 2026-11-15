@@ -38,6 +38,7 @@
 - Wrote a README.md for the FreeRTOS Multi-LED Blink project.
 
 **Evening:**
+- Learned and wrote down the theory: preemption priority, make rebuild, pvParameters in FreeRTOS task, MSP when one handler returns and the next ISR fires, stack cost, SVC, boot sequence, xTaskDelayUntil and vTaskDelay.
 
 **Problems encountered:**
 - (None today) etc
