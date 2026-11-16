@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-16
+
+**Morning:**
+- Continued learning and writing down theory: Idle task, round-robin, MSP's 8-word unused space , MSP sizing, superloop, R0-R3, R12, LP, PC, xPSR, R4-R11 registers, PendSV, PendSV handler.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-15
 
 **Morning:**
