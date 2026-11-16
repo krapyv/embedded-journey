@@ -36,6 +36,7 @@
 - Wrote a Linkedin post about the Multi-LED FreeRTOS Logger.
 
 **Evening:**
+- Learned and wrote down: PendSV handler (once again since in the morning I did not understand much) and function's prologue + epilogue.
 
 **Problems encountered:**
 - (None today) etc
