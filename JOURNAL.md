@@ -33,6 +33,7 @@
 
 **Morning:**
 - Finished learning the theory: TCB (Task Control Block), LDR and SVC 0.
+- Started the Week 30: queues, mutexes and semaphores, priority inversion. Learned about queues. Started wrapping my head about mutexes and semaphores. It's hard :)
 
 **Evening:**
 
