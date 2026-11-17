@@ -36,6 +36,7 @@
 - Started the Week 30: queues, mutexes and semaphores, priority inversion. Learned about queues. Started wrapping my head about mutexes and semaphores. It's hard :)
 
 **Evening:**
+- Learned and wrote down theory about mutexes and semaphores.
 
 **Problems encountered:**
 - (None today) etc
