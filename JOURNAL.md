@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-17
+
+**Morning:**
+- Finished learning the theory: TCB (Task Control Block), LDR and SVC 0.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-16
 
 **Morning:**
