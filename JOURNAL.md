@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-18
+
+**Morning:**
+- Finished learning about semaphores and mutexes.
+- Learned about priority inversion. The theory is done.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-17
 
 **Morning:**
