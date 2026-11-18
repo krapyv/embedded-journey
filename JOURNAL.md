@@ -37,6 +37,7 @@
 - Repeated the theory from my head: everything makes sense. The practical task is next.
 
 **Evening:**
+- Started deriving the Stage 0 of the practical project: design.
 
 **Problems encountered:**
 - (None today) etc
