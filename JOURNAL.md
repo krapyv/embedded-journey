@@ -34,6 +34,7 @@
 **Morning:**
 - Finished learning about semaphores and mutexes.
 - Learned about priority inversion. The theory is done.
+- Repeated the theory from my head: everything makes sense. The practical task is next.
 
 **Evening:**
 
