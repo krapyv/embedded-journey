@@ -35,6 +35,7 @@
 - Finished the Stage 0. Have hard time working with the task's deadlines and a mailbox queues.
 
 **Evening:**
+- Learned about deadlines and a mailbox queues. Now it kinda makes sense.
 
 **Problems encountered:**
 - (None today) etc
