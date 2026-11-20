@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-20
+
+**Morning:**
+- Derived the CAN TX and ERRIF mechanisms handling for the FreeRTOS implementation. The Stage 0 is truly finished.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
+
 # 2026-11-19
 
 **Morning:**
