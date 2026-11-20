@@ -35,6 +35,7 @@
 - Derived the CAN TX and ERRIF mechanisms handling for the FreeRTOS implementation. The Stage 0 is truly finished.
 
 **Evening:**
+- Calculating the RC filter values for the project breadboard circuit.
 
 **Problems encountered:**
 - (None today) etc
