@@ -37,6 +37,7 @@
 - Refactored the existing drivers and projects to use OSAL.
 
 **Evening:**
+- Implemented the vSensorTask (the vLoggerTask is next).
 
 **Problems encountered:**
 - (None today) etc
