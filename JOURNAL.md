@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-21
+
+**Morning:**
+- The debounce design is done: the RC filter values are calculated.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-20
 
 **Morning:**
