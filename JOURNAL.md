@@ -33,6 +33,7 @@
 
 **Morning:**
 - The debounce design is done: the RC filter values are calculated.
+- Implemented the OSAL (Operating System Abstraction Layer): the bare-metal and freeRTOS time functions.
 
 **Evening:**
 
