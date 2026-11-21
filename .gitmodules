@@ -43,3 +43,6 @@
 [submodule "third_party/FreeRTOS-Kernel"]
 	path = third_party/FreeRTOS-Kernel
 	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
+[submodule "my_reusable_drivers/osal"]
+	path = my_reusable_drivers/osal
+	url = git@github.com:krapyv/stm32-freertos-osal.git
