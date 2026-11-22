@@ -38,6 +38,7 @@
 - Started the Stage 2: Real BMP280 inside SensorTask - halfway through refactoring the BMP280 (to prevent copying the state-machine etc).
 
 **Evening:**
+- Wrote a linkedin post about the vTaskDelay that guaranteed n-1 tick.
 
 **Problems encountered:**
 - (None today) etc
