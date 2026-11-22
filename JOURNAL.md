@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-22
+
+**Morning:**
+- Implemented the Stage 1: two tasks and one queue, with dummy data. It was hard, ngl.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-21
 
 **Morning:**
