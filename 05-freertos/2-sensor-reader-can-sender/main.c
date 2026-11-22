@@ -70,7 +70,9 @@ void vSensorTask(void *pvParameters)
         if (xTaskDelayUntil(&xLastWakeTime, xPeriod) == pdFALSE)
         {
             // the task overran its period
-            // todo: log it as its own event
+            // for sampling tasks, skil missed periods, don't catch up.
+            // todo: log it as its own event and resync - set xLastWakeTime to the current tick count
+            // the missed periods are then skipped instead of replayed, and the schedule continues from now
         }
     }
 }

@@ -34,6 +34,9 @@
 **Morning:**
 - Implemented the Stage 1: two tasks and one queue, with dummy data. It was hard, ngl.
 
+**Afternoon:**
+- Started the Stage 2: Real BMP280 inside SensorTask - halfway through refactoring the BMP280 (to prevent copying the state-machine etc).
+
 **Evening:**
 
 **Problems encountered:**
