@@ -37,6 +37,7 @@
 
 **Evening:**
 - Built a breadboard circuit and tested the Stage 2: both normal and error (pulled out the SDA wire) paths. 
+- Built a breadboard ciruit for the Stage 3: CanTxTask + mailbox.
 
 **Problems encountered:**
 - (None today) etc
