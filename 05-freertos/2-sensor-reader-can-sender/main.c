@@ -11,7 +11,7 @@
 
 // globally declared vaiable with physically allocated memory in RAM
 I2C_HandleTypeDef hi2c;
-BMP280_HandleTypeDef hbmp;
+static BMP280_HandleTypeDef hbmp;
 
 volatile uint8_t can_int_flag = 0;
 volatile uint8_t can_bus_off = 0;
@@ -125,7 +125,7 @@ void vSensorTask(void *pvParameters)
 
         if (process_res == BMP280_PROCESS_FAILED)
         {
-            entry = sensorTask_ConfigureLog((uint8_t)EVT_SENSOR_READ_FAIL, hbmp.last_error_code, 0, 0, 0, xTaskGetTickCount());
+            entry = sensorTask_ConfigureLog((uint8_t)EVT_SENSOR_READ_FAIL, (uint32_t)hbmp.last_error_code, 0, 0, 0, xTaskGetTickCount());
         }
         else
         {

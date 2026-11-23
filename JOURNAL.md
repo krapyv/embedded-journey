@@ -36,6 +36,7 @@
 - Finished the Stage 2: real BMP280 inside the Sensor Task.
 
 **Evening:**
+- Built a breadboard circuit and tested the Stage 2: both normal and error (pulled out the SDA wire) paths. 
 
 **Problems encountered:**
 - (None today) etc
