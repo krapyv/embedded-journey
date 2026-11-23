@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-23
+
+**Morning:**
+- Finished refactoring the BMP280 driver.
+- Finished the Stage 2: real BMP280 inside the Sensor Task.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-22
 
 **Morning:**

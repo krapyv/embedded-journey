@@ -11,6 +11,7 @@
 
 // globally declared vaiable with physically allocated memory in RAM
 I2C_HandleTypeDef hi2c;
+BMP280_HandleTypeDef hbmp;
 
 volatile uint8_t can_int_flag = 0;
 volatile uint8_t can_bus_off = 0;
@@ -45,20 +46,92 @@ static StaticTask_t xLoggerTaskBuffer;
 // buffer that the task will use as its stack
 static StackType_t xLoggerStack[STACK_TASK_DEPTH];
 
+static LogEvent_t sensorTask_ConfigureLog(uint8_t event_id, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t tick)
+{
+    LogEvent_t log = {.event_id = event_id,
+                      .arg0 = arg0,
+                      .arg1 = arg1,
+                      .arg2 = arg2,
+                      .arg3 = arg3,
+                      .tick = tick};
+
+    return log;
+}
+
 void vSensorTask(void *pvParameters)
 {
     (void)pvParameters;
-    TickType_t xLastWakeTime;
-    const TickType_t xPeriod = pdMS_TO_TICKS(SENSOR_TASK_PERIOD_MS);
+    TickType_t xLastMainWakeTime, xLastSubWakeTime;
+    const TickType_t xMainPeriod = pdMS_TO_TICKS(SENSOR_TASK_PERIOD_MS);
+    const TickType_t xSubPeriod = pdMS_TO_TICKS(2);
 
-    xLastWakeTime = xTaskGetTickCount();
+    BMP280_ProcessState_t process_res;
+
+    LogEvent_t entry;
+
+    uint8_t isInitFailed = 0;
+
+    // init loop
+    xLastSubWakeTime = xTaskGetTickCount();
+
+    for (;;)
+    {
+        I2C_Process();
+        process_res = BMP280_Process(&hbmp);
+
+        if ((process_res == BMP280_PROCESS_IDLE) || (process_res == BMP280_PROCESS_FAILED))
+        {
+            break;
+        }
+        xTaskDelayUntil(&xLastSubWakeTime, xSubPeriod);
+    }
+
+    if (process_res == BMP280_PROCESS_FAILED)
+    {
+        isInitFailed = 1;
+    }
+
+    xLastMainWakeTime = xTaskGetTickCount();
 
     uint32_t counter = 0;
 
     // the loop that defines the task behavior
     for (;;)
     {
-        LogEvent_t entry = {.event_id = (uint8_t)EVT_SENSOR_READ_OK, .arg0 = 2300, .arg1 = 1024, .arg2 = counter++, .arg3 = 0, .tick = xTaskGetTickCount()};
+        process_res = BMP280_PROCESS_FAILED;
+        if (!isInitFailed)
+        {
+
+            BMP280_Status_t startMeasurement_res = BMP280_StartMeasurement(&hbmp);
+
+            if (startMeasurement_res == BMP280_OK)
+
+            {
+                xLastSubWakeTime = xTaskGetTickCount();
+                for (;;)
+                {
+                    I2C_Process();
+                    process_res = BMP280_Process(&hbmp);
+
+                    if ((process_res == BMP280_PROCESS_READY) || (process_res == BMP280_PROCESS_FAILED))
+                    {
+                        break;
+                    }
+
+                    xTaskDelayUntil(&xLastSubWakeTime, xSubPeriod);
+                }
+            }
+        }
+
+        if (process_res == BMP280_PROCESS_FAILED)
+        {
+            entry = sensorTask_ConfigureLog((uint8_t)EVT_SENSOR_READ_FAIL, hbmp.last_error_code, 0, 0, 0, xTaskGetTickCount());
+        }
+        else
+        {
+            entry = sensorTask_ConfigureLog((uint8_t)EVT_SENSOR_READ_OK, (uint32_t)hbmp.temp_value, hbmp.press_value, counter, 0, xTaskGetTickCount());
+            counter++;
+        }
         BaseType_t queueSendRes = xQueueSendToBack(logQueue, &entry, 0); // 0 - try once and return immediately
 
         if (queueSendRes == errQUEUE_FULL)
@@ -67,12 +140,12 @@ void vSensorTask(void *pvParameters)
             sensor_log_drop_counter++;
         }
 
-        if (xTaskDelayUntil(&xLastWakeTime, xPeriod) == pdFALSE)
+        if (xTaskDelayUntil(&xLastMainWakeTime, xMainPeriod) == pdFALSE)
         {
-            // the task overran its period
-            // for sampling tasks, skil missed periods, don't catch up.
-            // todo: log it as its own event and resync - set xLastWakeTime to the current tick count
+            // resynchronization
+            // xLastMainWakeTime set to the current tick count
             // the missed periods are then skipped instead of replayed, and the schedule continues from now
+            xLastMainWakeTime = xTaskGetTickCount();
         }
     }
 }
@@ -154,6 +227,30 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask,
 int main(void)
 {
     usart2_init();
+
+    // BMP280
+
+    // define and initialize structs
+    hi2c.channel = I2C_CHANNEL_1;
+    hi2c.scl_port = GPIOB;
+    hi2c.scl_pin = 6;
+    hi2c.sda_port = GPIOB;
+    hi2c.sda_pin = 7;
+    hi2c.state = I2C_STATE_IDLE;
+    hi2c.sb_hits = 0;
+    hi2c.stop_hits = 0;
+    hi2c.start_pending_hits = 0;
+
+    I2C_Init();
+
+    BMP280_Ctrl_Meas_t meas = {
+        .osrs_p = BMP280_OSRS_P_OVRSMP_1,
+        .osrs_t = BMP280_OSRS_T_OVRSMP_1,
+        .mode = BMP280_FORCED_MODE};
+
+    BMP280_Status_t configure_res = BMP280_Configure(&hbmp, &hi2c, BMP280_I2C_ADDR, meas);
+
+    configASSERT(configure_res == BMP280_OK);
 
     logQueue = xQueueCreateStatic(LOGGER_QUEUE_LENGTH, LOGGER_QUEUE_ITEM_SIZE, ucLoggerQueueStorageArea, &xLoggerStaticQueue);
     configASSERT(logQueue);
