@@ -29,6 +29,22 @@
 
 ----------------------------------------------
 
+# 2026-11-24
+
+**Morning:**
+- Tested the breadboard circuit with the multimeter.
+- Tested the "can-sensor-node" application after the osal refactoring. Works.
+- Refactored the MCP2515 (for the Stage 3) and UART drivers.
+- Bumped submodules.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-23
 
 **Morning:**

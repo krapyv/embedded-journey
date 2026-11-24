@@ -5,11 +5,6 @@
 #include <stdbool.h>
 
 /* UART2 CONFIGURATION */
-#define UART_MODE_TX_ONLY 0U
-#define UART_MODE_RX_ONLY 1U
-#define UART_MODE_TX_RX 2U
-#define UART_MODE_TX_RX_POLLING 3U
-#define UART_MODE_TX_ISR 4U
 
 // select active mode for the project
 #define TARGET_UART_MODE UART_MODE_TX_ISR
@@ -26,5 +21,8 @@
 #define PRIORITY_LOGGER_TASK 1U
 
 #define STACK_TASK_DEPTH 256U
+
+/* MCP2515 CONFIGURATION */
+#define MCP_INTERRUPT_MODE MCP_INTERRUPTS_DISABLED
 
 #endif // APP_CONFIG_H
