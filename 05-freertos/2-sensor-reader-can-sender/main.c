@@ -1,5 +1,6 @@
 #include "FreeRTOS.h"
 #include "log_event.h"
+#include "sensor_queue.h"
 #include "app_config.h"
 #include "uart.h"
 #include "mcp2515.h"
@@ -31,6 +32,12 @@ static StaticQueue_t xLoggerStaticQueue;
 // the array to use as the queue's storage area
 // at least queue_length * item_size -> logStorage = 6 * 24 = 144
 static uint8_t ucLoggerQueueStorageArea[LOGGER_QUEUE_LENGTH * LOGGER_QUEUE_ITEM_SIZE];
+
+/* static sensor queue */
+static StaticQueue_t xSensorStaticQueue;
+
+// the array to use as the queue's storage area: queue_length * item_size -> 1 * 16 = 16
+static uint8_t ucSensorQueueStorageArea[SENSOR_QUEUE_LENGTH * SENSOR_QUEUE_ITEM_SIZE];
 
 /* sensor task */
 // structure that will hold the TCB of the task
@@ -126,18 +133,24 @@ void vSensorTask(void *pvParameters)
         if (process_res == BMP280_PROCESS_FAILED)
         {
             entry = sensorTask_ConfigureLog((uint8_t)EVT_SENSOR_READ_FAIL, (uint32_t)hbmp.last_error_code, 0, 0, 0, xTaskGetTickCount());
+            BaseType_t queueSendRes = xQueueSendToBack(logQueue, &entry, 0); // 0 - try once and return immediately
+
+            if (queueSendRes == errQUEUE_FULL)
+            {
+                // queue was full and the item is dropped
+                sensor_log_drop_counter++;
+            }
         }
         else
         {
-            entry = sensorTask_ConfigureLog((uint8_t)EVT_SENSOR_READ_OK, (uint32_t)hbmp.temp_value, hbmp.press_value, counter, 0, xTaskGetTickCount());
-            counter++;
-        }
-        BaseType_t queueSendRes = xQueueSendToBack(logQueue, &entry, 0); // 0 - try once and return immediately
+            SensorQueue_t item = {
+                .temp = hbmp.temp_value,
+                .press = hbmp.press_value,
+                .seq = counter,
+                .tick = xTaskGetTickCount()};
 
-        if (queueSendRes == errQUEUE_FULL)
-        {
-            // queue was full and the item is dropped
-            sensor_log_drop_counter++;
+            BaseType_t sensorQueueRes = xQueueOverwrite(sensorQueue, &item);
+            counter++;
         }
 
         if (xTaskDelayUntil(&xLastMainWakeTime, xMainPeriod) == pdFALSE)
@@ -254,6 +267,9 @@ int main(void)
 
     logQueue = xQueueCreateStatic(LOGGER_QUEUE_LENGTH, LOGGER_QUEUE_ITEM_SIZE, ucLoggerQueueStorageArea, &xLoggerStaticQueue);
     configASSERT(logQueue);
+
+    sensorQueue = xQueueCreateStatic(SENSOR_QUEUE_LENGTH, SENSOR_QUEUE_ITEM_SIZE, ucSensorQueueStorageArea, &xSensorStaticQueue);
+    configASSERT(sensorQueue);
 
     // tasks creation
     TaskHandle_t xLoggerHandle = xTaskCreateStatic(vLoggerTask, "LOGGER_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_LOGGER_TASK, xLoggerStack, &xLoggerTaskBuffer);

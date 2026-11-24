@@ -38,6 +38,7 @@
 - Bumped submodules.
 
 **Evening:**
+- Continued working on Stage 3: Sensor queue.
 
 **Problems encountered:**
 - (None today) etc

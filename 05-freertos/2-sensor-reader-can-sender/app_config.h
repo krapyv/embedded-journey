@@ -9,8 +9,13 @@
 // select active mode for the project
 #define TARGET_UART_MODE UART_MODE_TX_ISR
 
+// logger queue
 #define LOGGER_QUEUE_LENGTH 6U
 #define LOGGER_QUEUE_ITEM_SIZE sizeof(LogEvent_t)
+
+// sensor queue
+#define SENSOR_QUEUE_LENGTH 1U
+#define SENSOR_QUEUE_ITEM_SIZE sizeof(SensorQueue_t)
 
 #define SENSOR_TASK_PERIOD_MS 500U
 
