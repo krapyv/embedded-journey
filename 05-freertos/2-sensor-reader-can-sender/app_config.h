@@ -15,7 +15,7 @@
 
 // sensor queue
 #define SENSOR_QUEUE_LENGTH 1U
-#define SENSOR_QUEUE_ITEM_SIZE sizeof(SensorQueue_t)
+#define SENSOR_QUEUE_ITEM_SIZE sizeof(SensorReading_t)
 
 #define SENSOR_TASK_PERIOD_MS 500U
 
@@ -29,5 +29,26 @@
 
 /* MCP2515 CONFIGURATION */
 #define MCP_INTERRUPT_MODE MCP_INTERRUPTS_DISABLED
+
+/* CNF values (CAN bit-timing layer) derived for 500 kbit/s */
+
+// BRP[5:0] = 000000, SJW[1:0] = 00 = 1 Tq
+// 0x00
+#define CAN_CNF1 0x00
+// BTLMODE = 1 (PS2 length set by PHSEG2 (CNF3), not auto-derived)
+// SAM = 0 - single sample at sample point
+// PHSEG1[2:0] = 010 = PS1 = 3 Tq
+// PRSEG[2:0] = 001 = PropSeg = 2 Tq
+// CNF2 = BITMODE | SAM | PHSEG1[2:0] | PRSEG[2:0]
+// 0x91
+#define CAN_CNF2 0x91
+// PHSEG2[2:0] = 001 = 2 Tq
+// 0x01
+#define CAN_CNF3 0x01
+
+// Put together, that's SyncSeg(1) + PropSeg(2) + PS1(3) + PS2(2) = 8 Tq per bit,
+// with BRP=0 giving Tq = 2×Tosc= 250ns (at Fosc=8MHz)
+// — so 8 Tq × 250ns = 2µs per bit = 500 kbit/s, and the sample point lands after
+// SyncSeg+PropSeg+PS1 = 6 of the 8 Tq, i.e. 75% into the bit.
 
 #endif // APP_CONFIG_H

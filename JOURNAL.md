@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-25
+
+**Morning:**
+- Implemented the CanTxTask. The refactoring is next.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-24
 
 **Morning:**

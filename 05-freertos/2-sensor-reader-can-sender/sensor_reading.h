@@ -1,5 +1,5 @@
-#ifndef SENSOR_QUEUE_H
-#define SENSOR_QUEUE_H
+#ifndef SENSOR_READING_H
+#define SENSOR_READING_H
 
 #include <stdint.h>
 
@@ -9,6 +9,6 @@ typedef struct
     uint32_t press;
     uint32_t seq;
     uint32_t tick;
-} SensorQueue_t;
+} SensorReading_t;
 
-#endif // SENSOR_QUEUE_H
+#endif // SENSOR_READING_H
