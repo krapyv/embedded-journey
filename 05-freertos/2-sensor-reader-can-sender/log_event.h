@@ -7,6 +7,7 @@ typedef enum
 {
     EVT_CAN_TX_OK = 0,
     EVT_CAN_TX_ERROR,
+    EVT_CAN_CONFIG_FAIL,
     EVT_SENSOR_READ_FAIL,
     EVT_BUTTON_STATUS,
 } LogEvent_ID_e;

@@ -35,6 +35,7 @@
 - Implemented the CanTxTask. The refactoring is next.
 
 **Evening:**
+- Continued working on CanTxTask and fixing its bugs.
 
 **Problems encountered:**
 - (None today) etc
