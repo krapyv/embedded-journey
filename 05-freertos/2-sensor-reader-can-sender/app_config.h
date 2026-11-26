@@ -23,6 +23,7 @@
 
 // priorities
 #define PRIORITY_SENSOR_TASK 4U
+#define PRIORITY_CAN_TX_TASK 3U
 #define PRIORITY_LOGGER_TASK 1U
 
 #define STACK_TASK_DEPTH 256U

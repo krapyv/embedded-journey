@@ -55,6 +55,10 @@ static StaticTask_t xLoggerTaskBuffer;
 // buffer that the task will use as its stack
 static StackType_t xLoggerStack[STACK_TASK_DEPTH];
 
+/* can tx task */
+static StaticTask_t xCanTxTaskBuffer;
+static StackType_t xCanTxStack[STACK_TASK_DEPTH];
+
 static LogEvent_t task_ConfigureLog(uint8_t event_id, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t tick)
 {
     LogEvent_t log = {.event_id = event_id,
@@ -91,6 +95,8 @@ void vCanTxTask(void *pvParameters)
     LogEvent_t entry;
 
     bool isConfigurationFailed = false;
+    bool isLinkDead = false;
+    bool abort_requested = false;
 
     MCP_Configure_t configure_res = mcp2515_configure(CAN_CNF1, CAN_CNF2, CAN_CNF3);
 
@@ -124,86 +130,111 @@ void vCanTxTask(void *pvParameters)
                         mcp2515_read_status(&read_status, 1U);
                         read_status_counter++;
 
-                        // isolate the TXREQ TXB0
-                        // if TXREQ TXB0 is set - abort, wait <= 2ms (blocking), log TX_ERROR with EFLG and the previous seq
-                        if (read_status & (1U << 2U))
+                        // try max 5 times
+                        // if no, the SPI link died and something else has happened
+                        if (read_status_counter < 5)
                         {
-                            // abort the frame means clear TXREQ
-                            // TXBnCTRL: TXREQ bit 3
-                            // mask: 0000 1000 = 2^3 = 0x8 - only the bit 3 changes
-                            // data byte: 0000 0000 = 0x0 - the bit 3 changes to 0
-                            mcp2515_bit_modify(TXB0CTRL, 0x8, 0x0);
 
-                            // blocking
-                            vTaskDelay(xAbortPeriod);
+                            // isolate the TXREQ TXB0
+                            // if TXREQ TXB0 is set - abort, wait <= 2ms (blocking), log TX_ERROR with EFLG and the previous seq
+                            if (read_status & (1U << 2U))
+                            {
+                                // abort the frame means clear TXREQ
+                                // TXBnCTRL: TXREQ bit 3
+                                // mask: 0000 1000 = 2^3 = 0x8 - only the bit 3 changes
+                                // data byte: 0000 0000 = 0x0 - the bit 3 changes to 0
+                                mcp2515_bit_modify(TXB0CTRL, 0x8, 0x0);
 
-                            uint8_t eflg_val = 0;
+                                // blocking
+                                vTaskDelay(xAbortPeriod);
 
-                            mcp2515_read(EFLG, &eflg_val, 1U);
+                                uint8_t eflg_val = 0;
 
-                            entry = task_ConfigureLog((uint8_t)EVT_CAN_TX_ERROR, eflg_val, prev_reading.seq, 0, 0, xTaskGetTickCount());
+                                mcp2515_read(EFLG, &eflg_val, 1U);
 
-                            // if the TXREQ is still set, then block for another 2 ms and read the status again
+                                if (!abort_requested)
+                                {
+                                    entry = task_ConfigureLog((uint8_t)EVT_CAN_TX_ERROR, eflg_val, prev_reading.seq, 0, 0, xTaskGetTickCount());
+                                    sendEntryToQueue(&entry);
+                                }
 
-                            vTaskDelay(xAbortPeriod);
+                                abort_requested = true;
+                                // if the TXREQ is still set, then block for another 2 ms and read the status again
+
+                                vTaskDelay(xAbortPeriod);
+                            }
+                            else
+                            {
+                                // the abort_requested != 1 - no abort was needed, so the previous frame was sent
+                                if (!abort_requested)
+                                {
+
+                                    // tick - when the success was confirmed
+                                    entry = task_ConfigureLog((uint8_t)EVT_CAN_TX_OK, prev_reading.seq, (uint32_t)prev_reading.temp, prev_reading.press, 0, xTaskGetTickCount());
+                                    sendEntryToQueue(&entry);
+                                }
+                                abort_requested = false;
+                                // if TXREQ of TXB0 is not set, break the loop
+                                break;
+                            }
                         }
                         else
                         {
-                            // the read_status_counter <= 1 - if yes, then there is no abort happened
-                            if (read_status_counter <= 1)
-                            {
-
-                                // tick - when the success was confirmed
-                                entry = task_ConfigureLog((uint8_t)EVT_CAN_TX_OK, prev_reading.seq, (uint32_t)prev_reading.temp, prev_reading.press, 0, xTaskGetTickCount());
-                            }
-
-                            // if TXREQ of TXB0 is not set, break the loop
+                            isLinkDead = true;
+                            abort_requested = false;
                             break;
                         }
                     }
 
-                    sendEntryToQueue(&entry);
-
                     frame_is_pending = false;
                 }
 
-                // pack a new frame
-                uint8_t DLC = 0x8;
-                MCP_RTS_locations_t location = MCP_RTS_TXB0;
+                if (!isLinkDead)
+                {
 
-                uint16_t id = 0x100; // 11 bits; 11-0, 15-12 are unused
-                uint8_t id_sidh = id >> 3;
-                uint8_t id_sidl = (id & 0x7) << 5;
+                    // pack a new frame
+                    uint8_t DLC = 0x8;
+                    MCP_RTS_locations_t location = MCP_RTS_TXB0;
 
-                /* settings for both press and temp */
+                    uint16_t id = 0x100; // 11 bits; 11-0, 15-12 are unused
+                    uint8_t id_sidh = id >> 3;
+                    uint8_t id_sidl = (id & 0x7) << 5;
 
-                // 1. Temperature
-                // since the temp is int32_t and we want only int16 => it consists of 2 int8_t bytes
-                // reconstruction of the int16_t => (temp_payload[1] << 8) | temp_payload[0]
+                    /* settings for both press and temp */
 
-                int16_t narrowed_temp = (int16_t)current_reading.temp;
+                    // 1. Temperature
+                    // since the temp is int32_t and we want only int16 => it consists of 2 int8_t bytes
+                    // reconstruction of the int16_t => (temp_payload[0] << 8) | temp_payload[1]
 
-                uint8_t temp_part_15_8 = (uint8_t)(narrowed_temp >> 8); // 15 14 13 12 11 10 9 8 - 8 bits
-                uint8_t temp_part_7_0 = (uint8_t)(narrowed_temp >> 0);  // 7 6 5 4 3 2 1 - 8 bits
+                    int16_t narrowed_temp = (int16_t)current_reading.temp;
 
-                // since the pressure is uint32_t => it consists of 4 uint8_t bytes
+                    uint8_t temp_part_15_8 = (uint8_t)(narrowed_temp >> 8); // 15 14 13 12 11 10 9 8 - 8 bits
+                    uint8_t temp_part_7_0 = (uint8_t)(narrowed_temp >> 0);  // 7 6 5 4 3 2 1 - 8 bits
 
-                uint8_t press_part_31_24 = (uint8_t)(current_reading.press >> 24); // 31 30 29 28 27 26 25 24 - 8 bits
-                uint8_t press_part_23_16 = (uint8_t)(current_reading.press >> 16); // 23 22 21 20 19 18 17 16 - 8 bits
-                uint8_t press_part_15_8 = (uint8_t)(current_reading.press >> 8);   // 15 14 13 12 11 10 9 8 - 8 bits
-                uint8_t press_part_7_0 = (uint8_t)(current_reading.press >> 0);    // 7 6 5 4 3 2 1 - 8 bits
+                    // since the pressure is uint32_t => it consists of 4 uint8_t bytes
 
-                // SIDH, SIDL, EID8 (zeroed out, don't care), EID0 (zeroed out, don't care), DLC, 8 data bytes
+                    uint8_t press_part_31_24 = (uint8_t)(current_reading.press >> 24); // 31 30 29 28 27 26 25 24 - 8 bits
+                    uint8_t press_part_23_16 = (uint8_t)(current_reading.press >> 16); // 23 22 21 20 19 18 17 16 - 8 bits
+                    uint8_t press_part_15_8 = (uint8_t)(current_reading.press >> 8);   // 15 14 13 12 11 10 9 8 - 8 bits
+                    uint8_t press_part_7_0 = (uint8_t)(current_reading.press >> 0);    // 7 6 5 4 3 2 1 - 8 bits
 
-                uint8_t can_tx_payload[13] = {id_sidh, id_sidl, 0x00, 0x00, DLC, temp_part_15_8, temp_part_7_0, press_part_31_24, press_part_23_16, press_part_15_8, press_part_7_0, (uint8_t)current_reading.seq, 0x0};
+                    // SIDH, SIDL, EID8 (zeroed out, don't care), EID0 (zeroed out, don't care), DLC, 8 data bytes
 
-                mcp2515_load_tx_buffer(MCP_Load_TXB0SIDH, can_tx_payload, 13U);
+                    uint8_t can_tx_payload[13] = {id_sidh, id_sidl, 0x00, 0x00, DLC, temp_part_15_8, temp_part_7_0, press_part_31_24, press_part_23_16, press_part_15_8, press_part_7_0, (uint8_t)current_reading.seq, 0x0};
 
-                mcp2515_rts(&location, 1U);
+                    mcp2515_load_tx_buffer(MCP_Load_TXB0SIDH, can_tx_payload, 13U);
 
-                // remember the reading as previous and set pending
-                prev_reading = current_reading;
-                frame_is_pending = true;
+                    mcp2515_rts(&location, 1U);
+
+                    // remember the reading as previous and set pending
+                    prev_reading = current_reading;
+                    frame_is_pending = true;
+                }
+                else
+                {
+                    entry = task_ConfigureLog((uint8_t)EVT_CAN_TX_DEAD, current_reading.seq, 0, 0, 0, xTaskGetTickCount());
+                    sendEntryToQueue(&entry);
+                }
             }
         }
     }
@@ -333,6 +364,11 @@ void vLoggerTask(void *pvParameters)
             case EVT_CAN_CONFIG_FAIL:
                 len = snprintf(buffer, sizeof(buffer), "CAN TX config fail, seq = %lu\r\n", event.arg0);
                 break;
+
+            case EVT_CAN_TX_DEAD:
+                len = snprintf(buffer, sizeof(buffer), "CAN TX dead, seq = %lu\r\n", event.arg0);
+                break;
+
             case EVT_SENSOR_READ_FAIL:
                 len = snprintf(buffer, sizeof(buffer), "BMP280 read failed, err = %lu\r\n", event.arg0);
                 break;
@@ -392,6 +428,7 @@ int main(void)
     hi2c.start_pending_hits = 0;
 
     I2C_Init();
+    spi_init(SPI_BR_8);
 
     BMP280_Ctrl_Meas_t meas = {
         .osrs_p = BMP280_OSRS_P_OVRSMP_1,
@@ -414,6 +451,9 @@ int main(void)
 
     TaskHandle_t xSensorHandle = xTaskCreateStatic(vSensorTask, "SENSOR_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_SENSOR_TASK, xSensorStack, &xSensorTaskBuffer);
     configASSERT(xSensorHandle);
+
+    TaskHandle_t xCanTxHandle = xTaskCreateStatic(vCanTxTask, "CAN_TX_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_CAN_TX_TASK, xCanTxStack, &xCanTxTaskBuffer);
+    configASSERT(xCanTxHandle);
 
     // start the FreeRTOS scheduler running
     vTaskStartScheduler();

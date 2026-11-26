@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-26
+
+**Morning:**
+- Finished implementing the Stage 3. 
+- Tested the Stage 3.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-25
 
 **Morning:**
