@@ -34,6 +34,7 @@
 **Morning:**
 - Finished implementing the Stage 3. 
 - Tested the Stage 3.
+- Built a breadboard circuit for the Stage 4: button, binary semaphore and StatusTask.
 
 **Evening:**
 
