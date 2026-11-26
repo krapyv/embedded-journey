@@ -410,6 +410,51 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask,
     }
 }
 
+void EXTI0_IRQHandler(void)
+{
+}
+
+void button_init()
+{
+    // enable the GPIOA clock
+    RCC->AHB1ENR |= (1UL << 0U);
+
+    // enable the SYSCFG clock
+    RCC->APB2ENR |= (1UL << 14U);
+
+    // configure the pin PA0
+    // set the input mode, MODER bits 0:1 to 00
+    // 0b11 = 0x3
+    GPIOA->MODER &= ~(0x3UL << 0U);
+
+    // clear the PUPDR bits 0:1 since we are using external resistor
+    GPIOA->PUPDR &= ~(0x3UL << 0U);
+
+    // select the PA0 as the source input for the EXTI line 0 external interrupt
+    // 0b1111 = 2^3 + 2^2 + 2^1 + 2^0 = 8 + 4 + 2 + 1 = 15 = 0xF
+    SYSCFG->EXTICR1 &= ~(0xFUL << 0U);
+
+    // enable falling trigger event for EXTI0
+    EXTI->FTSR |= (1UL << 0U);
+
+    // explicitly clear rising trigger event for EXTI0
+    EXTI->RTSR &= ~(1UL << 0U);
+
+    // NVIC: set the priority of 5
+    // EXTI0 has the position 6 in the vector table
+    NVIC->IPR[6] = (BUTTON_IRQ_PRIORITY << 4U);
+
+    // unmask the EXTI0 line
+    EXTI->IMR |= (1UL << 0U);
+
+    // clear the pending bit before enabling ISER
+    // PR is write-1-to-clear register
+    EXTI->PR = (1UL << 0U);
+
+    // enable the NVIC for the EXTI0
+    NVIC->ISER[0] = (1UL << 6U);
+}
+
 int main(void)
 {
     usart2_init();
@@ -454,6 +499,9 @@ int main(void)
 
     TaskHandle_t xCanTxHandle = xTaskCreateStatic(vCanTxTask, "CAN_TX_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_CAN_TX_TASK, xCanTxStack, &xCanTxTaskBuffer);
     configASSERT(xCanTxHandle);
+
+    // before calling button_init() create the semaphore
+    button_init();
 
     // start the FreeRTOS scheduler running
     vTaskStartScheduler();

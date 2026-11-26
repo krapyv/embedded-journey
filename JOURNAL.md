@@ -37,6 +37,7 @@
 - Built a breadboard circuit for the Stage 4: button, binary semaphore and StatusTask.
 
 **Evening:**
+- Implemented the PA0 EXTI0 button initialization function.
 
 **Problems encountered:**
 - (None today) etc
