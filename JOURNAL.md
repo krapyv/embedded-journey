@@ -36,6 +36,9 @@
 - Tested single presses as well as burst experiment. Works.
 
 **Evening:**
+- Closed the Stage 4.
+- Made the part of the Stage 5: Slow CanTxTask.
+- Started deriving the Slow LoggerTask part.
 
 **Problems encountered:**
 - (None today) etc

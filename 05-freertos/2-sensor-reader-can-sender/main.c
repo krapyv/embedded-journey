@@ -69,6 +69,7 @@ static SemaphoreHandle_t xButtonSemaphore;
 static StaticSemaphore_t xSemaphoreBuffer;
 
 volatile uint32_t exti0_counter = 0;
+volatile uint32_t failed_gives_counter = 0;
 
 static LogEvent_t task_ConfigureLog(uint8_t event_id, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t tick)
 {
@@ -240,6 +241,8 @@ void vCanTxTask(void *pvParameters)
                     // remember the reading as previous and set pending
                     prev_reading = current_reading;
                     frame_is_pending = true;
+
+                    vTaskDelay(pdMS_TO_TICKS(2000));
                 }
                 else
                 {
@@ -411,7 +414,6 @@ void vStatusTask(void *pvParameters)
         // the task waits for a button signal
         if (xSemaphoreTake(xButtonSemaphore, portMAX_DELAY) == pdTRUE)
         {
-            vTaskDelay(20000);
             entry = task_ConfigureLog((uint8_t)EVT_BUTTON_STATUS, uxQueueMessagesWaiting(logQueue), sensor_log_drop_counter, canTxTask_drop_counter, usart2_get_drop_counter(), xTaskGetTickCount());
 
             sendEntryToQueue(&entry, NULL);
@@ -443,7 +445,10 @@ void EXTI0_IRQHandler(void)
 
     exti0_counter++;
 
-    xSemaphoreGiveFromISR(xButtonSemaphore, &xHigherPriorityTaskWoken);
+    if (xSemaphoreGiveFromISR(xButtonSemaphore, &xHigherPriorityTaskWoken) == errQUEUE_FULL)
+    {
+        failed_gives_counter++;
+    }
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
