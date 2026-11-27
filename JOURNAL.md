@@ -29,6 +29,20 @@
 
 ----------------------------------------------
 
+# 2026-11-27
+
+**Morning:**
+- Finished the Stage 4.
+- Tested single presses as well as burst experiment. Works.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-26
 
 **Morning:**

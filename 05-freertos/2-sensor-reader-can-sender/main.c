@@ -8,6 +8,7 @@
 #include "bmp280.h"
 #include "queue.h"
 #include "task.h"
+#include "semphr.h"
 #include <stdio.h>
 
 // globally declared vaiable with physically allocated memory in RAM
@@ -59,6 +60,16 @@ static StackType_t xLoggerStack[STACK_TASK_DEPTH];
 static StaticTask_t xCanTxTaskBuffer;
 static StackType_t xCanTxStack[STACK_TASK_DEPTH];
 
+/* status task */
+static StaticTask_t xStatusTaskBuffer;
+static StackType_t xStatusStack[STACK_TASK_DEPTH];
+
+// button semaphore
+static SemaphoreHandle_t xButtonSemaphore;
+static StaticSemaphore_t xSemaphoreBuffer;
+
+volatile uint32_t exti0_counter = 0;
+
 static LogEvent_t task_ConfigureLog(uint8_t event_id, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t tick)
 {
     LogEvent_t log = {.event_id = event_id,
@@ -71,14 +82,14 @@ static LogEvent_t task_ConfigureLog(uint8_t event_id, uint32_t arg0, uint32_t ar
     return log;
 }
 
-static void sendEntryToQueue(LogEvent_t *entry)
+static void sendEntryToQueue(LogEvent_t *entry, uint32_t *counter)
 {
     BaseType_t queueSendRes = xQueueSendToBack(logQueue, entry, 0); // 0 - try once and return immediately
 
-    if (queueSendRes == errQUEUE_FULL)
+    if ((queueSendRes == errQUEUE_FULL) && (counter != NULL))
     {
         // queue was full and the item is dropped
-        canTxTask_drop_counter++;
+        (*counter)++;
     }
 }
 
@@ -116,7 +127,7 @@ void vCanTxTask(void *pvParameters)
             if (isConfigurationFailed)
             {
                 entry = task_ConfigureLog((uint8_t)EVT_CAN_CONFIG_FAIL, current_reading.seq, 0, 0, 0, xTaskGetTickCount());
-                sendEntryToQueue(&entry);
+                sendEntryToQueue(&entry, &canTxTask_drop_counter);
             }
             else
             {
@@ -155,7 +166,7 @@ void vCanTxTask(void *pvParameters)
                                 if (!abort_requested)
                                 {
                                     entry = task_ConfigureLog((uint8_t)EVT_CAN_TX_ERROR, eflg_val, prev_reading.seq, 0, 0, xTaskGetTickCount());
-                                    sendEntryToQueue(&entry);
+                                    sendEntryToQueue(&entry, &canTxTask_drop_counter);
                                 }
 
                                 abort_requested = true;
@@ -171,7 +182,7 @@ void vCanTxTask(void *pvParameters)
 
                                     // tick - when the success was confirmed
                                     entry = task_ConfigureLog((uint8_t)EVT_CAN_TX_OK, prev_reading.seq, (uint32_t)prev_reading.temp, prev_reading.press, 0, xTaskGetTickCount());
-                                    sendEntryToQueue(&entry);
+                                    sendEntryToQueue(&entry, &canTxTask_drop_counter);
                                 }
                                 abort_requested = false;
                                 // if TXREQ of TXB0 is not set, break the loop
@@ -233,7 +244,7 @@ void vCanTxTask(void *pvParameters)
                 else
                 {
                     entry = task_ConfigureLog((uint8_t)EVT_CAN_TX_DEAD, current_reading.seq, 0, 0, 0, xTaskGetTickCount());
-                    sendEntryToQueue(&entry);
+                    sendEntryToQueue(&entry, &canTxTask_drop_counter);
                 }
             }
         }
@@ -308,13 +319,7 @@ void vSensorTask(void *pvParameters)
         if (process_res == BMP280_PROCESS_FAILED)
         {
             entry = task_ConfigureLog((uint8_t)EVT_SENSOR_READ_FAIL, (uint32_t)hbmp.last_error_code, 0, 0, 0, xTaskGetTickCount());
-            BaseType_t queueSendRes = xQueueSendToBack(logQueue, &entry, 0); // 0 - try once and return immediately
-
-            if (queueSendRes == errQUEUE_FULL)
-            {
-                // queue was full and the item is dropped
-                sensor_log_drop_counter++;
-            }
+            sendEntryToQueue(&entry, &sensor_log_drop_counter);
         }
         else
         {
@@ -396,6 +401,26 @@ void vLoggerTask(void *pvParameters)
     }
 }
 
+void vStatusTask(void *pvParameters)
+{
+    (void)pvParameters;
+    LogEvent_t entry;
+
+    for (;;)
+    {
+        // the task waits for a button signal
+        if (xSemaphoreTake(xButtonSemaphore, portMAX_DELAY) == pdTRUE)
+        {
+            vTaskDelay(20000);
+            entry = task_ConfigureLog((uint8_t)EVT_BUTTON_STATUS, uxQueueMessagesWaiting(logQueue), sensor_log_drop_counter, canTxTask_drop_counter, usart2_get_drop_counter(), xTaskGetTickCount());
+
+            sendEntryToQueue(&entry, NULL);
+
+            // for signalling, one side only gives (the ISR), the other side only takes (the task)
+        }
+    }
+}
+
 void vApplicationStackOverflowHook(TaskHandle_t xTask,
                                    char *pcTaskName)
 {
@@ -412,6 +437,14 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask,
 
 void EXTI0_IRQHandler(void)
 {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    // clear the pending bit in EXTI_PR
+    EXTI->PR = (1UL << 0U);
+
+    exti0_counter++;
+
+    xSemaphoreGiveFromISR(xButtonSemaphore, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 void button_init()
@@ -500,7 +533,12 @@ int main(void)
     TaskHandle_t xCanTxHandle = xTaskCreateStatic(vCanTxTask, "CAN_TX_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_CAN_TX_TASK, xCanTxStack, &xCanTxTaskBuffer);
     configASSERT(xCanTxHandle);
 
+    TaskHandle_t xStatusHandle = xTaskCreateStatic(vStatusTask, "STATUS_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_STATUS_TASK, xStatusStack, &xStatusTaskBuffer);
+    configASSERT(xStatusHandle);
+
     // before calling button_init() create the semaphore
+    xButtonSemaphore = xSemaphoreCreateBinaryStatic(&xSemaphoreBuffer);
+    configASSERT(xButtonSemaphore);
     button_init();
 
     // start the FreeRTOS scheduler running
