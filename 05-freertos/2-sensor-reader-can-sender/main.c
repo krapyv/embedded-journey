@@ -36,6 +36,14 @@ static StaticQueue_t xLoggerStaticQueue;
 // at least queue_length * item_size -> logStorage = 6 * 24 = 144
 static uint8_t ucLoggerQueueStorageArea[LOGGER_QUEUE_LENGTH * LOGGER_QUEUE_ITEM_SIZE];
 
+/* logger task */
+// structure that will hold the TCB of the task
+static StaticTask_t xLoggerTaskBuffer;
+
+// buffer that the task will use as its stack
+static StackType_t xLoggerStack[STACK_TASK_DEPTH];
+
+#if (COMPILATION_MODE == NORMAL_MODE)
 /* static sensor queue */
 static StaticQueue_t xSensorStaticQueue;
 
@@ -49,13 +57,6 @@ static StaticTask_t xSensorTaskBuffer;
 // buffer that the task will use as its stack
 static StackType_t xSensorStack[STACK_TASK_DEPTH];
 
-/* logger task */
-// structure that will hold the TCB of the task
-static StaticTask_t xLoggerTaskBuffer;
-
-// buffer that the task will use as its stack
-static StackType_t xLoggerStack[STACK_TASK_DEPTH];
-
 /* can tx task */
 static StaticTask_t xCanTxTaskBuffer;
 static StackType_t xCanTxStack[STACK_TASK_DEPTH];
@@ -66,10 +67,30 @@ static StackType_t xStatusStack[STACK_TASK_DEPTH];
 
 // button semaphore
 static SemaphoreHandle_t xButtonSemaphore;
-static StaticSemaphore_t xSemaphoreBuffer;
+static StaticSemaphore_t xButtonSemaphoreBuffer;
 
-volatile uint32_t exti0_counter = 0;
 volatile uint32_t failed_gives_counter = 0;
+volatile uint32_t exti0_counter = 0;
+#endif
+
+#if (COMPILATION_MODE == PRIORITY_INVERSION_TEST)
+// task L
+static StaticTask_t xLTaskBuffer;
+static StackType_t xLStack[STACK_TASK_DEPTH];
+
+// task M
+static StaticTask_t xMTaskBuffer;
+static StackType_t xMStack[STACK_TASK_DEPTH];
+
+// task H
+static StaticTask_t xHTaskBuffer;
+static StackType_t xHStack[STACK_TASK_DEPTH];
+
+// semaphore
+static SemaphoreHandle_t xPriorityInversionSemaphore;
+static StaticSemaphore_t xPriorityInversionSemaphoreBuffer;
+
+#endif
 
 static LogEvent_t task_ConfigureLog(uint8_t event_id, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t tick)
 {
@@ -93,6 +114,70 @@ static void sendEntryToQueue(LogEvent_t *entry, uint32_t *counter)
         (*counter)++;
     }
 }
+
+void vLoggerTask(void *pvParameters)
+{
+    (void)pvParameters;
+    for (;;)
+    {
+        LogEvent_t event;
+        BaseType_t queue_receive_value = xQueueReceive(logQueue, &event, portMAX_DELAY);
+
+        if (queue_receive_value == pdTRUE)
+        {
+
+            char buffer[128];
+            int len;
+            switch ((LogEvent_ID_e)event.event_id)
+            {
+            case EVT_CAN_TX_OK:
+                len = snprintf(buffer, sizeof(buffer), "CAN TX ok, seq = %lu, temp = %ld, press = %lu\r\n", event.arg0, (int32_t)event.arg1, event.arg2);
+                break;
+
+            case EVT_CAN_TX_ERROR:
+                len = snprintf(buffer, sizeof(buffer), "CAN TX error, EFLG = 0x%02lX, seq = %lu\r\n", event.arg0, event.arg1);
+                break;
+
+            case EVT_CAN_CONFIG_FAIL:
+                len = snprintf(buffer, sizeof(buffer), "CAN TX config fail, seq = %lu\r\n", event.arg0);
+                break;
+
+            case EVT_CAN_TX_DEAD:
+                len = snprintf(buffer, sizeof(buffer), "CAN TX dead, seq = %lu\r\n", event.arg0);
+                break;
+
+            case EVT_SENSOR_READ_FAIL:
+                len = snprintf(buffer, sizeof(buffer), "BMP280 read failed, err = %lu\r\n", event.arg0);
+                break;
+
+            case EVT_BUTTON_STATUS:
+                len = snprintf(buffer, sizeof(buffer), "logQ wait = %lu, sensorTask drops = %lu, CanTxTask drops = %lu, UART TX drops = %lu\r\n", event.arg0, event.arg1, event.arg2, event.arg3);
+                break;
+
+            case EVT_PI_RESULT:
+                len = snprintf(buffer, sizeof(buffer), "PI wait = %lu, lock type = %lu\r\n", event.arg0, event.arg1);
+                break;
+
+            default:
+                len = snprintf(buffer, sizeof(buffer), "INVALID EVENT ID: %u !\r\n", event.event_id);
+                break;
+            }
+
+            if (len < 0)
+            {
+                len = snprintf(buffer, sizeof(buffer), "ERROR!\r\n");
+            }
+            if (len >= (int)sizeof(buffer))
+            {
+                len = sizeof(buffer) - 1; // 128 - 1
+            }
+
+            usart2_tx_write((const uint8_t *)buffer, (uint16_t)len);
+        }
+    }
+}
+
+#if (COMPILATION_MODE == NORMAL_MODE)
 
 void vCanTxTask(void *pvParameters)
 {
@@ -344,64 +429,6 @@ void vSensorTask(void *pvParameters)
     }
 }
 
-void vLoggerTask(void *pvParameters)
-{
-    (void)pvParameters;
-    for (;;)
-    {
-        LogEvent_t event;
-        BaseType_t queue_receive_value = xQueueReceive(logQueue, &event, portMAX_DELAY);
-
-        if (queue_receive_value == pdTRUE)
-        {
-
-            char buffer[128];
-            int len;
-            switch ((LogEvent_ID_e)event.event_id)
-            {
-            case EVT_CAN_TX_OK:
-                len = snprintf(buffer, sizeof(buffer), "CAN TX ok, seq = %lu, temp = %ld, press = %lu\r\n", event.arg0, (int32_t)event.arg1, event.arg2);
-                break;
-
-            case EVT_CAN_TX_ERROR:
-                len = snprintf(buffer, sizeof(buffer), "CAN TX error, EFLG = 0x%02lX, seq = %lu\r\n", event.arg0, event.arg1);
-                break;
-
-            case EVT_CAN_CONFIG_FAIL:
-                len = snprintf(buffer, sizeof(buffer), "CAN TX config fail, seq = %lu\r\n", event.arg0);
-                break;
-
-            case EVT_CAN_TX_DEAD:
-                len = snprintf(buffer, sizeof(buffer), "CAN TX dead, seq = %lu\r\n", event.arg0);
-                break;
-
-            case EVT_SENSOR_READ_FAIL:
-                len = snprintf(buffer, sizeof(buffer), "BMP280 read failed, err = %lu\r\n", event.arg0);
-                break;
-
-            case EVT_BUTTON_STATUS:
-                len = snprintf(buffer, sizeof(buffer), "logQ wait = %lu, sensorTask drops = %lu, CanTxTask drops = %lu, UART TX drops = %lu\r\n", event.arg0, event.arg1, event.arg2, event.arg3);
-                break;
-
-            default:
-                len = snprintf(buffer, sizeof(buffer), "INVALID EVENT ID: %u !\r\n", event.event_id);
-                break;
-            }
-
-            if (len < 0)
-            {
-                len = snprintf(buffer, sizeof(buffer), "ERROR!\r\n");
-            }
-            if (len >= (int)sizeof(buffer))
-            {
-                len = sizeof(buffer) - 1; // 128 - 1
-            }
-
-            usart2_tx_write((const uint8_t *)buffer, (uint16_t)len);
-        }
-    }
-}
-
 void vStatusTask(void *pvParameters)
 {
     (void)pvParameters;
@@ -418,20 +445,6 @@ void vStatusTask(void *pvParameters)
 
             // for signalling, one side only gives (the ISR), the other side only takes (the task)
         }
-    }
-}
-
-void vApplicationStackOverflowHook(TaskHandle_t xTask,
-                                   char *pcTaskName)
-{
-    (void)xTask;
-
-    taskDISABLE_INTERRUPTS();
-
-    vAppSOH_TaskName = pcTaskName;
-
-    for (;;)
-    {
     }
 }
 
@@ -490,13 +503,99 @@ void button_init()
     // enable the NVIC for the EXTI0
     NVIC->ISER[0] = (1UL << 6U);
 }
+#endif
+
+#if (COMPILATION_MODE == PRIORITY_INVERSION_TEST)
+void vLTask(void *pvParameters)
+{
+    (void)pvParameters;
+    TickType_t period = pdMS_TO_TICKS(50);
+    TickType_t start = xTaskGetTickCount();
+
+    BaseType_t take_res = xSemaphoreTake(xPriorityInversionSemaphore, portMAX_DELAY);
+    configASSERT(take_res == pdTRUE);
+
+    while ((xTaskGetTickCount() - start) < period)
+    {
+    }
+
+    xSemaphoreGive(xPriorityInversionSemaphore);
+
+    for (;;)
+    {
+        vTaskDelay(portMAX_DELAY);
+    }
+}
+
+void vMTask(void *pvParameters)
+{
+    (void)pvParameters;
+
+    vTaskDelay(pdMS_TO_TICKS(20));
+
+    TickType_t period = pdMS_TO_TICKS(200);
+    TickType_t start = xTaskGetTickCount();
+
+    while ((xTaskGetTickCount() - start) < period)
+    {
+    }
+    for (;;)
+    {
+        vTaskDelay(portMAX_DELAY);
+    }
+}
+
+void vHTask(void *pvParameters)
+{
+    (void)pvParameters;
+
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    TickType_t t_before = xTaskGetTickCount();
+    xSemaphoreTake(xPriorityInversionSemaphore, portMAX_DELAY);
+    TickType_t t_after = xTaskGetTickCount();
+
+    TickType_t wait = t_after - t_before;
+
+    xSemaphoreGive(xPriorityInversionSemaphore);
+
+    LogEvent_t entry = task_ConfigureLog((uint8_t)EVT_PI_RESULT, pdTICKS_TO_MS(wait), PI_LOCK_TYPE, 0, 0, xTaskGetTickCount());
+
+    sendEntryToQueue(&entry, NULL);
+
+    for (;;)
+    {
+        vTaskDelay(portMAX_DELAY);
+    }
+}
+
+#endif
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask,
+                                   char *pcTaskName)
+{
+    (void)xTask;
+
+    taskDISABLE_INTERRUPTS();
+
+    vAppSOH_TaskName = pcTaskName;
+
+    for (;;)
+    {
+    }
+}
 
 int main(void)
 {
     usart2_init();
 
-    // BMP280
+    logQueue = xQueueCreateStatic(LOGGER_QUEUE_LENGTH, LOGGER_QUEUE_ITEM_SIZE, ucLoggerQueueStorageArea, &xLoggerStaticQueue);
+    configASSERT(logQueue);
+    TaskHandle_t xLoggerHandle = xTaskCreateStatic(vLoggerTask, "LOGGER_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_LOGGER_TASK, xLoggerStack, &xLoggerTaskBuffer);
+    configASSERT(xLoggerHandle);
 
+#if (COMPILATION_MODE == NORMAL_MODE)
+    // BMP280
     // define and initialize structs
     hi2c.channel = I2C_CHANNEL_1;
     hi2c.scl_port = GPIOB;
@@ -520,15 +619,10 @@ int main(void)
 
     configASSERT(configure_res == BMP280_OK);
 
-    logQueue = xQueueCreateStatic(LOGGER_QUEUE_LENGTH, LOGGER_QUEUE_ITEM_SIZE, ucLoggerQueueStorageArea, &xLoggerStaticQueue);
-    configASSERT(logQueue);
-
     sensorQueue = xQueueCreateStatic(SENSOR_QUEUE_LENGTH, SENSOR_QUEUE_ITEM_SIZE, ucSensorQueueStorageArea, &xSensorStaticQueue);
     configASSERT(sensorQueue);
 
     // tasks creation
-    TaskHandle_t xLoggerHandle = xTaskCreateStatic(vLoggerTask, "LOGGER_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_LOGGER_TASK, xLoggerStack, &xLoggerTaskBuffer);
-    configASSERT(xLoggerHandle);
 
     TaskHandle_t xSensorHandle = xTaskCreateStatic(vSensorTask, "SENSOR_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_SENSOR_TASK, xSensorStack, &xSensorTaskBuffer);
     configASSERT(xSensorHandle);
@@ -540,9 +634,31 @@ int main(void)
     configASSERT(xStatusHandle);
 
     // before calling button_init() create the semaphore
-    xButtonSemaphore = xSemaphoreCreateBinaryStatic(&xSemaphoreBuffer);
+    xButtonSemaphore = xSemaphoreCreateBinaryStatic(&xButtonSemaphoreBuffer);
     configASSERT(xButtonSemaphore);
     button_init();
+#endif
+
+#if (COMPILATION_MODE == PRIORITY_INVERSION_TEST)
+    TaskHandle_t xLHandle = xTaskCreateStatic(vLTask, "L_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_L_TASK, xLStack, &xLTaskBuffer);
+    configASSERT(xLHandle);
+
+    TaskHandle_t xMHandle = xTaskCreateStatic(vMTask, "M_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_M_TASK, xMStack, &xMTaskBuffer);
+    configASSERT(xMHandle);
+
+    TaskHandle_t xHHandle = xTaskCreateStatic(vHTask, "H_TASK", STACK_TASK_DEPTH, NULL, PRIORITY_H_TASK, xHStack, &xHTaskBuffer);
+    configASSERT(xHHandle);
+
+#if (PI_LOCK_TYPE == BINARY_LOCK)
+    xPriorityInversionSemaphore = xSemaphoreCreateBinaryStatic(&xPriorityInversionSemaphoreBuffer);
+    configASSERT(xPriorityInversionSemaphore);
+    xSemaphoreGive(xPriorityInversionSemaphore); // lock available
+#elif (PI_LOCK_TYPE == MUTEX_LOCK)
+    xPriorityInversionSemaphore = xSemaphoreCreateMutexStatic(&xPriorityInversionSemaphoreBuffer);
+    configASSERT(xPriorityInversionSemaphore);
+#endif
+
+#endif
 
     // start the FreeRTOS scheduler running
     vTaskStartScheduler();

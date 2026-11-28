@@ -33,6 +33,7 @@
 
 **Morning:**
 - Made the slow USART logger experiment. The Stage 5 is done.
+- Finished the Stage 6, the priority inversion experiment. The Week 30 is done.
 
 **Evening:**
 

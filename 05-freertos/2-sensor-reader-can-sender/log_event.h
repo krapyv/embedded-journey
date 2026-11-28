@@ -11,6 +11,7 @@ typedef enum
     EVT_CAN_TX_DEAD,
     EVT_SENSOR_READ_FAIL,
     EVT_BUTTON_STATUS,
+    EVT_PI_RESULT
 } LogEvent_ID_e;
 
 typedef struct
