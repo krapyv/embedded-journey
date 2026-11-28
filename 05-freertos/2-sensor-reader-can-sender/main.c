@@ -241,8 +241,6 @@ void vCanTxTask(void *pvParameters)
                     // remember the reading as previous and set pending
                     prev_reading = current_reading;
                     frame_is_pending = true;
-
-                    vTaskDelay(pdMS_TO_TICKS(2000));
                 }
                 else
                 {

@@ -29,6 +29,19 @@
 
 ----------------------------------------------
 
+# 2026-11-28
+
+**Morning:**
+- Made the slow USART logger experiment. The Stage 5 is done.
+
+**Evening:**
+
+**Problems encountered:**
+- (None today) etc
+
+**Root cause at the register level:**
+-
+
 # 2026-11-27
 
 **Morning:**
